@@ -3,106 +3,120 @@ import json
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-import urllib3
 
-# Отключаем предупреждения SSL (для сайта облэнерго)
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-URL = "https://www.zoe.com.ua/графіки-погодинних-стабілізаційних/"
+# Веб-версія каналу, який ти скинув (з префіксом /s/ для перегляду в браузері)
+URL = "https://t.me/s/Zaporizhzhyaoblenergo_news"
 
 def get_html():
-    print(f"📡 Подключаемся к {URL}...")
+    print(f"📡 З'єднання з {URL}...")
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     }
     try:
-        response = requests.get(URL, headers=headers, timeout=30, verify=False)
-        response.encoding = 'utf-8' # Принудительно ставим UTF-8
-        return response.text
+        response = requests.get(URL, headers=headers, timeout=15)
+        if response.status_code == 200:
+            return response.text
+        else:
+            print(f"❌ Помилка: Статус {response.status_code}")
+            return None
     except Exception as e:
-        print(f"❌ Ошибка сети: {e}")
+        print(f"❌ Помилка мережі: {e}")
         return None
 
-def parse_text_stream(html):
+def parse_telegram(html):
     soup = BeautifulSoup(html, 'html.parser')
     
-    # Находим главный контент (обычно это article или div с классом entry-content)
-    # Если не находим, берем body целиком
-    content = soup.find('article') or soup.find('div', class_='entry-content') or soup.body
+    # Шукаємо всі повідомлення
+    messages = soup.find_all('div', class_='tgme_widget_message_text')
     
-    if not content:
-        print("❌ Не найден контент на странице")
+    if not messages:
+        print("❌ Повідомлення не знайдені. Можливо, змінилася верстка.")
         return []
 
-    # Получаем весь текст построчно, разделяя параграфы
-    text = content.get_text(separator="\n")
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    print(f"📄 Знайдено повідомлень: {len(messages)}")
     
-    print(f"📄 Прочитано строк: {len(lines)}")
+    # Збираємо всі рядки з усіх повідомлень в один список (від нових до старих)
+    all_lines = []
+    for msg in reversed(messages):
+        # Телеграм використовує <br> для перенесення рядків
+        text = msg.get_text(separator="\n")
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        all_lines.extend(lines)
 
+    return extract_schedules_from_lines(all_lines)
+
+def extract_schedules_from_lines(lines):
     schedules = []
     current_schedule = None
     
-    # 1. Regex для поиска даты (поддерживаем укр. месяцы)
+    # 1. Регулярка для дати (наприклад "10 ГРУДНЯ" або "НА 09 ГРУДНЯ")
     months = r"(СІЧНЯ|ЛЮТОГО|БЕРЕЗНЯ|КВІТНЯ|ТРАВНЯ|ЧЕРВНЯ|ЛИПНЯ|СЕРПНЯ|ВЕРЕСНЯ|ЖОВТНЯ|ЛИСТОПАДА|ГРУДНЯ)"
+    # Шукаємо число і місяць
     date_pattern = re.compile(rf"(\d{{1,2}})\s+{months}", re.IGNORECASE)
     
-    # 2. Regex для поиска очередей (1.1: время)
+    # 2. Регулярка для черги (1.1: або 1.1 - ...)
     queue_pattern = re.compile(r"^(\d\.\d)\s*[:]\s*(.*)")
     
-    # 3. Regex для времени (00:00 - 02:00) с разными тире
+    # 3. Регулярка для часу (00:00 - 02:00) з підтримкою різних тире
     time_pattern = re.compile(r"(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})")
 
     for line in lines:
-        # --- Ищем дату ---
-        # Фразы типа "ОНОВЛЕНО ГПВ НА 10 ГРУДНЯ" или "10 ГРУДНЯ ... ГПВ"
-        if "ГПВ" in line.upper():
-            match = date_pattern.search(line)
+        # Прибираємо нерозривні пробіли, які любить Телеграм
+        clean_line = line.replace('\xa0', ' ')
+        
+        # --- Шукаємо дату ---
+        # Якщо в рядку є слово "ГПВ" і дата
+        if "ГПВ" in clean_line.upper():
+            match = date_pattern.search(clean_line)
             if match:
                 day, month = match.groups()
                 date_str = f"{day} {month.upper()}"
                 
-                # Ищем время обновления (оновлено о 10:00)
-                time_update = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", line)
-                updated_at = time_update.group(1) if time_update else None
+                # Перевіряємо, чи не обробляли ми вже цю дату (щоб не дублювати)
+                if any(s['date'] == date_str for s in schedules):
+                    continue
 
-                # Если у нас уже собирался график, сохраняем его перед началом нового
+                # Шукаємо час оновлення (оновлено о 10:00), якщо є
+                time_update = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", clean_line, re.IGNORECASE)
+                updated_at = time_update.group(1) if time_update else datetime.now().strftime("%H:%M")
+
+                # Якщо у нас вже збирався графік, зберігаємо його
                 if current_schedule and current_schedule['queues']:
                     schedules.append(current_schedule)
 
-                # Начинаем новый график
+                # Створюємо нову картку графіка
                 current_schedule = {
                     "date": date_str,
                     "updated_at": updated_at,
                     "queues": {}
                 }
-                print(f"🗓  Найдена дата: {date_str} (Обновлено: {updated_at})")
+                print(f"🗓  Знайдено дату: {date_str}")
                 continue
 
-        # --- Ищем очереди (только если дата уже найдена) ---
+        # --- Шукаємо черги ---
         if current_schedule:
-            q_match = queue_pattern.search(line)
+            q_match = queue_pattern.search(clean_line)
             if q_match:
-                q_id = q_match.group(1) # 1.1
-                times_raw = q_match.group(2) # 00:00 - 03:00, ...
+                q_id = q_match.group(1) # наприклад "1.1"
+                times_raw = q_match.group(2) # "00:00 - 05:00, ..."
                 
                 intervals = []
-                # Разбиваем по запятой или точке с запятой
+                # Розбиваємо рядок по комі або крапці з комою
                 parts = re.split(r"[,;]", times_raw)
-                
                 for part in parts:
                     t_match = time_pattern.search(part)
                     if t_match:
                         start, end = t_match.groups()
-                        # Исправляем 24:00 на 00:00 для корректности (опционально)
                         intervals.append({"start": start, "end": end})
                 
                 if intervals:
                     current_schedule["queues"][q_id] = intervals
 
-    # Не забываем добавить последний график после цикла
+    # Додаємо останній знайдений графік
     if current_schedule and current_schedule['queues']:
-        schedules.append(current_schedule)
+        # Ще одна перевірка на дублікат
+        if not any(s['date'] == current_schedule['date'] for s in schedules):
+            schedules.append(current_schedule)
 
     return schedules
 
@@ -112,22 +126,20 @@ if __name__ == "__main__":
     
     data = []
     if html_content:
-        data = parse_text_stream(html_content)
+        data = parse_telegram(html_content)
     
+    # Беремо тільки 2 останні актуальні графіки (наприклад, на сьогодні і завтра)
+    # Щоб файл не розростався
+    data = data[:2]
+
     final_json = {
         "last_check": datetime.now().strftime("%d.%m %H:%M"),
         "schedules": data
     }
 
-    # Сохраняем
     with open('schedule.json', 'w', encoding='utf-8') as f:
         json.dump(final_json, f, ensure_ascii=False, indent=4)
         
-    print(f"💾 Готово. Сохранено {len(data)} графиков в schedule.json")
-    
-    # Для отладки покажем первый найденный график
-    if data:
-        print("Пример последних данных:")
-        print(json.dumps(data[0], ensure_ascii=False, indent=2))
-    else:
-        print("⚠️ Графики не найдены. Проверь структуру сайта.")
+    print(f"💾 Готово. Збережено {len(data)} графіків.")
+    if len(data) > 0:
+        print(f"   Останній: {data[0]['date']}")
