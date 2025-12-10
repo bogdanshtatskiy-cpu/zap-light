@@ -2,7 +2,7 @@ name: Update Schedule
 
 on:
   schedule:
-    - cron: '0 * * * *' # Запускать каждый час
+    - cron: '*/30 * * * *'
   workflow_dispatch: # Кнопка ручного запуска
 
 # ВОТ ЭТО ИСПРАВЛЯЕТ ОШИБКУ 128:
