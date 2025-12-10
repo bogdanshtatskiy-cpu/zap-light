@@ -17,7 +17,6 @@
             --on-color: #4cd964;
             --off-color: #ff3b30;
             --card-border: rgba(255,255,255,0.4);
-            --text-secondary: rgba(0,0,0,0.5);
         }
 
         body.dark-mode {
@@ -28,7 +27,6 @@
             --status-bg: #2c2c2c;
             --shadow: 0 8px 20px rgba(0,0,0,0.4);
             --card-border: rgba(255,255,255,0.1);
-            --text-secondary: rgba(255,255,255,0.5);
         }
 
         body {
@@ -52,14 +50,22 @@
             transition: background 0.5s ease;
         }
 
-        /* HEADER */
+        /* Top Bar */
         .top-bar {
+            display: flex;
+            flex-direction: column; /* Изменили на колонку для мобильных */
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .top-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            width: 100%;
         }
 
+        /* Lang Switch */
         .lang-switch {
             background: var(--card-bg);
             border-radius: 20px;
@@ -68,7 +74,6 @@
             box-shadow: var(--shadow);
             border: 1px solid var(--card-border);
         }
-
         .lang-btn {
             padding: 6px 12px;
             border-radius: 16px;
@@ -85,34 +90,44 @@
             opacity: 1;
         }
 
+        /* Scrollable Date Tabs */
+        .date-tabs-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            scrollbar-width: none;
+        }
+        .date-tabs-wrapper::-webkit-scrollbar { display: none; }
+
         .date-tabs {
             display: flex;
             gap: 8px;
-            flex-grow: 1;
-            justify-content: center;
-            margin-right: 10px;
+            padding: 0 2px;
         }
+        
         .date-tab {
-            background: transparent;
-            border: 1px solid var(--text-color);
+            flex: 0 0 auto;
+            background: var(--card-bg);
+            border: 1px solid transparent;
             color: var(--text-color);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 12px;
-            opacity: 0.7;
+            padding: 8px 16px;
+            border-radius: 18px;
+            font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
             transition: 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         .date-tab.active {
             background: var(--text-color);
             color: var(--bg-color);
-            opacity: 1;
             font-weight: 800;
-            transform: scale(1.05);
+            transform: scale(1.02);
+            box-shadow: var(--shadow);
         }
 
-        /* QUEUES */
+        /* Queues */
         .queue-container-wrapper { margin: 0 -16px 20px -16px; padding: 0 16px; }
         .queue-selector {
             display: flex; gap: 10px; overflow-x: auto; padding: 5px 5px 15px 5px;
@@ -138,7 +153,7 @@
             transform: scale(1.05);
         }
 
-        /* HERO CARD */
+        /* Hero & Status */
         .hero-card {
             background: var(--card-bg);
             border-radius: 28px;
@@ -154,7 +169,7 @@
         .countdown { font-size: 18px; margin-top: 12px; font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.9; }
         .update-info { font-size: 11px; margin-top: 15px; opacity: 0.4; font-weight: 600; }
 
-        /* TIMELINE */
+        /* Timeline */
         .timeline-container { position: relative; padding-top: 10px; margin-bottom: 25px; }
         .timeline-bar {
             display: flex; height: 44px; border-radius: 14px; overflow: hidden;
@@ -174,7 +189,7 @@
             font-size: 11px; opacity: 0.6; margin-top: 8px; font-weight: 700;
         }
 
-        /* STATS */
+        /* Stats & Details */
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
         .stat-box {
             background: var(--card-bg); border-radius: 20px; padding: 15px; text-align: center;
@@ -185,24 +200,16 @@
         .stat-box.on .stat-value { color: var(--on-color); }
         .stat-box.off .stat-value { color: var(--off-color); }
 
-        /* LIST DETAILS */
         .details-card {
-            background: var(--card-bg);
-            border-radius: 24px;
-            padding: 5px 0;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--card-border);
-            overflow: hidden;
-            margin-bottom: 30px;
+            background: var(--card-bg); border-radius: 24px; padding: 5px 0;
+            box-shadow: var(--shadow); border: 1px solid var(--card-border); overflow: hidden; margin-bottom: 30px;
         }
         .list-row {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 14px 20px;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 14px 20px; border-bottom: 1px solid rgba(0,0,0,0.05);
         }
         .list-row:last-child { border-bottom: none; }
         .row-time { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
-        
         .row-status {
             font-size: 13px; font-weight: 800; padding: 6px 12px; border-radius: 10px;
             display: flex; align-items: center; gap: 6px;
@@ -219,10 +226,16 @@
     <div class="background-blob"></div>
 
     <div class="top-bar">
-        <div class="date-tabs" id="date-tabs"></div>
-        <div class="lang-switch">
-            <div class="lang-btn active" onclick="setLanguage('uk')" id="btn-uk">UA</div>
-            <div class="lang-btn" onclick="setLanguage('ru')" id="btn-ru">RU</div>
+        <div class="top-row">
+            <h3 style="margin:0; font-weight:900; font-size:20px;">ГПВ</h3>
+            <div class="lang-switch">
+                <div class="lang-btn active" onclick="setLanguage('uk')" id="btn-uk">UA</div>
+                <div class="lang-btn" onclick="setLanguage('ru')" id="btn-ru">RU</div>
+            </div>
+        </div>
+        
+        <div class="date-tabs-wrapper">
+            <div class="date-tabs" id="date-tabs"></div>
         </div>
     </div>
 
@@ -254,8 +267,7 @@
         </div>
     </div>
 
-    <div class="details-card" id="details-list" style="display:none;">
-        </div>
+    <div class="details-card" id="details-list" style="display:none;"></div>
 
     <div class="loading" id="loading">...</div>
 
@@ -292,6 +304,11 @@
             }
         };
 
+        const uaMonthToIndex = {
+            "СІЧНЯ": 0, "ЛЮТОГО": 1, "БЕРЕЗНЯ": 2, "КВІТНЯ": 3, "ТРАВНЯ": 4, "ЧЕРВНЯ": 5,
+            "ЛИПНЯ": 6, "СЕРПНЯ": 7, "ВЕРЕСНЯ": 8, "ЖОВТНЯ": 9, "ЛИСТОПАДА": 10, "ГРУДНЯ": 11
+        };
+
         const monthMapping = {
             "СІЧНЯ": "ЯНВАРЯ", "ЛЮТОГО": "ФЕВРАЛЯ", "БЕРЕЗНЯ": "МАРТА", "КВІТНЯ": "АПРЕЛЯ", "ТРАВНЯ": "МАЯ", "ЧЕРВНЯ": "ИЮНЯ",
             "ЛИПНЯ": "ИЮЛЯ", "СЕРПНЯ": "АВГУСТА", "ВЕРЕСНЯ": "СЕНТЯБРЯ", "ЖОВТНЯ": "ОКТЯБРЯ", "ЛИСТОПАДА": "НОЯБРЯ", "ГРУДНЯ": "ДЕКАБРЯ"
@@ -314,14 +331,11 @@
 
             if (schedulesData.length > 0) {
                 renderDateTabs();
+                // Стараемся сохранить текущий выбор графика, если он есть
                 const currentIdx = schedulesData.indexOf(activeSchedule);
-                selectSchedule(currentIdx !== -1 ? currentIdx : 0);
-                
-                if (!activeQueue) {
-                    document.getElementById('status-text').innerText = translations[lang].select_queue;
-                } else {
-                    updateStats();
-                    renderDetailsList(); // Обновляем список (тексты)
+                if (currentIdx !== -1) {
+                    // Просто обновляем UI
+                    updateUI(currentIdx);
                 }
             } else {
                 document.getElementById('loading').innerText = translations[lang].loading;
@@ -340,6 +354,27 @@
             return newStr;
         }
 
+        // --- УМНАЯ ФУНКЦИЯ ПОИСКА СЕГОДНЯШНЕГО ДНЯ ---
+        function findTodayIndex(data) {
+            const now = new Date();
+            const todayDay = now.getDate();
+            const todayMonth = now.getMonth(); // 0-11
+
+            for (let i = 0; i < data.length; i++) {
+                const parts = data[i].date.split(' '); // "10 ГРУДНЯ" -> ["10", "ГРУДНЯ"]
+                if (parts.length === 2) {
+                    const d = parseInt(parts[0]);
+                    const mName = parts[1].toUpperCase();
+                    const mIdx = uaMonthToIndex[mName];
+
+                    if (d === todayDay && mIdx === todayMonth) {
+                        return i;
+                    }
+                }
+            }
+            return 0; // Если не нашли, возвращаем самый свежий (первый)
+        }
+
         async function init() {
             setLanguage(currentLang);
             try {
@@ -355,8 +390,11 @@
                 }
 
                 renderDateTabs();
-                selectSchedule(0);
                 renderQueueButtons();
+
+                // Авто-выбор сегодняшней даты
+                const todayIdx = findTodayIndex(schedulesData);
+                selectSchedule(todayIdx);
 
                 if (activeQueue) selectQueue(activeQueue);
                 else {
@@ -384,13 +422,27 @@
 
         function selectSchedule(idx) {
             activeSchedule = schedulesData[idx];
-            renderDateTabs();
+            updateUI(idx);
+        }
+
+        function updateUI(idx) {
+            // Обновляем классы табов
+            const tabs = document.querySelectorAll('.date-tab');
+            tabs.forEach((tab, i) => {
+                tab.classList.toggle('active', i === idx);
+                // Если таб активен, прокручиваем к нему (для мобильных)
+                if (i === idx) {
+                    tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            });
+
             document.getElementById('update-time').innerText = 
                 `${translations[currentLang].updated} ${activeSchedule.updated_at}`;
+            
             if (activeQueue) {
                 drawGraph();
                 updateStats();
-                renderDetailsList(); // Рисуем список
+                renderDetailsList();
                 updateRealtimeStatus();
             }
         }
@@ -415,7 +467,7 @@
             document.getElementById('hero-card').style.display = 'block';
             document.getElementById('timeline-area').style.display = 'block';
             document.getElementById('stats-area').style.display = 'grid';
-            document.getElementById('details-list').style.display = 'block'; // Показываем список
+            document.getElementById('details-list').style.display = 'block';
             
             drawGraph();
             updateStats();
@@ -455,7 +507,6 @@
             document.getElementById('val-on').innerText = formatDuration(1440 - totalOff, t);
         }
 
-        // --- ГЕНЕРАЦИЯ СПИСКА ---
         function renderDetailsList() {
             const container = document.getElementById('details-list');
             container.innerHTML = '';
@@ -500,9 +551,8 @@
             
             document.getElementById('time-marker').style.left = (curMins / 1440) * 100 + '%';
 
-            // Находим следующее изменение
             const dayMap = getDayMap();
-            const currentStatus = dayMap[curMins] !== undefined ? dayMap[curMins] : true; // защита
+            const currentStatus = dayMap[curMins] !== undefined ? dayMap[curMins] : true;
             let nextChange = 1440;
             
             for (let i = curMins + 1; i < 1440; i++) {
@@ -538,7 +588,6 @@
             }
         }
 
-        // Helpers
         function getDayMap() {
             const outages = activeSchedule.queues[activeQueue] || [];
             let map = new Array(1440).fill(true);
