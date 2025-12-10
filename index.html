@@ -2,212 +2,313 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Графік Відключень</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Графік Світла</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --tg-theme-bg-color: #212121;
-            --tg-theme-text-color: #ffffff;
-            --tg-theme-button-color: #3390ec;
-            --tg-theme-button-text-color: #ffffff;
-            --off-color: #ff4b4b; /* Красный для отключений */
-            --on-color: #4bb34b;  /* Зеленый для света */
+            --bg-gradient: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --accent: #4facfe;
+            --off-color: #ff5e62; /* Красный градиент */
+            --on-color: #00b09b;  /* Зеленый градиент */
         }
         
         body {
-            background-color: var(--tg-theme-bg-color);
-            color: var(--tg-theme-text-color);
+            background: var(--bg-gradient);
+            color: var(--text-primary);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 16px;
+            min-height: 100vh;
+            box-sizing: border-box;
         }
 
-        h2 { text-align: center; margin-bottom: 5px; }
-        .subtitle { text-align: center; opacity: 0.7; font-size: 0.9em; margin-bottom: 20px; }
-
-        select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 12px;
-            background: var(--tg-theme-button-color);
-            color: var(--tg-theme-button-text-color);
-            border: none;
-            font-size: 16px;
+        /* Табы для дат */
+        .tabs {
+            display: flex;
+            gap: 10px;
             margin-bottom: 20px;
-            appearance: none;
-            text-align: center;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        
+        .tab-btn {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+            padding: 10px 20px;
+            border-radius: 20px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+        
+        .tab-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
         }
 
-        /* Визуализация графика */
-        .timeline-container {
+        /* Информация о дате */
+        .header-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header-info h2 { margin: 0; font-size: 22px; font-weight: 700; }
+        .header-info p { margin: 5px 0 0; color: var(--text-secondary); font-size: 13px; }
+
+        /* Сетка очередей */
+        .queue-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4 в ряд */
+            gap: 8px;
+            margin-bottom: 25px;
+        }
+
+        .queue-chip {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            padding: 12px 0;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .queue-chip.active {
+            background: white;
+            color: #203a43;
+            font-weight: bold;
+            transform: scale(1.05);
+        }
+
+        /* График */
+        .timeline-wrapper {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .timeline-bar {
             display: flex;
             height: 40px;
             border-radius: 8px;
             overflow: hidden;
             margin-bottom: 10px;
-            border: 1px solid #444;
         }
 
-        .hour-block {
+        .block {
             flex: 1;
             height: 100%;
-            background-color: var(--on-color); /* По умолчанию свет есть */
+            background: var(--on-color);
             position: relative;
         }
-
-        .hour-block.off {
-            background-color: var(--off-color);
+        
+        .block.off {
+            background: var(--off-color);
         }
-
-        /* Подписи времени */
-        .time-labels {
+        
+        /* Шкала времени */
+        .time-scale {
             display: flex;
             justify-content: space-between;
-            font-size: 10px;
-            opacity: 0.6;
-            margin-bottom: 30px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 5px;
         }
 
-        .status-card {
-            background: rgba(255,255,255, 0.1);
-            padding: 15px;
-            border-radius: 12px;
+        .status-badge {
+            margin-top: 15px;
             text-align: center;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            font-size: 14px;
         }
-        .status-text { font-size: 1.2em; font-weight: bold; }
+
+        .loading { text-align: center; margin-top: 50px; color: var(--text-secondary); }
     </style>
 </head>
 <body>
 
-    <h2 id="date-header">Завантаження...</h2>
-    <div class="subtitle" id="update-time"></div>
-
-    <select id="queue-select">
-        <option value="" disabled selected>Оберіть вашу чергу</option>
-        <option value="1.1">Черга 1.1</option>
-        <option value="1.2">Черга 1.2</option>
-        <option value="2.1">Черга 2.1</option>
-        <option value="2.2">Черга 2.2</option>
-        <option value="3.1">Черга 3.1</option>
-        <option value="3.2">Черга 3.2</option>
-        <option value="4.1">Черга 4.1</option>
-        <option value="4.2">Черга 4.2</option>
-        <option value="5.1">Черга 5.1</option>
-        <option value="5.2">Черга 5.2</option>
-        <option value="6.1">Черга 6.1</option>
-        <option value="6.2">Черга 6.2</option>
-    </select>
-
-    <div id="visual-schedule">
+    <div class="tabs" id="date-tabs">
         </div>
-    
-    <div class="time-labels">
-        <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
+
+    <div class="header-info" id="header-info" style="display:none;">
+        <h2 id="date-title">...</h2>
+        <p id="update-time"></p>
     </div>
 
-    <div class="status-card" id="current-status-card" style="display:none;">
-        Сейчас: <span id="current-status-text" class="status-text">...</span>
+    <div class="queue-grid" id="queue-grid">
+        </div>
+
+    <div class="timeline-wrapper" id="timeline-card" style="display:none;">
+        <div class="timeline-bar" id="visual-schedule"></div>
+        <div class="time-scale">
+            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+        </div>
+        <div class="status-badge" id="current-status">
+            Оберіть чергу зверху
+        </div>
     </div>
+
+    <div class="loading" id="loading">Завантаження даних...</div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // На весь экран
+        tg.expand();
 
-        // Загрузка данных из JSON (который создал Python)
-        async function loadData() {
+        let allSchedules = [];
+        let currentSchedule = null;
+        const queues = ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"];
+
+        async function init() {
             try {
-                // ВАЖНО: Тут будет ссылка на твой JSON на GitHub Pages
-                const response = await fetch('schedule.json'); 
+                const response = await fetch('schedule.json?v=' + Date.now()); // anti-cache
                 const data = await response.json();
-                return data;
+                
+                allSchedules = data.schedules;
+                document.getElementById('loading').style.display = 'none';
+
+                if (allSchedules.length === 0) {
+                    document.getElementById('loading').innerText = "Графіків на сайті поки немає";
+                    document.getElementById('loading').style.display = 'block';
+                    return;
+                }
+
+                renderTabs();
+                renderQueueButtons();
+                
+                // Выбираем первую дату по умолчанию
+                selectDate(0);
+                
+                // Пытаемся восстановить выбор очереди
+                const savedQ = localStorage.getItem('selectedQueue');
+                if (savedQ) selectQueue(savedQ);
+
             } catch (e) {
-                document.getElementById('date-header').innerText = "Помилка завантаження даних";
                 console.error(e);
+                document.getElementById('loading').innerText = "Помилка завантаження";
             }
         }
 
-        function drawSchedule(queueData) {
+        function renderTabs() {
+            const container = document.getElementById('date-tabs');
+            container.innerHTML = '';
+            
+            allSchedules.forEach((sch, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'tab-btn';
+                btn.innerText = sch.date;
+                btn.onclick = () => selectDate(index);
+                btn.id = `tab-${index}`;
+                container.appendChild(btn);
+            });
+        }
+
+        function selectDate(index) {
+            currentSchedule = allSchedules[index];
+            
+            // UI Табов
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${index}`).classList.add('active');
+
+            // Инфо
+            document.getElementById('header-info').style.display = 'block';
+            document.getElementById('date-title').innerText = currentSchedule.date;
+            document.getElementById('update-time').innerText = currentSchedule.updated_at 
+                ? `Оновлено: ${currentSchedule.updated_at}` 
+                : "Основний графік";
+
+            // Если очередь уже выбрана, перерисовываем график
+            const activeQueue = document.querySelector('.queue-chip.active');
+            if (activeQueue) {
+                drawSchedule(activeQueue.innerText); // innerText это '1.1' и т.д.
+            }
+        }
+
+        function renderQueueButtons() {
+            const container = document.getElementById('queue-grid');
+            queues.forEach(q => {
+                const btn = document.createElement('div');
+                btn.className = 'queue-chip';
+                btn.innerText = q;
+                btn.onclick = () => selectQueue(q);
+                btn.id = `q-${q.replace('.', '-')}`;
+                container.appendChild(btn);
+            });
+        }
+
+        function selectQueue(queueId) {
+            // UI Кнопок
+            document.querySelectorAll('.queue-chip').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById(`q-${queueId.replace('.', '-')}`);
+            if(btn) btn.classList.add('active');
+
+            localStorage.setItem('selectedQueue', queueId);
+            document.getElementById('timeline-card').style.display = 'block';
+            
+            drawSchedule(queueId);
+        }
+
+        function drawSchedule(queueId) {
+            const intervals = currentSchedule.queues[queueId] || [];
             const container = document.getElementById('visual-schedule');
             container.innerHTML = '';
             
-            // Создаем 48 блоков (по 30 минут) для точности
-            const blocks = 48; 
-            const timeline = document.createElement('div');
-            timeline.className = 'timeline-container';
+            // 48 блоков по 30 минут
+            const totalBlocks = 48;
+            let map = new Array(totalBlocks).fill(true); // true = свет есть
 
-            // Изначально заполняем массив "света" (true = есть свет)
-            let scheduleMap = new Array(blocks).fill(true);
+            intervals.forEach(inv => {
+                const [sH, sM] = inv.start.split(':').map(Number);
+                const [eH, eM] = inv.end.split(':').map(Number);
+                
+                let startIdx = (sH * 2) + (sM >= 30 ? 1 : 0);
+                let endIdx = (eH * 2) + (eM >= 30 ? 1 : 0);
+                if (endIdx === 0) endIdx = 48; // конец суток
 
-            if (queueData) {
-                queueData.forEach(interval => {
-                    const [startH, startM] = interval.start.split(':').map(Number);
-                    const [endH, endM] = interval.end.split(':').map(Number);
-                    
-                    const startIndex = (startH * 2) + (startM === 30 ? 1 : 0);
-                    let endIndex = (endH * 2) + (endM === 30 ? 1 : 0);
-                    
-                    if (endIndex === 0) endIndex = 48; // 24:00
+                for(let i = startIdx; i < endIdx; i++) {
+                    if(i < 48) map[i] = false;
+                }
+            });
 
-                    for (let i = startIndex; i < endIndex; i++) {
-                        if (i < 48) scheduleMap[i] = false; // Света нет
-                    }
-                });
-            }
-
-            // Рисуем блоки
-            scheduleMap.forEach(hasLight => {
+            // Рендер
+            map.forEach(hasLight => {
                 const div = document.createElement('div');
-                div.className = 'hour-block ' + (hasLight ? '' : 'off');
-                timeline.appendChild(div);
+                div.className = 'block ' + (hasLight ? '' : 'off');
+                container.appendChild(div);
             });
 
-            container.appendChild(timeline);
-            updateCurrentStatus(scheduleMap);
+            updateStatusText(map);
         }
 
-        function updateCurrentStatus(scheduleMap) {
+        function updateStatusText(map) {
             const now = new Date();
-            // Часовой пояс Украины (UTC+2 / UTC+3). Упрощенно берем локальное время пользователя, если он в ЗП
-            const currentBlockIndex = (now.getHours() * 2) + (now.getMinutes() >= 30 ? 1 : 0);
+            // Примерный расчет текущего блока (учитывая, что пользователь в Украине)
+            const idx = (now.getHours() * 2) + (now.getMinutes() >= 30 ? 1 : 0);
+            const hasLight = map[idx];
             
-            const hasLight = scheduleMap[currentBlockIndex];
-            const statusText = document.getElementById('current-status-text');
-            const card = document.getElementById('current-status-card');
-            
-            card.style.display = 'block';
+            const badge = document.getElementById('current-status');
             if (hasLight) {
-                statusText.innerText = "СВІТЛО Є 💡";
-                statusText.style.color = "var(--on-color)";
+                badge.innerHTML = "Зараз: <span style='color:#4facfe; font-weight:bold'>СВІТЛО Є ⚡</span>";
             } else {
-                statusText.innerText = "ВІДКЛЮЧЕННЯ 🕯️";
-                statusText.style.color = "var(--off-color)";
+                badge.innerHTML = "Зараз: <span style='color:#ff5e62; font-weight:bold'>ВІДКЛЮЧЕННЯ 🕯️</span>";
             }
         }
 
-        // Логика инициализации
-        (async () => {
-            const data = await loadData();
-            if (!data) return;
-
-            document.getElementById('date-header').innerText = `ГПВ на ${data.date}`;
-            document.getElementById('update-time').innerText = `Оновлено: ${data.updated_at}`;
-
-            const select = document.getElementById('queue-select');
-            
-            // Восстанавливаем выбор пользователя
-            const savedQueue = localStorage.getItem('selectedQueue');
-            if (savedQueue) {
-                select.value = savedQueue;
-                drawSchedule(data.queues[savedQueue]);
-            }
-
-            select.addEventListener('change', (e) => {
-                const q = e.target.value;
-                localStorage.setItem('selectedQueue', q); // Сохраняем выбор
-                drawSchedule(data.queues[q]);
-            });
-        })();
+        init();
     </script>
 </body>
 </html>
