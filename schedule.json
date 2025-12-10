@@ -1,9 +1,9 @@
 {
-    "last_check": "10.12 11:37",
+    "last_check": "10.12 12:22",
     "schedules": [
         {
             "date": "10 ГРУДНЯ",
-            "updated_at": "11:37",
+            "updated_at": "12:22",
             "queues": {
                 "1.1": [
                     {
@@ -193,7 +193,7 @@
         },
         {
             "date": "09 ГРУДНЯ",
-            "updated_at": "11:37",
+            "updated_at": "12:22",
             "queues": {
                 "1.1": [
                     {
