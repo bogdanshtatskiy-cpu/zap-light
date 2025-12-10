@@ -2,106 +2,87 @@ import re
 import json
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
+import locale
 
-# Веб-версія каналу, який ти скинув (з префіксом /s/ для перегляду в браузері)
+# URL веб-версии канала
 URL = "https://t.me/s/Zaporizhzhyaoblenergo_news"
 
+# Маппинг месяцев для сортировки
+UA_MONTHS = {
+    "СІЧНЯ": 1, "ЛЮТОГО": 2, "БЕРЕЗНЯ": 3, "КВІТНЯ": 4, "ТРАВНЯ": 5, "ЧЕРВНЯ": 6,
+    "ЛИПНЯ": 7, "СЕРПНЯ": 8, "ВЕРЕСНЯ": 9, "ЖОВТНЯ": 10, "ЛИСТОПАДА": 11, "ГРУДНЯ": 12
+}
+
 def get_html():
-    print(f"📡 З'єднання з {URL}...")
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    }
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
     try:
         response = requests.get(URL, headers=headers, timeout=15)
         if response.status_code == 200:
             return response.text
-        else:
-            print(f"❌ Помилка: Статус {response.status_code}")
-            return None
     except Exception as e:
-        print(f"❌ Помилка мережі: {e}")
-        return None
+        print(f"Error: {e}")
+    return None
 
 def parse_telegram(html):
     soup = BeautifulSoup(html, 'html.parser')
-    
-    # Шукаємо всі повідомлення
     messages = soup.find_all('div', class_='tgme_widget_message_text')
     
     if not messages:
-        print("❌ Повідомлення не знайдені. Можливо, змінилася верстка.")
         return []
 
-    print(f"📄 Знайдено повідомлень: {len(messages)}")
+    # Читаем сообщения в ОБРАТНОМ порядке (от новых к старым в HTML, но 
+    # soup.find_all обычно отдает сверху вниз, а в телеграме сверху - старые).
+    # Нам нужно идти от САМЫХ НОВЫХ постов к старым.
+    # В веб-версии t.me последние посты находятся внизу.
+    # Поэтому реверсируем список, чтобы сначала обрабатывать свежие посты.
     
-    # Збираємо всі рядки з усіх повідомлень в один список (від нових до старих)
-    all_lines = []
-    for msg in reversed(messages):
-        # Телеграм використовує <br> для перенесення рядків
-        text = msg.get_text(separator="\n")
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
-        all_lines.extend(lines)
+    unique_schedules = {} # Словарь { "10 ГРУДНЯ": {данные...} }
 
-    return extract_schedules_from_lines(all_lines)
-
-def extract_schedules_from_lines(lines):
-    schedules = []
-    current_schedule = None
-    
-    # 1. Регулярка для дати (наприклад "10 ГРУДНЯ" або "НА 09 ГРУДНЯ")
-    months = r"(СІЧНЯ|ЛЮТОГО|БЕРЕЗНЯ|КВІТНЯ|ТРАВНЯ|ЧЕРВНЯ|ЛИПНЯ|СЕРПНЯ|ВЕРЕСНЯ|ЖОВТНЯ|ЛИСТОПАДА|ГРУДНЯ)"
-    # Шукаємо число і місяць
-    date_pattern = re.compile(rf"(\d{{1,2}})\s+{months}", re.IGNORECASE)
-    
-    # 2. Регулярка для черги (1.1: або 1.1 - ...)
+    months_regex = "|".join(UA_MONTHS.keys())
+    date_pattern = re.compile(rf"(\d{{1,2}})\s+({months_regex})", re.IGNORECASE)
     queue_pattern = re.compile(r"^(\d\.\d)\s*[:]\s*(.*)")
-    
-    # 3. Регулярка для часу (00:00 - 02:00) з підтримкою різних тире
     time_pattern = re.compile(r"(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})")
 
-    for line in lines:
-        # Прибираємо нерозривні пробіли, які любить Телеграм
-        clean_line = line.replace('\xa0', ' ')
+    # Идем от последнего сообщения (внизу страницы) к первому
+    for msg in reversed(messages):
+        text = msg.get_text(separator="\n")
+        lines = [line.strip().replace('\xa0', ' ') for line in text.split('\n') if line.strip()]
         
-        # --- Шукаємо дату ---
-        # Якщо в рядку є слово "ГПВ" і дата
-        if "ГПВ" in clean_line.upper():
-            match = date_pattern.search(clean_line)
-            if match:
-                day, month = match.groups()
-                date_str = f"{day} {month.upper()}"
-                
-                # Перевіряємо, чи не обробляли ми вже цю дату (щоб не дублювати)
-                if any(s['date'] == date_str for s in schedules):
-                    continue
+        # Переменные для текущего сообщения
+        current_date_key = None
+        current_data = {"queues": {}, "updated_at": None}
+        
+        # 1. Сначала ищем дату в сообщении
+        for line in lines:
+            if "ГПВ" in line.upper():
+                match = date_pattern.search(line)
+                if match:
+                    day, month = match.groups()
+                    current_date_key = f"{day} {month.upper()}"
+                    
+                    # Ищем время обновления
+                    time_upd = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", line, re.IGNORECASE)
+                    current_data["updated_at"] = time_upd.group(1) if time_upd else datetime.now().strftime("%H:%M")
+                    break # Дату нашли, идем парсить очереди
+        
+        # Если в сообщении нет даты ГПВ — пропускаем
+        if not current_date_key:
+            continue
 
-                # Шукаємо час оновлення (оновлено о 10:00), якщо є
-                time_update = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", clean_line, re.IGNORECASE)
-                updated_at = time_update.group(1) if time_update else datetime.now().strftime("%H:%M")
+        # ВАЖНО: Если мы уже нашли график на эту дату (в более новом посте),
+        # то этот (более старый) пост мы ПРОПУСКАЕМ.
+        if current_date_key in unique_schedules:
+            continue
 
-                # Якщо у нас вже збирався графік, зберігаємо його
-                if current_schedule and current_schedule['queues']:
-                    schedules.append(current_schedule)
-
-                # Створюємо нову картку графіка
-                current_schedule = {
-                    "date": date_str,
-                    "updated_at": updated_at,
-                    "queues": {}
-                }
-                print(f"🗓  Знайдено дату: {date_str}")
-                continue
-
-        # --- Шукаємо черги ---
-        if current_schedule:
-            q_match = queue_pattern.search(clean_line)
+        # 2. Парсим очереди для этой даты
+        for line in lines:
+            q_match = queue_pattern.search(line)
             if q_match:
-                q_id = q_match.group(1) # наприклад "1.1"
-                times_raw = q_match.group(2) # "00:00 - 05:00, ..."
+                q_id = q_match.group(1)
+                times_raw = q_match.group(2)
                 
                 intervals = []
-                # Розбиваємо рядок по комі або крапці з комою
                 parts = re.split(r"[,;]", times_raw)
                 for part in parts:
                     t_match = time_pattern.search(part)
@@ -110,36 +91,53 @@ def extract_schedules_from_lines(lines):
                         intervals.append({"start": start, "end": end})
                 
                 if intervals:
-                    current_schedule["queues"][q_id] = intervals
+                    current_data["queues"][q_id] = intervals
+        
+        # Если нашли хоть какие-то данные очередей, сохраняем
+        if current_data["queues"]:
+            current_data["date"] = current_date_key
+            unique_schedules[current_date_key] = current_data
 
-    # Додаємо останній знайдений графік
-    if current_schedule and current_schedule['queues']:
-        # Ще одна перевірка на дублікат
-        if not any(s['date'] == current_schedule['date'] for s in schedules):
-            schedules.append(current_schedule)
+    # Превращаем словарь в список
+    final_list = list(unique_schedules.values())
 
-    return schedules
+    # Сортируем список по дате (чтобы шли: Вчера, Сегодня, Завтра)
+    def date_sorter(item):
+        parts = item['date'].split()
+        day = int(parts[0])
+        month_str = parts[1]
+        month = UA_MONTHS.get(month_str, 0)
+        # Хак: добавляем год. Если сейчас Декабрь, а месяц Январь -> это следующий год
+        now = datetime.now()
+        year = now.year
+        if now.month == 12 and month == 1:
+            year += 1
+        return datetime(year, month, day)
 
-# --- ЗАПУСК ---
+    final_list.sort(key=date_sorter)
+
+    # Оставляем только 3 последние (актуальные) даты
+    # Обычно это: Вчера (уже не надо), Сегодня, Завтра.
+    # Логичнее взять срез последних, так как сортировка по возрастанию.
+    # Если дат много (архив), берем 3 последних.
+    return final_list[-3:]
+
 if __name__ == "__main__":
     html_content = get_html()
-    
     data = []
     if html_content:
         data = parse_telegram(html_content)
     
-    # Беремо тільки 2 останні актуальні графіки (наприклад, на сьогодні і завтра)
-    # Щоб файл не розростався
-    data = data[:2]
-
+    # Добавляем метку времени Киева (UTC+2/UTC+3)
+    # Для простоты в Actions (где UTC) добавляем +2 часа, но лучше делать на JS
+    # Просто запишем UTC, фронт разберется
+    
     final_json = {
-        "last_check": datetime.now().strftime("%d.%m %H:%M"),
+        "updated_at_utc": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         "schedules": data
     }
 
     with open('schedule.json', 'w', encoding='utf-8') as f:
         json.dump(final_json, f, ensure_ascii=False, indent=4)
         
-    print(f"💾 Готово. Збережено {len(data)} графіків.")
-    if len(data) > 0:
-        print(f"   Останній: {data[0]['date']}")
+    print(f"💾 Saved {len(data)} schedules.")
