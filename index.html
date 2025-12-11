@@ -46,20 +46,44 @@
             transition: 0.3s;
         }
 
+        /* HEADER */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .app-title { font-size: 22px; font-weight: 800; margin: 0; }
         .lang-switch { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 3px; display: flex; }
         .lang-btn { padding: 4px 10px; font-size: 12px; font-weight: 800; border-radius: 9px; opacity: 0.5; cursor: pointer; transition: 0.2s; }
         .lang-btn.active { background: var(--text); color: var(--bg); opacity: 1; }
 
+        /* DATE TABS */
         .date-container { display: flex; gap: 8px; margin-bottom: 20px; justify-content: center; }
         .date-tab { background: var(--card); border: 1px solid var(--border); padding: 10px 16px; border-radius: 14px; font-size: 13px; font-weight: 700; cursor: pointer; opacity: 0.6; transition: 0.2s; box-shadow: var(--shadow); flex: 1; text-align: center; max-width: 120px; }
         .date-tab.active { opacity: 1; border-color: var(--accent); background: var(--accent); color: white; transform: translateY(-2px); }
 
-        .queue-scroll { overflow-x: auto; margin: 0 -16px 25px -16px; padding: 0 16px 10px 16px; display: flex; gap: 8px; scrollbar-width: none; }
-        .queue-btn { flex: 0 0 auto; background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 12px 18px; border-radius: 14px; font-weight: 800; font-size: 15px; box-shadow: var(--shadow); transition: 0.2s; }
-        .queue-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); transform: scale(1.05); }
+        /* QUEUES (GRID LAYOUT - 2 СТРОКИ) */
+        .queue-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr); /* 6 кнопок в ряд */
+            gap: 6px;
+            margin-bottom: 25px;
+        }
+        
+        .queue-btn {
+            background: var(--card); color: var(--text);
+            border: 1px solid var(--border);
+            padding: 12px 0; /* Убираем боковые отступы, чтобы влезло */
+            border-radius: 12px;
+            font-weight: 800; font-size: 14px;
+            box-shadow: var(--shadow);
+            transition: 0.2s;
+            text-align: center;
+            cursor: pointer;
+            width: 100%;
+        }
+        .queue-btn.active {
+            background: var(--text); color: var(--bg);
+            border-color: var(--text); transform: scale(1.05);
+        }
 
+        /* HERO STATUS */
         .hero { background: var(--card); border-radius: 24px; padding: 25px; text-align: center; box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid var(--border); transition: 0.3s; }
         .icon { font-size: 48px; margin-bottom: 10px; display: block; animation: float 3s infinite ease-in-out; }
         .status-main { font-size: 24px; font-weight: 900; margin-bottom: 5px; }
@@ -69,6 +93,7 @@
         
         .last-update { font-size: 11px; margin-top: 10px; opacity: 0.4; font-weight: 600; }
 
+        /* VISUAL BAR */
         .bar-wrap { position: relative; height: 40px; margin-bottom: 25px; }
         .bar { display: flex; height: 100%; border-radius: 12px; overflow: hidden; border: 2px solid var(--card); }
         .chunk { flex: 1; height: 100%; }
@@ -77,6 +102,7 @@
         .marker { position: absolute; top: -4px; bottom: -4px; width: 4px; background: var(--text); border-radius: 4px; z-index: 5; transition: left 1s linear; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
         .labels { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; opacity: 0.5; margin-top: 6px; }
 
+        /* STATS */
         .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
         .stat-card { background: var(--card); padding: 12px; border-radius: 16px; text-align: center; border: 1px solid var(--border); }
         .stat-label { font-size: 11px; font-weight: 700; opacity: 0.5; display: block; margin-bottom: 4px; }
@@ -84,6 +110,7 @@
         .stat-val.on { color: var(--on); }
         .stat-val.off { color: var(--off); }
 
+        /* DETAILED LIST */
         .list-card { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; margin-bottom: 40px; }
         .list-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); }
         .list-row:last-child { border-bottom: none; }
@@ -107,7 +134,8 @@
     </div>
 
     <div class="date-container" id="dates"></div>
-    <div class="queue-scroll" id="queues"></div>
+
+    <div class="queue-grid" id="queues"></div>
 
     <div class="hero" id="hero" style="display:none">
         <span class="icon" id="icon">⚡</span>
@@ -135,6 +163,7 @@
     </div>
 
     <div class="list-card" id="details-list" style="display:none"></div>
+
     <div class="loader" id="loader">...</div>
 
     <script>
@@ -148,7 +177,7 @@
         let currentSchedule = null;
         let selectedQueue = localStorage.getItem('queue');
         let lang = localStorage.getItem('lang') || 'uk';
-        let lastStatusType = null; // Для отслеживания смены статуса
+        let lastStatusType = null; 
 
         const T = {
             uk: { 
@@ -183,9 +212,9 @@
                 }
 
                 document.getElementById('loader').style.display = 'none';
+                
                 renderQueues();
                 
-                // Auto-select Today
                 const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
                 const todayDay = kievDate.getDate();
                 const todayMonthIdx = kievDate.getMonth();
@@ -254,7 +283,7 @@
             currentSchedule = DATA[idx];
             document.getElementById('updated').innerText = `${T[lang].upd} ${currentSchedule.updated_at}`;
             if (selectedQueue) {
-                lastStatusType = null; // Сброс для обновления фразы
+                lastStatusType = null;
                 updateView();
             }
         }
@@ -269,7 +298,7 @@
             document.getElementById('bar-wrap').style.display = 'block';
             document.getElementById('stats').style.display = 'grid';
             document.getElementById('details-list').style.display = 'block';
-            lastStatusType = null; // Сброс для обновления фразы
+            lastStatusType = null;
             updateView();
         }
 
@@ -341,20 +370,14 @@
             tick();
         }
 
-        // --- УПРАВЛЕНИЕ ЦИТАТАМИ ---
         function updateQuote(type) {
-            // Если QUOTES_DB не загружен, ничего не делаем
             if (typeof QUOTES_DB === 'undefined') return;
-
-            // Обновляем только если изменился тип (свет/тьма) или сменился язык
             if (lastStatusType !== type) {
                 lastStatusType = type;
                 const list = QUOTES_DB[lang][type];
                 if (list && list.length > 0) {
                     const rnd = Math.floor(Math.random() * list.length);
                     const qEl = document.getElementById('quote');
-                    
-                    // Плавная анимация смены
                     qEl.style.opacity = 0;
                     setTimeout(() => {
                         qEl.innerText = list[rnd];
