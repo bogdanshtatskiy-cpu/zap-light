@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
     
     <script src="quotes.js"></script> 
+    <script src="changelog.js"></script>
 
     <style>
         :root {
@@ -21,6 +22,7 @@
             --shadow: 0 4px 12px rgba(0,0,0,0.05);
             --badge-on-bg: rgba(52, 199, 89, 0.15);
             --badge-off-bg: rgba(255, 59, 48, 0.15);
+            --modal-overlay: rgba(0,0,0,0.4);
         }
 
         body.dark-mode {
@@ -32,6 +34,7 @@
             --shadow: 0 4px 12px rgba(0,0,0,0.3);
             --badge-on-bg: rgba(52, 199, 89, 0.25);
             --badge-off-bg: rgba(255, 59, 48, 0.25);
+            --modal-overlay: rgba(0,0,0,0.7);
         }
 
         body {
@@ -48,7 +51,19 @@
 
         /* HEADER */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header-left { display: flex; align-items: center; gap: 10px; }
         .app-title { font-size: 22px; font-weight: 800; margin: 0; }
+        
+        .info-btn { 
+            width: 28px; height: 28px; 
+            border-radius: 50%; 
+            border: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px;
+            color: var(--text); opacity: 0.6;
+            cursor: pointer;
+        }
+
         .lang-switch { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 3px; display: flex; }
         .lang-btn { padding: 4px 10px; font-size: 12px; font-weight: 800; border-radius: 9px; opacity: 0.5; cursor: pointer; transition: 0.2s; }
         .lang-btn.active { background: var(--text); color: var(--bg); opacity: 1; }
@@ -58,42 +73,21 @@
         .date-tab { background: var(--card); border: 1px solid var(--border); padding: 10px 16px; border-radius: 14px; font-size: 13px; font-weight: 700; cursor: pointer; opacity: 0.6; transition: 0.2s; box-shadow: var(--shadow); flex: 1; text-align: center; max-width: 120px; }
         .date-tab.active { opacity: 1; border-color: var(--accent); background: var(--accent); color: white; transform: translateY(-2px); }
 
-        /* QUEUES (GRID LAYOUT - 2 СТРОКИ) */
-        .queue-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr); /* 6 кнопок в ряд */
-            gap: 6px;
-            margin-bottom: 25px;
-        }
-        
-        .queue-btn {
-            background: var(--card); color: var(--text);
-            border: 1px solid var(--border);
-            padding: 12px 0; /* Убираем боковые отступы, чтобы влезло */
-            border-radius: 12px;
-            font-weight: 800; font-size: 14px;
-            box-shadow: var(--shadow);
-            transition: 0.2s;
-            text-align: center;
-            cursor: pointer;
-            width: 100%;
-        }
-        .queue-btn.active {
-            background: var(--text); color: var(--bg);
-            border-color: var(--text); transform: scale(1.05);
-        }
+        /* QUEUES */
+        .queue-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 25px; }
+        .queue-btn { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 12px 0; border-radius: 12px; font-weight: 800; font-size: 14px; box-shadow: var(--shadow); transition: 0.2s; text-align: center; cursor: pointer; width: 100%; }
+        .queue-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); transform: scale(1.05); }
 
         /* HERO STATUS */
         .hero { background: var(--card); border-radius: 24px; padding: 25px; text-align: center; box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid var(--border); transition: 0.3s; }
         .icon { font-size: 48px; margin-bottom: 10px; display: block; animation: float 3s infinite ease-in-out; }
         .status-main { font-size: 24px; font-weight: 900; margin-bottom: 5px; }
         
-        /* TIMER STYLES */
-        .timer { font-size: 18px; font-weight: 800; opacity: 0.9; font-variant-numeric: tabular-nums; color: var(--accent); }
-        .timer-note { font-size: 13px; font-weight: 600; opacity: 0.5; display: block; margin-top: 4px; }
+        /* TIMER UPDATED: Color reset to var(--text) */
+        .timer { font-size: 18px; font-weight: 800; opacity: 0.9; font-variant-numeric: tabular-nums; color: var(--text); }
+        .timer-note { font-size: 13px; font-weight: 600; opacity: 0.5; display: block; margin-top: 4px; color: var(--text); }
         
         .quote-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); font-size: 14px; font-style: italic; opacity: 0.85; line-height: 1.4; font-weight: 600; min-height: 40px; display: flex; align-items: center; justify-content: center;}
-        
         .last-update { font-size: 11px; margin-top: 10px; opacity: 0.4; font-weight: 600; }
 
         /* VISUAL BAR */
@@ -122,6 +116,22 @@
         .badge-on { background: var(--badge-on-bg); color: var(--on); }
         .badge-off { background: var(--badge-off-bg); color: var(--off); }
 
+        /* MODAL */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-overlay); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-content { background: var(--bg); width: 90%; max-width: 400px; max-height: 80vh; border-radius: 24px; padding: 25px; position: relative; display: flex; flex-direction: column; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 20px; font-weight: 800; }
+        .close-btn { font-size: 24px; cursor: pointer; opacity: 0.5; padding: 5px; }
+        .dev-info { text-align: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .dev-link { display: inline-block; background: var(--accent); color: white; text-decoration: none; padding: 10px 20px; border-radius: 12px; font-weight: 700; font-size: 14px; margin-top: 10px; }
+        
+        .changelog-list { overflow-y: auto; flex: 1; padding-right: 5px; }
+        .cl-item { margin-bottom: 15px; }
+        .cl-ver { font-size: 14px; font-weight: 800; color: var(--accent); display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .cl-date { opacity: 0.5; font-size: 12px; font-weight: 600; }
+        .cl-desc li { font-size: 13px; margin-bottom: 4px; opacity: 0.8; line-height: 1.4; list-style-type: "• "; padding-left: 5px; }
+        .cl-desc ul { padding-left: 15px; margin: 0; }
+
         .loader { text-align: center; padding: 50px; font-weight: 800; opacity: 0.5; }
         @keyframes float { 0%, 100% {transform:translateY(0)} 50% {transform:translateY(-6px)} }
     </style>
@@ -129,7 +139,10 @@
 <body>
 
     <div class="header">
-        <div class="app-title">⚡ ГПВ</div>
+        <div class="header-left">
+            <div class="info-btn" onclick="openInfo()">i</div>
+            <div class="app-title" id="app-title">⚡ ГПВ</div>
+        </div>
         <div class="lang-switch">
             <div class="lang-btn active" id="btn-uk" onclick="setLang('uk')">UA</div>
             <div class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</div>
@@ -137,7 +150,6 @@
     </div>
 
     <div class="date-container" id="dates"></div>
-
     <div class="queue-grid" id="queues"></div>
 
     <div class="hero" id="hero" style="display:none">
@@ -166,8 +178,23 @@
     </div>
 
     <div class="list-card" id="details-list" style="display:none"></div>
-
     <div class="loader" id="loader">...</div>
+
+    <div id="info-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Інформація</div>
+                <div class="close-btn" onclick="closeInfo()">×</div>
+            </div>
+            <div class="dev-info">
+                <div style="font-size:14px; opacity:0.7; margin-bottom:5px;" id="dev-label">Розробник</div>
+                <div style="font-weight:800; font-size:18px;">Desoope</div>
+                <a href="https://t.me/desoope" target="_blank" class="dev-link">Telegram</a>
+            </div>
+            <div style="font-size:12px; font-weight:800; opacity:0.4; margin-bottom:10px; text-transform:uppercase;" id="cl-label">Історія змін</div>
+            <div class="changelog-list" id="changelog-container"></div>
+        </div>
+    </div>
 
     <script>
         const tg = window.Telegram.WebApp;
@@ -184,20 +211,24 @@
 
         const T = {
             uk: { 
+                title: "⚡ ГПВ",
                 load: "Завантаження...", nodata: "Даних немає", choose: "Оберіть чергу", 
                 on: "СВІТЛО Є", off: "СВІТЛА НЕМА", 
                 in_on: "Ввімкнення через:", in_off: "Вимкнення через:", 
                 upd: "Актуально на:", h: "год", m: "хв", 
                 lbl_on: "Світло є (разом)", lbl_off: "Світла нема (разом)",
-                tom: "завтра", at: "о"
+                tom: "завтра", at: "о",
+                modal_title: "Інформація", dev: "Розробник", cl: "Історія змін"
             },
             ru: { 
+                title: "⚡ ГПО",
                 load: "Загрузка...", nodata: "Данных нет", choose: "Выберите очередь", 
                 on: "СВЕТ ЕСТЬ", off: "СВЕТА НЕТ", 
                 in_on: "Включение через:", in_off: "Отключение через:", 
                 upd: "Актуально на:", h: "ч", m: "мин", 
                 lbl_on: "Свет есть (всего)", lbl_off: "Света нет (всего)",
-                tom: "завтра", at: "в"
+                tom: "завтра", at: "в",
+                modal_title: "Информация", dev: "Разработчик", cl: "История изменений"
             }
         };
 
@@ -217,10 +248,8 @@
                 }
 
                 document.getElementById('loader').style.display = 'none';
-                
                 renderQueues();
                 
-                // Находим сегодняшний график
                 const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
                 const todayDay = kievDate.getDate();
                 const todayMonthIdx = kievDate.getMonth();
@@ -234,7 +263,6 @@
                     if (d === todayDay && mIdx === todayMonthIdx) activeIndex = idx;
                 });
 
-                // Если сегодня нет, берем последний доступный
                 if (activeIndex === -1) activeIndex = DATA.length - 1;
 
                 renderDates(activeIndex);
@@ -312,10 +340,21 @@
         function setLang(l) {
             lang = l;
             localStorage.setItem('lang', l);
+            
+            // Buttons
             document.getElementById('btn-uk').className = `lang-btn ${l==='uk'?'active':''}`;
             document.getElementById('btn-ru').className = `lang-btn ${l==='ru'?'active':''}`;
+            
+            // Title & App Labels
+            document.getElementById('app-title').innerText = T[l].title;
             document.getElementById('lbl-on').innerText = T[l].lbl_on;
             document.getElementById('lbl-off').innerText = T[l].lbl_off;
+            
+            // Modal Labels
+            document.getElementById('modal-title').innerText = T[l].modal_title;
+            document.getElementById('dev-label').innerText = T[l].dev;
+            document.getElementById('cl-label').innerText = T[l].cl;
+            
             if(DATA.length) {
                 const idx = DATA.indexOf(currentSchedule);
                 renderDates(idx !== -1 ? idx : 0);
@@ -325,6 +364,8 @@
                     updateView();
                 }
             }
+            // Перерисовываем список изменений если окно открыто или при смене языка
+            renderChangelog(); 
         }
 
         function updateView() {
@@ -335,7 +376,6 @@
             timeline.innerHTML = '';
             listEl.innerHTML = '';
             
-            // Используем dayMap именно для ТЕКУЩЕГО выбранного дня
             const map = getDayMap(currentSchedule, selectedQueue);
             let offMins = 0;
             let current = map[0];
@@ -395,7 +435,6 @@
             }
         }
 
-        // --- ГЛАВНАЯ ЛОГИКА ТАЙМЕРА (С УЧЕТОМ ЗАВТРА) ---
         function tick() {
             if (!currentSchedule || !selectedQueue) return;
 
@@ -403,7 +442,6 @@
             const curMins = now.getHours() * 60 + now.getMinutes();
             const curSecs = curMins * 60 + now.getSeconds();
 
-            // Проверяем, является ли выбранный график сегодняшним
             const parts = currentSchedule.date.split(' ');
             const d = parseInt(parts[0]);
             const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
@@ -417,12 +455,10 @@
                 marker.style.display = 'none';
             }
 
-            // Получаем карту дня
             const map = getDayMap(currentSchedule, selectedQueue);
             const isLight = map[curMins] !== undefined ? map[curMins] : true;
             
             let nextChange = -1;
-            // Ищем изменение в текущем дне
             for(let i = curMins + 1; i < 1440; i++) {
                 if(map[i] !== isLight) { nextChange = i; break; }
             }
@@ -432,45 +468,32 @@
             let eventTimeLabel = "";
 
             if (nextChange !== -1) {
-                // Изменение происходит сегодня
                 totalSecsLeft = (nextChange * 60) - curSecs;
                 eventTimeLabel = minsToTime(nextChange);
             } else {
-                // До конца дня изменений нет. Проверяем график на завтра.
-                // 1. Считаем время до 24:00
                 const secsToMidnight = (1440 * 60) - curSecs;
-                
-                // 2. Ищем следующий график в массиве DATA
                 const currentIdx = DATA.indexOf(currentSchedule);
                 const nextDaySchedule = DATA[currentIdx + 1];
 
                 let foundChangeTomorrow = false;
                 let nextChangeTom = -1;
 
-                // Проверяем, существует ли график и является ли он реально "завтрашним" (следующим днем)
-                if (nextDaySchedule && isToday) { // Только если мы смотрим "сегодня", нам важно что там "завтра"
+                if (nextDaySchedule && isToday) {
                     const nextMap = getDayMap(nextDaySchedule, selectedQueue);
-                    
-                    // Если завтрашний день начинается с ТАКОГО ЖЕ статуса
                     if (nextMap[0] === isLight) {
                         for(let i = 0; i < 1440; i++) {
                             if(nextMap[i] !== isLight) { nextChangeTom = i; break; }
                         }
-                        
                         if (nextChangeTom !== -1) {
-                            // Статус меняется завтра в nextChangeTom
                             totalSecsLeft = secsToMidnight + (nextChangeTom * 60);
                             eventTimeLabel = minsToTime(nextChangeTom);
                             timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} ${eventTimeLabel})</span>`;
                             foundChangeTomorrow = true;
                         } else {
-                            // И завтра весь день такой же статус? (редко, но бывает)
-                            // Покажем просто до конца завтрашнего дня или оставим до полуночи
-                            totalSecsLeft = secsToMidnight; // Оставим до полуночи как fallback
+                            totalSecsLeft = secsToMidnight;
                             eventTimeLabel = "24:00";
                         }
                     } else {
-                        // Завтра статус меняется ровно в 00:00
                         totalSecsLeft = secsToMidnight;
                         eventTimeLabel = "00:00";
                         timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} 00:00)</span>`;
@@ -479,9 +502,8 @@
                 } 
 
                 if (!foundChangeTomorrow) {
-                    // Графика на завтра нет или мы смотрим старый архив
                     totalSecsLeft = secsToMidnight;
-                    eventTimeLabel = "24:00"; // или 00:00 след дня
+                    eventTimeLabel = "24:00";
                 }
             }
 
@@ -514,16 +536,48 @@
             if (!isToday && totalSecsLeft < 0) tm.innerText = "";
         }
 
-        // Переписали функцию, чтобы принимать аргументы (для расчета завтрашнего дня)
         function getDayMap(schedule, queue) {
-            const map = new Array(1440).fill(true); // Default true (Light ON)
+            const map = new Array(1440).fill(true);
             const list = schedule.queues[queue] || [];
             list.forEach(o => {
                 let s = timeToMins(o.start), e = timeToMins(o.end);
                 if(e===0) e=1440;
-                for(let i=s; i<e; i++) if(i<1440) map[i] = false; // False = Light OFF
+                for(let i=s; i<e; i++) if(i<1440) map[i] = false;
             });
             return map;
+        }
+
+        // --- MODAL & INFO ---
+        function openInfo() {
+            renderChangelog();
+            document.getElementById('info-modal').style.display = 'flex';
+        }
+
+        function closeInfo() {
+            document.getElementById('info-modal').style.display = 'none';
+        }
+
+        function renderChangelog() {
+            if (typeof CHANGELOG_DATA === 'undefined') return;
+            const container = document.getElementById('changelog-container');
+            container.innerHTML = '';
+            
+            CHANGELOG_DATA.forEach(ver => {
+                const item = document.createElement('div');
+                item.className = 'cl-item';
+                
+                const changesList = ver.changes[lang] || ver.changes['uk'];
+                const listHtml = changesList.map(c => `<li>${c}</li>`).join('');
+
+                item.innerHTML = `
+                    <div class="cl-ver">
+                        <span>v${ver.version}</span>
+                        <span class="cl-date">${ver.date}</span>
+                    </div>
+                    <div class="cl-desc"><ul>${listHtml}</ul></div>
+                `;
+                container.appendChild(item);
+            });
         }
 
         function timeToMins(s) { const p=s.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); }
