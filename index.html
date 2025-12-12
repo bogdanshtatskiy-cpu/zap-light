@@ -87,7 +87,10 @@
         .hero { background: var(--card); border-radius: 24px; padding: 25px; text-align: center; box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid var(--border); transition: 0.3s; }
         .icon { font-size: 48px; margin-bottom: 10px; display: block; animation: float 3s infinite ease-in-out; }
         .status-main { font-size: 24px; font-weight: 900; margin-bottom: 5px; }
-        .timer { font-size: 16px; font-weight: 700; opacity: 0.7; font-variant-numeric: tabular-nums; }
+        
+        /* TIMER STYLES */
+        .timer { font-size: 18px; font-weight: 800; opacity: 0.9; font-variant-numeric: tabular-nums; color: var(--accent); }
+        .timer-note { font-size: 13px; font-weight: 600; opacity: 0.5; display: block; margin-top: 4px; }
         
         .quote-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); font-size: 14px; font-style: italic; opacity: 0.85; line-height: 1.4; font-weight: 600; min-height: 40px; display: flex; align-items: center; justify-content: center;}
         
@@ -185,14 +188,16 @@
                 on: "СВІТЛО Є", off: "СВІТЛА НЕМА", 
                 in_on: "Ввімкнення через:", in_off: "Вимкнення через:", 
                 upd: "Актуально на:", h: "год", m: "хв", 
-                lbl_on: "Світло є (разом)", lbl_off: "Світла нема (разом)" 
+                lbl_on: "Світло є (разом)", lbl_off: "Світла нема (разом)",
+                tom: "завтра", at: "о"
             },
             ru: { 
                 load: "Загрузка...", nodata: "Данных нет", choose: "Выберите очередь", 
                 on: "СВЕТ ЕСТЬ", off: "СВЕТА НЕТ", 
                 in_on: "Включение через:", in_off: "Отключение через:", 
                 upd: "Актуально на:", h: "ч", m: "мин", 
-                lbl_on: "Свет есть (всего)", lbl_off: "Света нет (всего)" 
+                lbl_on: "Свет есть (всего)", lbl_off: "Света нет (всего)",
+                tom: "завтра", at: "в"
             }
         };
 
@@ -215,6 +220,7 @@
                 
                 renderQueues();
                 
+                // Находим сегодняшний график
                 const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
                 const todayDay = kievDate.getDate();
                 const todayMonthIdx = kievDate.getMonth();
@@ -228,6 +234,7 @@
                     if (d === todayDay && mIdx === todayMonthIdx) activeIndex = idx;
                 });
 
+                // Если сегодня нет, берем последний доступный
                 if (activeIndex === -1) activeIndex = DATA.length - 1;
 
                 renderDates(activeIndex);
@@ -243,7 +250,7 @@
 
             } catch (e) {
                 console.error(e);
-                document.getElementById('loader').innerText = "Error";
+                document.getElementById('loader').innerText = "Error loading data";
             }
         }
 
@@ -328,7 +335,8 @@
             timeline.innerHTML = '';
             listEl.innerHTML = '';
             
-            const map = getDayMap();
+            // Используем dayMap именно для ТЕКУЩЕГО выбранного дня
+            const map = getDayMap(currentSchedule, selectedQueue);
             let offMins = 0;
             let current = map[0];
             let start = 0;
@@ -387,6 +395,7 @@
             }
         }
 
+        // --- ГЛАВНАЯ ЛОГИКА ТАЙМЕРА (С УЧЕТОМ ЗАВТРА) ---
         function tick() {
             if (!currentSchedule || !selectedQueue) return;
 
@@ -394,6 +403,7 @@
             const curMins = now.getHours() * 60 + now.getMinutes();
             const curSecs = curMins * 60 + now.getSeconds();
 
+            // Проверяем, является ли выбранный график сегодняшним
             const parts = currentSchedule.date.split(' ');
             const d = parseInt(parts[0]);
             const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
@@ -407,18 +417,77 @@
                 marker.style.display = 'none';
             }
 
-            const map = getDayMap();
+            // Получаем карту дня
+            const map = getDayMap(currentSchedule, selectedQueue);
             const isLight = map[curMins] !== undefined ? map[curMins] : true;
             
-            let nextChange = 1440;
+            let nextChange = -1;
+            // Ищем изменение в текущем дне
             for(let i = curMins + 1; i < 1440; i++) {
                 if(map[i] !== isLight) { nextChange = i; break; }
             }
 
-            const diffSec = (nextChange * 60) - curSecs;
-            const h = Math.floor(diffSec / 3600);
-            const m = Math.floor((diffSec % 3600) / 60);
-            const s = Math.floor(diffSec % 60);
+            let totalSecsLeft = 0;
+            let timeInfoStr = "";
+            let eventTimeLabel = "";
+
+            if (nextChange !== -1) {
+                // Изменение происходит сегодня
+                totalSecsLeft = (nextChange * 60) - curSecs;
+                eventTimeLabel = minsToTime(nextChange);
+            } else {
+                // До конца дня изменений нет. Проверяем график на завтра.
+                // 1. Считаем время до 24:00
+                const secsToMidnight = (1440 * 60) - curSecs;
+                
+                // 2. Ищем следующий график в массиве DATA
+                const currentIdx = DATA.indexOf(currentSchedule);
+                const nextDaySchedule = DATA[currentIdx + 1];
+
+                let foundChangeTomorrow = false;
+                let nextChangeTom = -1;
+
+                // Проверяем, существует ли график и является ли он реально "завтрашним" (следующим днем)
+                if (nextDaySchedule && isToday) { // Только если мы смотрим "сегодня", нам важно что там "завтра"
+                    const nextMap = getDayMap(nextDaySchedule, selectedQueue);
+                    
+                    // Если завтрашний день начинается с ТАКОГО ЖЕ статуса
+                    if (nextMap[0] === isLight) {
+                        for(let i = 0; i < 1440; i++) {
+                            if(nextMap[i] !== isLight) { nextChangeTom = i; break; }
+                        }
+                        
+                        if (nextChangeTom !== -1) {
+                            // Статус меняется завтра в nextChangeTom
+                            totalSecsLeft = secsToMidnight + (nextChangeTom * 60);
+                            eventTimeLabel = minsToTime(nextChangeTom);
+                            timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} ${eventTimeLabel})</span>`;
+                            foundChangeTomorrow = true;
+                        } else {
+                            // И завтра весь день такой же статус? (редко, но бывает)
+                            // Покажем просто до конца завтрашнего дня или оставим до полуночи
+                            totalSecsLeft = secsToMidnight; // Оставим до полуночи как fallback
+                            eventTimeLabel = "24:00";
+                        }
+                    } else {
+                        // Завтра статус меняется ровно в 00:00
+                        totalSecsLeft = secsToMidnight;
+                        eventTimeLabel = "00:00";
+                        timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} 00:00)</span>`;
+                        foundChangeTomorrow = true;
+                    }
+                } 
+
+                if (!foundChangeTomorrow) {
+                    // Графика на завтра нет или мы смотрим старый архив
+                    totalSecsLeft = secsToMidnight;
+                    eventTimeLabel = "24:00"; // или 00:00 след дня
+                }
+            }
+
+            const h = Math.floor(totalSecsLeft / 3600);
+            const m = Math.floor((totalSecsLeft % 3600) / 60);
+            const s = Math.floor(totalSecsLeft % 60);
             const timeStr = `${pad(h)}:${pad(m)}:${pad(s)}`;
 
             const body = document.body;
@@ -431,30 +500,32 @@
                 icon.innerText = '☀️';
                 st.innerText = T[lang].on;
                 st.style.color = '#333';
-                tm.innerText = `${T[lang].in_off} ${timeStr}`;
+                tm.innerHTML = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
                 updateQuote('on');
             } else {
                 body.classList.add('dark-mode');
                 icon.innerText = '🕯️';
                 st.innerText = T[lang].off;
                 st.style.color = '#ff3b30';
-                tm.innerText = `${T[lang].in_on} ${timeStr}`;
+                tm.innerHTML = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`;
                 updateQuote('off');
             }
             
-            if (!isToday && diffSec < 0) tm.innerText = "";
+            if (!isToday && totalSecsLeft < 0) tm.innerText = "";
         }
 
-        function getDayMap() {
-            const map = new Array(1440).fill(true);
-            const list = currentSchedule.queues[selectedQueue] || [];
+        // Переписали функцию, чтобы принимать аргументы (для расчета завтрашнего дня)
+        function getDayMap(schedule, queue) {
+            const map = new Array(1440).fill(true); // Default true (Light ON)
+            const list = schedule.queues[queue] || [];
             list.forEach(o => {
                 let s = timeToMins(o.start), e = timeToMins(o.end);
                 if(e===0) e=1440;
-                for(let i=s; i<e; i++) if(i<1440) map[i] = false;
+                for(let i=s; i<e; i++) if(i<1440) map[i] = false; // False = Light OFF
             });
             return map;
         }
+
         function timeToMins(s) { const p=s.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); }
         function minsToTime(m) { 
             if(m===1440) return "24:00";
