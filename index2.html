@@ -5,78 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ГПВ Запоріжжя</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;800&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
     
     <script src="quotes.js"></script> 
     <script src="changelog.js"></script>
 
     <style>
         :root {
-            /* Живые градиенты для фона */
-            --bg-gradient: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
-            --glass-bg: rgba(255, 255, 255, 0.65);
-            --glass-border: rgba(255, 255, 255, 0.4);
-            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            /* Зимние градиенты */
+            --bg-gradient: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%); /* Морозное утро */
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
             
             --text: #1d1d1f;
+            --text-inv: #ffffff; /* Инвертированный текст для кнопок */
             --text-secondary: rgba(60, 60, 67, 0.6);
             
-            --accent: #007AFF; /* iOS Blue */
-            --on: #34c759;     /* iOS Green */
-            --off: #ff3b30;    /* iOS Red */
+            --accent: #007AFF;
+            --on: #34c759;
+            --off: #ff3b30;
             
             --modal-overlay: rgba(0, 0, 0, 0.3);
-            --blur-strength: 20px;
+            --blur-strength: 25px;
+            
+            /* Градиент ника для светлой темы (потемнее) */
+            --dev-gradient: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
         }
 
         body.dark-mode {
-            /* Ночной зимний градиент */
+            /* Ночной снегопад */
             --bg-gradient: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-            --glass-bg: rgba(30, 30, 30, 0.60);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            --glass-bg: rgba(25, 25, 25, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
             
             --text: #f5f5f7;
+            --text-inv: #000000;
             --text-secondary: rgba(235, 235, 245, 0.6);
             
             --accent: #0a84ff;
             --on: #32d74b;
             --off: #ff453a;
             --modal-overlay: rgba(0, 0, 0, 0.6);
+
+            /* Градиент ника для темной темы (яркий неон) */
+            --dev-gradient: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%);
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
 
         body {
             background: var(--bg-gradient);
-            background-attachment: fixed; /* Чтобы фон не скроллился */
+            background-attachment: fixed;
             color: var(--text);
-            font-family: 'SF Pro Display', 'Nunito', sans-serif; /* Шрифт как в iOS */
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Nunito', sans-serif;
             margin: 0; padding: 20px 16px;
             min-height: 100vh;
             user-select: none;
-            transition: color 0.3s;
             overflow-x: hidden;
+            transition: color 0.3s ease;
         }
 
         /* --- СНЕГ --- */
         #snow-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 0;
-            overflow: hidden;
+            pointer-events: none; z-index: 0; overflow: hidden;
         }
         .snowflake {
-            position: absolute; top: -10px;
-            background: white;
-            border-radius: 50%;
-            opacity: 0.8;
+            position: absolute; top: -20px;
+            background: white; border-radius: 50%; opacity: 0.8;
             animation: fall linear infinite;
+            filter: blur(1px);
         }
-        @keyframes fall {
-            to { transform: translateY(110vh); }
-        }
+        @keyframes fall { to { transform: translateY(110vh); } }
 
-        /* --- ОБЩИЕ СТИЛИ СТЕКЛА --- */
+        /* --- GLASS PANEL BASE --- */
         .glass-panel {
             background: var(--glass-bg);
             backdrop-filter: blur(var(--blur-strength));
@@ -84,39 +88,36 @@
             border: 1px solid var(--glass-border);
             box-shadow: var(--glass-shadow);
             border-radius: 24px;
-            position: relative;
-            z-index: 1;
-            transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative; z-index: 1;
         }
 
         /* HEADER */
         .header { 
             display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 20px; position: relative; z-index: 2; 
+            margin-bottom: 24px; position: relative; z-index: 2; 
         }
         .header-left { display: flex; align-items: center; gap: 12px; }
         
         .app-title { 
             font-size: 28px; font-weight: 800; margin: 0; 
-            background: linear-gradient(90deg, var(--text) 0%, var(--accent) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
             letter-spacing: -0.5px;
         }
         
         .info-btn { 
-            width: 36px; height: 36px; 
+            width: 38px; height: 38px; 
             border-radius: 50%; 
             background: var(--glass-bg);
             backdrop-filter: blur(10px);
             border: 1px solid var(--glass-border);
             display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 16px; color: var(--accent);
-            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            font-weight: 700; font-size: 18px; color: var(--accent);
+            cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
         }
+        .info-btn:active { transform: scale(0.9); }
 
         .lang-switch { 
-            background: rgba(0,0,0,0.05); 
+            background: rgba(120, 120, 128, 0.1); 
             border-radius: 20px; padding: 4px; display: flex; 
             backdrop-filter: blur(10px);
         }
@@ -126,40 +127,49 @@
             color: var(--text);
         }
         .lang-btn.active { 
-            background: var(--card); /* Белый/Темный фон кнопки */
             background: var(--glass-bg);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             opacity: 1; color: var(--accent);
         }
 
-        /* DATE TABS */
+        /* DATE TABS (Исправлено центрирование и обрезание) */
+        .date-wrap {
+            margin-bottom: 25px;
+            position: relative; z-index: 1;
+        }
         .date-container { 
-            display: flex; gap: 10px; margin-bottom: 25px; 
-            overflow-x: auto; padding-bottom: 5px; 
-            -ms-overflow-style: none; scrollbar-width: none; 
-            justify-content: flex-start; /* Для скролла на маленьких экранах */
+            display: flex; gap: 10px; 
+            overflow-x: auto; 
+            padding: 4px 4px 10px 4px; /* Отступы чтобы тень не резалась */
+            /* Центрируем если элементов мало */
+            justify-content: center; 
+            scrollbar-width: none; 
         }
         .date-container::-webkit-scrollbar { display: none; }
+        /* Если элементов много и появляется скролл - выравнивание слева */
+        .date-container.has-scroll { justify-content: flex-start; }
 
         .date-tab { 
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
-            padding: 12px 18px; border-radius: 18px; 
+            padding: 12px 20px; border-radius: 18px; 
             font-size: 14px; font-weight: 700; cursor: pointer; 
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            min-width: 100px; text-align: center;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            min-width: 110px; text-align: center;
             backdrop-filter: blur(15px);
             color: var(--text-secondary);
+            flex-shrink: 0; /* Не сжимать */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
         }
         .date-tab.active { 
             background: var(--accent); 
             border-color: var(--accent);
             color: white; 
-            transform: scale(1.05);
+            transform: translateY(-2px);
             box-shadow: 0 8px 20px -5px var(--accent);
         }
 
-        /* QUEUES */
+        /* QUEUES (Исправлена читаемость в темной теме) */
         .queue-grid { 
             display: grid; grid-template-columns: repeat(6, 1fr); 
             gap: 8px; margin-bottom: 30px; 
@@ -169,150 +179,189 @@
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             padding: 14px 0; border-radius: 16px; 
-            font-weight: 700; font-size: 15px; 
+            font-weight: 800; font-size: 15px; 
             transition: 0.3s; text-align: center; cursor: pointer; 
             backdrop-filter: blur(10px);
             color: var(--text);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         }
         .queue-btn.active { 
-            background: var(--text); 
-            color: var(--bg-gradient); /* Инверсия для контраста */
-            color: #fff;
+            background: var(--text); /* Черный в светлой, Белый в темной */
+            color: var(--text-inv);  /* Белый в светлой, Черный в темной */
             border-color: var(--text); 
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
         }
 
-        /* HERO STATUS (Main Card) */
+        /* HERO STATUS */
         .hero { 
-            padding: 30px 20px; text-align: center; margin-bottom: 25px; 
+            padding: 35px 20px; text-align: center; margin-bottom: 25px; 
             overflow: hidden;
+            border-radius: 32px;
         }
-        /* Анимация свечения сзади */
+        /* Блик на фоне */
         .hero::before {
             content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-            opacity: 0.5; pointer-events: none;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+            opacity: 0.6; pointer-events: none;
         }
 
         .icon { 
-            font-size: 64px; margin-bottom: 10px; display: block; 
-            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.4));
-            animation: float 4s infinite ease-in-out;
+            font-size: 72px; margin-bottom: 12px; display: block; 
+            filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.3));
+            animation: float 5s infinite ease-in-out;
         }
         
-        .status-main { font-size: 28px; font-weight: 900; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .status-main { font-size: 32px; font-weight: 900; margin-bottom: 10px; letter-spacing: -0.5px; }
         
         .timer { 
-            font-size: 20px; font-weight: 700; 
+            font-size: 22px; font-weight: 700; 
             color: var(--accent); 
-            background: rgba(120, 120, 128, 0.1); /* iOS gray fill */
-            padding: 8px 16px; border-radius: 12px;
+            background: var(--glass-border);
+            padding: 10px 20px; border-radius: 16px;
             display: inline-block;
-            margin-bottom: 15px;
+            margin-bottom: 18px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .timer-note { font-size: 13px; font-weight: 600; opacity: 0.8; display: block; margin-top: 4px; color: var(--text); }
+        .timer-note { font-size: 13px; font-weight: 600; opacity: 0.7; display: block; margin-top: 4px; color: var(--text); }
         
         .quote-box { 
             margin-top: 15px; padding-top: 15px; 
             border-top: 1px solid var(--glass-border); 
-            font-size: 15px; font-style: italic; opacity: 0.9; 
+            font-size: 15px; font-style: italic; opacity: 0.85; 
             line-height: 1.5; font-weight: 500; min-height: 40px; 
             display: flex; align-items: center; justify-content: center;
         }
-        .last-update { font-size: 11px; margin-top: 15px; opacity: 0.5; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .last-update { font-size: 11px; margin-top: 15px; opacity: 0.5; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* VISUAL BAR (LIQUID STYLE) */
-        .bar-wrap { position: relative; height: 50px; margin-bottom: 30px; z-index: 1;}
+        /* VISUAL BAR */
+        .bar-wrap { position: relative; height: 44px; margin-bottom: 30px; z-index: 1;}
         .bar { 
-            display: flex; height: 100%; border-radius: 16px; overflow: hidden; 
+            display: flex; height: 100%; border-radius: 14px; overflow: hidden; 
             border: 1px solid var(--glass-border); 
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);
             backdrop-filter: blur(5px);
         }
         .chunk { flex: 1; height: 100%; position: relative; }
-        /* Градиенты для чанков */
-        .chunk.on { background: linear-gradient(180deg, rgba(52, 199, 89, 0.8) 0%, rgba(52, 199, 89, 0.6) 100%); }
-        .chunk.off { background: linear-gradient(180deg, rgba(255, 59, 48, 0.8) 0%, rgba(255, 59, 48, 0.6) 100%); }
+        .chunk.on { background: rgba(52, 199, 89, 0.75); }
+        .chunk.off { background: rgba(255, 59, 48, 0.75); }
         
-        /* Маркер текущего времени */
         .marker { 
             position: absolute; top: -6px; bottom: -6px; width: 4px; 
-            background: #fff; 
+            background: var(--text); 
             border-radius: 4px; z-index: 5; transition: left 1s linear; 
-            box-shadow: 0 0 15px 2px rgba(255,255,255,0.8);
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
-        .labels { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; opacity: 0.7; margin-top: 8px; padding: 0 5px; }
+        .labels { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; opacity: 0.6; margin-top: 8px; padding: 0 5px; }
 
         /* STATS */
         .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px; z-index: 1; position: relative;}
         .stat-card { 
-            padding: 16px; text-align: center; 
+            padding: 18px; text-align: center; 
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
-            border-radius: 20px;
+            border-radius: 24px;
             backdrop-filter: blur(20px);
+            box-shadow: var(--glass-shadow);
         }
-        .stat-label { font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.6; display: block; margin-bottom: 6px; }
-        .stat-val { font-size: 24px; font-weight: 800; }
-        .stat-val.on { color: var(--on); text-shadow: 0 0 20px rgba(52, 199, 89, 0.3); }
-        .stat-val.off { color: var(--off); text-shadow: 0 0 20px rgba(255, 59, 48, 0.3); }
+        .stat-label { font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.5; display: block; margin-bottom: 6px; }
+        .stat-val { font-size: 26px; font-weight: 800; }
+        .stat-val.on { color: var(--on); }
+        .stat-val.off { color: var(--off); }
 
-        /* DETAILED LIST */
-        .list-card { 
-            padding: 0; overflow: hidden; margin-bottom: 40px; 
-        }
+        /* LIST */
+        .list-card { padding: 0; overflow: hidden; margin-bottom: 40px; border-radius: 24px; }
         .list-row { 
             display: flex; justify-content: space-between; align-items: center; 
-            padding: 16px 20px; border-bottom: 1px solid var(--glass-border); 
+            padding: 18px 24px; border-bottom: 1px solid var(--glass-border); 
             transition: background 0.2s;
         }
         .list-row:last-child { border-bottom: none; }
-        .list-row:hover { background: rgba(255,255,255,0.05); }
+        .list-row:hover { background: rgba(125,125,125,0.05); }
         
         .row-time { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
         .row-badge { 
-            font-size: 14px; font-weight: 700; padding: 6px 14px; border-radius: 12px; 
-            display: flex; align-items: center; gap: 8px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 10px; 
+            display: flex; align-items: center; gap: 6px; 
         }
-        .badge-on { background: rgba(52, 199, 89, 0.15); color: var(--on); border: 1px solid rgba(52, 199, 89, 0.2); }
-        .badge-off { background: rgba(255, 59, 48, 0.15); color: var(--off); border: 1px solid rgba(255, 59, 48, 0.2); }
+        .badge-on { background: rgba(52, 199, 89, 0.15); color: var(--on); }
+        .badge-off { background: rgba(255, 59, 48, 0.15); color: var(--off); }
 
-        /* MODAL */
+        /* MODAL FIXES */
         .modal { 
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: var(--modal-overlay); z-index: 1000; 
+            background: var(--modal-overlay); z-index: 2000; 
             align-items: center; justify-content: center; 
-            backdrop-filter: blur(10px); 
+            backdrop-filter: blur(15px); 
             opacity: 0; transition: opacity 0.3s;
         }
         .modal.show { opacity: 1; }
         
         .modal-content { 
-            background: var(--glass-bg); width: 90%; max-width: 400px; max-height: 80vh; 
-            border-radius: 32px; padding: 30px; position: relative; 
-            display: flex; flex-direction: column; 
+            background: var(--glass-bg); width: 90%; max-width: 380px; 
+            max-height: 80vh; /* Ограничение высоты для скролла */
+            border-radius: 32px; padding: 25px; 
+            position: relative; 
+            display: flex; flex-direction: column; /* Flex колонка */
             border: 1px solid var(--glass-border); 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
             transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .modal.show .modal-content { transform: scale(1); }
 
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; }
         .modal-title { font-size: 24px; font-weight: 800; }
-        .close-btn { font-size: 28px; cursor: pointer; opacity: 0.6; padding: 5px; transition: 0.2s; }
-        .close-btn:hover { opacity: 1; transform: rotate(90deg); }
+        .close-btn { 
+            width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.05);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; cursor: pointer; transition: 0.2s; 
+        }
+        .close-btn:hover { background: rgba(0,0,0,0.1); transform: rotate(90deg); }
 
-        .dev-info { text-align: center; margin-bottom: 25px; padding-bottom: 25px; border-bottom: 1px solid var(--glass-border); }
+        .dev-info { 
+            text-align: center; margin-bottom: 20px; padding-bottom: 20px; 
+            border-bottom: 1px solid var(--glass-border); flex-shrink: 0; 
+        }
+        
+        /* Исправленная читаемость ника */
+        .dev-nick {
+            font-weight: 900; font-size: 24px; 
+            background: var(--dev-gradient);
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
+            margin: 5px 0 10px 0;
+            letter-spacing: -0.5px;
+        }
+
         .dev-link { 
             display: inline-block; background: var(--accent); color: white; 
-            text-decoration: none; padding: 12px 24px; border-radius: 16px; 
-            font-weight: 700; font-size: 15px; margin-top: 15px; 
-            box-shadow: 0 5px 15px rgba(0, 122, 255, 0.4);
-            transition: 0.2s;
+            text-decoration: none; padding: 10px 20px; border-radius: 14px; 
+            font-weight: 700; font-size: 14px; 
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
         }
-        .dev-link:hover { transform: scale(1.05); }
+
+        /* SCROLLABLE LIST */
+        .changelog-list { 
+            overflow-y: auto; 
+            flex: 1; /* Занимает все оставшееся место */
+            padding-right: 5px; 
+            min-height: 0; /* Важно для Firefox */
+        }
+        
+        .cl-item { 
+            background: rgba(255,255,255,0.05); 
+            border-radius: 16px; padding: 12px; 
+            margin-bottom: 12px; border: 1px solid var(--glass-border);
+        }
+        .cl-ver { 
+            display: inline-block; background: var(--accent); color: white;
+            padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: 800;
+            margin-bottom: 6px;
+        }
+        .cl-date { float: right; font-size: 11px; opacity: 0.5; margin-top: 4px; font-weight: 700;}
+        .cl-desc li { font-size: 13px; margin-bottom: 4px; opacity: 0.8; line-height: 1.4; padding-left: 5px; list-style-type: none; position: relative; }
+        .cl-desc li::before { content: "•"; color: var(--accent); position: absolute; left: -10px; font-weight: bold; }
+        .cl-desc ul { padding-left: 15px; margin: 0; }
 
         .loader { text-align: center; padding: 50px; font-weight: 800; opacity: 0.6; font-size: 18px; }
         @keyframes float { 0%, 100% {transform:translateY(0)} 50% {transform:translateY(-10px)} }
@@ -333,11 +382,14 @@
         </div>
     </div>
 
-    <div class="date-container" id="dates"></div>
+    <div class="date-wrap">
+        <div class="date-container" id="dates"></div>
+    </div>
+    
     <div class="queue-grid" id="queues"></div>
 
     <div class="hero glass-panel" id="hero" style="display:none">
-        <span class="icon" id="icon">⚡</span>
+        <span class="icon" id="icon">🎄</span>
         <div class="status-main" id="status">...</div>
         <div class="timer" id="timer">...</div>
         <div class="quote-box" id="quote"></div>
@@ -371,11 +423,11 @@
                 <div class="close-btn" onclick="closeInfo()">×</div>
             </div>
             <div class="dev-info">
-                <div style="font-size:14px; opacity:0.7; margin-bottom:5px;" id="dev-label">Розробник</div>
-                <div style="font-weight:800; font-size:22px; background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DesOope</div>
+                <div style="font-size:13px; opacity:0.6; margin-bottom:2px; text-transform:uppercase; letter-spacing:1px;" id="dev-label">Розробник</div>
+                <div class="dev-nick">DesOope</div>
                 <a href="https://t.me/desoope" target="_blank" class="dev-link">Telegram</a>
             </div>
-            <div style="font-size:12px; font-weight:800; opacity:0.4; margin-bottom:15px; text-transform:uppercase; letter-spacing: 1px;" id="cl-label">Історія змін</div>
+            <div style="font-size:12px; font-weight:800; opacity:0.4; margin-bottom:10px; text-transform:uppercase; letter-spacing: 1px;" id="cl-label">Історія змін</div>
             <div class="changelog-list" id="changelog-container"></div>
         </div>
     </div>
@@ -387,21 +439,17 @@
         // --- SNOW GENERATOR ---
         function createSnow() {
             const container = document.getElementById('snow-container');
-            const count = 30; // Количество снежинок
+            const count = 30; 
             for (let i = 0; i < count; i++) {
                 const flake = document.createElement('div');
                 flake.className = 'snowflake';
-                // Рандомный размер
-                const size = Math.random() * 5 + 2; 
+                const size = Math.random() * 6 + 3; 
                 flake.style.width = size + 'px';
                 flake.style.height = size + 'px';
-                // Рандомная позиция
                 flake.style.left = Math.random() * 100 + 'vw';
-                // Рандомная задержка и длительность
-                flake.style.animationDuration = Math.random() * 5 + 5 + 's';
+                flake.style.animationDuration = Math.random() * 5 + 8 + 's';
                 flake.style.animationDelay = Math.random() * 5 + 's';
-                flake.style.opacity = Math.random() * 0.5 + 0.3;
-                
+                flake.style.opacity = Math.random() * 0.4 + 0.2;
                 container.appendChild(flake);
             }
         }
@@ -440,9 +488,8 @@
             }
         };
 
-        // --- INIT ---
         async function init() {
-            createSnow(); // Запускаем снег
+            createSnow();
             setLang(lang);
             document.getElementById('loader').innerText = T[lang].load;
 
@@ -494,10 +541,18 @@
             }
         }
 
-        // --- RENDER ---
         function renderDates(activeIdx) {
-            const el = document.getElementById('dates');
-            el.innerHTML = '';
+            const container = document.getElementById('dates');
+            container.innerHTML = '';
+            
+            // Проверка: центрировать или нет?
+            // Если элементов больше 3 - выравниваем влево (скролл), иначе по центру
+            if (DATA.length > 3) {
+                container.classList.add('has-scroll');
+            } else {
+                container.classList.remove('has-scroll');
+            }
+
             DATA.forEach((item, idx) => {
                 const btn = document.createElement('div');
                 btn.className = `date-tab ${idx === activeIdx ? 'active' : ''}`;
@@ -509,7 +564,7 @@
                 }
                 btn.innerText = label;
                 btn.onclick = () => { selectDate(idx); renderDates(idx); };
-                el.appendChild(btn);
+                container.appendChild(btn);
             });
         }
 
@@ -545,7 +600,6 @@
             document.getElementById('details-list').style.display = 'block';
             
             lastStatusType = null;
-            
             tick();
             updateView();
         }
@@ -601,7 +655,7 @@
                     row.className = 'list-row';
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
                     const badgeClass = current ? 'badge-on' : 'badge-off';
-                    const icon = current ? '🟢' : '🔴';
+                    const icon = current ? '🎄' : '🕯️';
                     const text = current ? T[lang].on : T[lang].off;
                     
                     row.innerHTML = `
@@ -728,9 +782,7 @@
 
             if (isLight) {
                 body.classList.remove('dark-mode');
-                icon.innerText = '❄️'; // Меняем иконку на зимнюю при свете
-                // Или можно оставить солнце '☀️'
-                icon.innerText = '☀️';
+                icon.innerText = '🎄'; 
                 st.innerText = T[lang].on;
                 st.style.color = 'var(--text)';
                 tm.innerHTML = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
@@ -761,7 +813,6 @@
             renderChangelog();
             const modal = document.getElementById('info-modal');
             modal.style.display = 'flex';
-            // Небольшая задержка для анимации opacity
             setTimeout(() => modal.classList.add('show'), 10);
         }
 
@@ -784,10 +835,8 @@
                 const listHtml = changesList.map(c => `<li>${c}</li>`).join('');
 
                 item.innerHTML = `
-                    <div class="cl-ver">
-                        <span>v${ver.version}</span>
-                        <span class="cl-date">${ver.date}</span>
-                    </div>
+                    <div class="cl-ver">v${ver.version}</div>
+                    <span class="cl-date">${ver.date}</span>
                     <div class="cl-desc"><ul>${listHtml}</ul></div>
                 `;
                 container.appendChild(item);
