@@ -83,7 +83,7 @@
         .icon { font-size: 48px; margin-bottom: 10px; display: block; animation: float 3s infinite ease-in-out; }
         .status-main { font-size: 24px; font-weight: 900; margin-bottom: 5px; }
         
-        /* TIMER UPDATED: Color reset to var(--text) */
+        /* TIMER */
         .timer { font-size: 18px; font-weight: 800; opacity: 0.9; font-variant-numeric: tabular-nums; color: var(--text); }
         .timer-note { font-size: 13px; font-weight: 600; opacity: 0.5; display: block; margin-top: 4px; color: var(--text); }
         
@@ -204,7 +204,11 @@
         const RU_MONTHS = ["ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
         
         let DATA = [];
-        let currentSchedule = null;
+        // todaySchedule = Всегда сегодняшний день (для Hero)
+        // viewSchedule = Тот день, который выбрали табом (для Списка/Графика)
+        let todaySchedule = null;
+        let viewSchedule = null;
+        
         let selectedQueue = localStorage.getItem('queue');
         let lang = localStorage.getItem('lang') || 'uk';
         let lastStatusType = null; 
@@ -254,19 +258,25 @@
                 const todayDay = kievDate.getDate();
                 const todayMonthIdx = kievDate.getMonth();
 
-                let activeIndex = -1;
+                let todayIdx = -1;
                 DATA.forEach((item, idx) => {
                     const parts = item.date.split(' ');
                     const d = parseInt(parts[0]);
                     const mName = parts[1].toUpperCase();
                     const mIdx = UA_MONTHS.indexOf(mName);
-                    if (d === todayDay && mIdx === todayMonthIdx) activeIndex = idx;
+                    if (d === todayDay && mIdx === todayMonthIdx) todayIdx = idx;
                 });
 
-                if (activeIndex === -1) activeIndex = DATA.length - 1;
+                // Если сегодня нашли - берем, если нет - берем последний доступный
+                // (чтобы хоть что-то показать, но в идеале должен быть сегодняшний)
+                const fallbackIdx = DATA.length - 1;
+                const activeIdx = todayIdx !== -1 ? todayIdx : fallbackIdx;
 
-                renderDates(activeIndex);
-                selectDate(activeIndex);
+                todaySchedule = DATA[activeIdx]; // Для Hero
+                
+                // Рендерим табы, выбрав СЕГОДНЯШНИЙ день по умолчанию
+                renderDates(activeIdx);
+                selectDate(activeIdx);
 
                 if (selectedQueue) selectQueue(selectedQueue);
                 else {
@@ -315,10 +325,11 @@
         }
 
         function selectDate(idx) {
-            currentSchedule = DATA[idx];
-            document.getElementById('updated').innerText = `${T[lang].upd} ${currentSchedule.updated_at}`;
+            viewSchedule = DATA[idx]; // Меняем только ПРОСМАТРИВАЕМЫЙ график
+            // При смене даты мы НЕ обновляем Hero (updated, status, timer), 
+            // Hero всегда привязан к todaySchedule (который вычисляется в init)
+            
             if (selectedQueue) {
-                lastStatusType = null;
                 updateView();
             }
         }
@@ -333,7 +344,12 @@
             document.getElementById('bar-wrap').style.display = 'block';
             document.getElementById('stats').style.display = 'grid';
             document.getElementById('details-list').style.display = 'block';
+            
+            // Сбрасываем кэш статуса, чтобы Hero обновился для новой очереди
             lastStatusType = null;
+            
+            // Принудительно вызываем tick, чтобы Hero мгновенно обновился под новую очередь
+            tick();
             updateView();
         }
 
@@ -341,42 +357,39 @@
             lang = l;
             localStorage.setItem('lang', l);
             
-            // Buttons
             document.getElementById('btn-uk').className = `lang-btn ${l==='uk'?'active':''}`;
             document.getElementById('btn-ru').className = `lang-btn ${l==='ru'?'active':''}`;
             
-            // Title & App Labels
             document.getElementById('app-title').innerText = T[l].title;
             document.getElementById('lbl-on').innerText = T[l].lbl_on;
             document.getElementById('lbl-off').innerText = T[l].lbl_off;
             
-            // Modal Labels
             document.getElementById('modal-title').innerText = T[l].modal_title;
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
             
             if(DATA.length) {
-                const idx = DATA.indexOf(currentSchedule);
+                const idx = DATA.indexOf(viewSchedule);
                 renderDates(idx !== -1 ? idx : 0);
                 if (!selectedQueue) document.getElementById('status').innerText = T[l].choose;
                 else {
-                    lastStatusType = null;
                     updateView();
+                    tick(); // Обновляем тексты в Hero
                 }
             }
-            // Перерисовываем список изменений если окно открыто или при смене языка
-            renderChangelog(); 
+            renderChangelog();
         }
 
         function updateView() {
-            if (!currentSchedule || !selectedQueue) return;
+            if (!viewSchedule || !selectedQueue) return;
 
             const timeline = document.getElementById('visual');
             const listEl = document.getElementById('details-list');
             timeline.innerHTML = '';
             listEl.innerHTML = '';
             
-            const map = getDayMap(currentSchedule, selectedQueue);
+            // Строим список и график на основе viewSchedule (выбранной даты)
+            const map = getDayMap(viewSchedule, selectedQueue);
             let offMins = 0;
             let current = map[0];
             let start = 0;
@@ -406,7 +419,7 @@
                 }
             }
 
-            const outages = currentSchedule.queues[selectedQueue] || [];
+            const outages = viewSchedule.queues[selectedQueue] || [];
             outages.forEach(o => {
                 let s = timeToMins(o.start), e = timeToMins(o.end);
                 if(e===0) e=1440;
@@ -414,8 +427,6 @@
             });
             document.getElementById('val-off').innerText = fmtDur(offMins);
             document.getElementById('val-on').innerText = fmtDur(1440 - offMins);
-
-            tick();
         }
 
         function updateQuote(type) {
@@ -435,27 +446,34 @@
             }
         }
 
+        // tick() отвечает ТОЛЬКО за Hero блок и всегда использует todaySchedule
         function tick() {
-            if (!currentSchedule || !selectedQueue) return;
+            if (!todaySchedule || !selectedQueue) return;
 
             const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
             const curMins = now.getHours() * 60 + now.getMinutes();
             const curSecs = curMins * 60 + now.getSeconds();
 
-            const parts = currentSchedule.date.split(' ');
-            const d = parseInt(parts[0]);
-            const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
-            const isToday = (d === now.getDate() && mIdx === now.getMonth());
-            
+            // Обновляем "Актуально на" всегда для текущего графика (todaySchedule)
+            document.getElementById('updated').innerText = `${T[lang].upd} ${todaySchedule.updated_at}`;
+
+            // Маркер на шкале показываем только если мы смотрим на СЕГОДНЯШНИЙ график
+            // Сравниваем viewSchedule (то что видим) с реальным днем
+            const viewParts = viewSchedule.date.split(' ');
+            const vD = parseInt(viewParts[0]);
+            const vMIdx = UA_MONTHS.indexOf(viewParts[1].toUpperCase());
+            const isViewingToday = (vD === now.getDate() && vMIdx === now.getMonth());
+
             const marker = document.getElementById('marker');
-            if (isToday) {
+            if (isViewingToday) {
                 marker.style.display = 'block';
                 marker.style.left = (curMins / 1440 * 100) + '%';
             } else {
                 marker.style.display = 'none';
             }
 
-            const map = getDayMap(currentSchedule, selectedQueue);
+            // Логика статуса и таймера (всегда по todaySchedule)
+            const map = getDayMap(todaySchedule, selectedQueue);
             const isLight = map[curMins] !== undefined ? map[curMins] : true;
             
             let nextChange = -1;
@@ -472,13 +490,13 @@
                 eventTimeLabel = minsToTime(nextChange);
             } else {
                 const secsToMidnight = (1440 * 60) - curSecs;
-                const currentIdx = DATA.indexOf(currentSchedule);
+                const currentIdx = DATA.indexOf(todaySchedule);
                 const nextDaySchedule = DATA[currentIdx + 1];
 
                 let foundChangeTomorrow = false;
                 let nextChangeTom = -1;
 
-                if (nextDaySchedule && isToday) {
+                if (nextDaySchedule) {
                     const nextMap = getDayMap(nextDaySchedule, selectedQueue);
                     if (nextMap[0] === isLight) {
                         for(let i = 0; i < 1440; i++) {
@@ -532,8 +550,6 @@
                 tm.innerHTML = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`;
                 updateQuote('off');
             }
-            
-            if (!isToday && totalSecsLeft < 0) tm.innerText = "";
         }
 
         function getDayMap(schedule, queue) {
@@ -597,4 +613,3 @@
     </script>
 </body>
 </html>
-
