@@ -11,15 +11,7 @@ CHANNELS = [
     "https://t.me/s/info_zp"                      # Альтернативный
 ]
 
-# Ключевые слова (используем корни слов для надежности)
-# ГПВ - стандарт
-# ГРАФІК - ловит "графік", "графіку", "графіки"
-# ВІДКЛЮЧЕН - ловит "відключення", "відключено"
-# ЕЛЕКТРО - ловит "електропостачання", "електроенергія"
-# ЧЕРГ - ловит "черга", "черги", "чергам", "по чергах"
-# ОНОВЛЕН - ловит "оновлено", "оновлення" (важно для info_zp)
-# ЗМІН - ловит "зміни", "змінено"
-# ОБЛЕНЕРГО - часто пишут в заголовке
+# Ключевые слова (корни слов)
 KEYWORDS = [
     "ГПВ", "ГРАФІК", "ВІДКЛЮЧЕН", "ЕЛЕКТРО", "ЧЕРГ", 
     "ОНОВЛЕН", "ЗМІН", "ОБЛЕНЕРГО", "УКРЕНЕРГО", "СВІТЛ"
@@ -30,7 +22,7 @@ UA_MONTHS = {
     "СІЧНЯ": 1, "ЛЮТОГО": 2, "БЕРЕЗНЯ": 3, "КВІТНЯ": 4, "ТРАВНЯ": 5, "ЧЕРВНЯ": 6,
     "ЛИПНЯ": 7, "СЕРПНЯ": 8, "ВЕРЕСНЯ": 9, "ЖОВТНЯ": 10, "ЛИСТОПАДА": 11, "ГРУДНЯ": 12
 }
-# Обратный маппинг (Число -> Название) для формирования ключа даты из timestamp
+# Обратный маппинг (Число -> Название)
 UA_MONTHS_REVERSE = {v: k for k, v in UA_MONTHS.items()}
 
 def get_kiev_time():
@@ -58,11 +50,9 @@ def parse_channel(url):
 
     # Регулярки
     months_regex = "|".join(UA_MONTHS.keys())
-    # Ищем дату (число + месяц)
     date_pattern = re.compile(rf"(\d{{1,2}})\s+({months_regex})", re.IGNORECASE)
-    # Ищем очереди (1.1: время)
     queue_pattern = re.compile(r"^(\d\.\d)\s*[:]\s*(.*)")
-    # Ищем время (поддержка дефиса, тире, минуса)
+    # Поддержка разных видов тире
     time_pattern = re.compile(r"(\d{1,2}:\d{2})\s*[-–—−]\s*(\d{1,2}:\d{2})")
 
     for wrap in reversed(message_wraps):
@@ -70,12 +60,10 @@ def parse_channel(url):
         if not text_div: continue
         text = text_div.get_text(separator="\n")
 
-        # Проверка на ключевые слова
-        # Теперь ищет вхождения корней (например "ОНОВЛЕН" найдет в "Оновлення")
         if not any(k in text.upper() for k in KEYWORDS):
             continue
 
-        # Получаем время публикации (timestamp)
+        # Время публикации
         time_tag = wrap.find('time')
         post_timestamp = ""
         if time_tag and time_tag.has_attr('datetime'):
@@ -89,61 +77,63 @@ def parse_channel(url):
         updated_at_val = None
         queues_found = {}
 
-        # 1. Сначала парсим очереди и ищем явную дату в тексте
+        # 1. Парсинг
         for line in lines:
-            # Ищем дату в тексте (например "13 ГРУДНЯ")
+            # Ищем явную дату (13 ГРУДНЯ)
             if not explicit_date_key:
                 match = date_pattern.search(line)
                 if match:
                     day, month = match.groups()
                     explicit_date_key = f"{day} {month.upper()}"
 
-            # Ищем время обновления (Оновлено о ...)
+            # Ищем время обновления
             if not updated_at_val:
                 time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", line, re.IGNORECASE)
                 if time_upd_match:
                     updated_at_val = time_upd_match.group(1)
 
-            # Парсим очереди
+            # Ищем очереди
             q_match = queue_pattern.search(line)
             if q_match:
                 q_id = q_match.group(1)
                 times_raw = q_match.group(2)
-                
                 intervals = []
-                # Разбиваем по запятой или точке с запятой
                 parts = re.split(r"[,;]", times_raw)
                 for part in parts:
                     t_match = time_pattern.search(part)
                     if t_match:
                         start, end = t_match.groups()
                         intervals.append({"start": start, "end": end})
-                
                 if intervals:
                     queues_found[q_id] = intervals
 
-        # 2. Если мы нашли очереди (ГЛАВНОЕ УСЛОВИЕ), сохраняем график
-        # Даже если ключевое слово было "Ви не повірите", но внутри есть "1.1: 00-04", мы это берем.
+        # 2. Обработка результатов
         if queues_found:
             final_date_key = None
 
             if explicit_date_key:
-                # Если в тексте была дата - берем её
+                # Если дата указана явно в тексте - используем её
                 final_date_key = explicit_date_key
             else:
-                # ФОЛЛБЭК: Если даты в тексте нет (посты типа "Оновлено графік"),
-                # берем дату из timestamp сообщения (по Киевскому времени)
+                # ФОЛЛБЭК: Даты в тексте нет. Определяем по дате поста + ключевые слова.
                 try:
                     dt = datetime.fromisoformat(post_timestamp.replace('Z', '+00:00'))
-                    dt_kiev = dt + timedelta(hours=2)
+                    dt_kiev = dt + timedelta(hours=2) # Время поста по Киеву
+
+                    # === ИСПРАВЛЕНИЕ ЗДЕСЬ ===
+                    # Если в тексте есть "завтра" -> добавляем 1 день к дате поста
+                    if "завтра" in text.lower():
+                        dt_kiev += timedelta(days=1)
+                        print(f"ℹ️ Detected 'tomorrow' keyword. Shifted date to {dt_kiev.date()}")
+
                     day = dt_kiev.day
                     month_name = UA_MONTHS_REVERSE.get(dt_kiev.month, "ГРУДНЯ")
                     final_date_key = f"{day} {month_name}"
                 except Exception as e:
-                    print(f"⚠️ Date fallback error: {e}")
+                    print(f"⚠️ Date calculation error: {e}")
                     continue
 
-            # Если время обновления не нашли в тексте, берем время поста
+            # Если время обновления не найдено, берем время поста
             if not updated_at_val:
                 try:
                     dt = datetime.fromisoformat(post_timestamp.replace('Z', '+00:00'))
@@ -152,7 +142,6 @@ def parse_channel(url):
                 except:
                     updated_at_val = "??:??"
 
-            # Сохраняем результат
             found_schedules.append({
                 "date": final_date_key,
                 "queues": queues_found,
@@ -169,12 +158,17 @@ def merge_schedules(all_schedules):
         if d_key not in merged:
             merged[d_key] = sch
         else:
-            # Если дата совпадает, берем более свежий пост
+            # Конфликт дат: берем тот, у которого новее source_ts (время публикации поста)
             existing_ts = merged[d_key]['source_ts']
             new_ts = sch['source_ts']
+            
             if new_ts > existing_ts:
-                print(f"🔄 Updated {d_key} from newer post.")
+                print(f"🔄 Updated {d_key} from newer post ({new_ts} > {existing_ts}).")
                 merged[d_key] = sch
+            else:
+                pass
+                # print(f"Skipping older update for {d_key}")
+
     return list(merged.values())
 
 def main():
@@ -188,7 +182,7 @@ def main():
 
     final_list = merge_schedules(all_found)
 
-    # Сортировка по дате
+    # Сортировка
     def date_sorter(item):
         try:
             parts = item['date'].split()
@@ -197,22 +191,25 @@ def main():
             month = UA_MONTHS.get(month_str, 0)
             now = datetime.now()
             year = now.year
-            # Переход года (декабрь -> январь)
+            # Если сейчас Декабрь (12), а месяц Январь (1) -> это следующий год
             if now.month == 12 and month == 1:
                 year += 1
+            # Если сейчас Январь (1), а месяц Декабрь (12) -> это прошлый год (чтобы не улетел в будущее)
+            elif now.month == 1 and month == 12:
+                year -= 1
             return datetime(year, month, day)
         except:
             return datetime.now()
 
     final_list.sort(key=date_sorter)
-    final_list = final_list[-3:]
+    final_list = final_list[-3:] # Берем 3 последних дня
 
     output_json = {
         "last_check": get_kiev_time().strftime("%d.%m %H:%M"),
         "schedules": final_list
     }
 
-    # Чистим служебные поля
+    # Чистка служебных полей
     for item in output_json["schedules"]:
         if "source_ts" in item:
             del item["source_ts"]
