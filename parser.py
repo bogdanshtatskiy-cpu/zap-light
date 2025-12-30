@@ -2,6 +2,8 @@ import re
 import json
 import requests
 import socket
+import random
+import time
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from requests.adapters import HTTPAdapter
@@ -36,15 +38,6 @@ UA_MONTHS = {
 }
 UA_MONTHS_REVERSE = {v: k for k, v in UA_MONTHS.items()}
 
-QUEUE_GROUPS = {
-    "1": ["1.1", "1.2"],
-    "2": ["2.1", "2.2"],
-    "3": ["3.1", "3.2"],
-    "4": ["4.1", "4.2"],
-    "5": ["5.1", "5.2"],
-    "6": ["6.1", "6.2"]
-}
-
 # ==========================
 # 🛠 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ==========================
@@ -54,15 +47,27 @@ def get_kiev_time():
 
 def get_html(url):
     session = requests.Session()
-    retries = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+    # Увеличиваем кол-во попыток и backoff_factor
+    retries = Retry(total=5, backoff_factor=2, status_forcelist=[500, 502, 503, 504])
     session.mount('https://', HTTPAdapter(max_retries=retries))
 
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
+    # Максимально "человеческие" заголовки
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Referer': 'https://google.com/',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+    }
     
     try:
-        response = session.get(url, headers=headers, timeout=20)
+        # Увеличиваем таймаут до 30 секунд
+        response = session.get(url, headers=headers, timeout=30)
         if response.status_code == 200:
             return response.text
+        else:
+            print(f"⚠️ Status code {response.status_code} for {url}")
     except Exception as e:
         print(f"Error fetching {url}: {e}")
     return None
@@ -78,9 +83,12 @@ def parse_channel(url):
 
     months_regex = "|".join(UA_MONTHS.keys())
     date_pattern = re.compile(rf"(\d{{1,2}})\s+({months_regex})", re.IGNORECASE)
+    
+    # Поиск времени: "00:00 - 04:00"
     time_pattern = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–—−]\s*(\d{1,2}[:.]\d{2})")
+    
+    # Поиск ТОЛЬКО конкретных очередей (1.1, 2.1...)
     specific_queue_pattern = re.compile(r"\b([1-6]\.[12])\b")
-    general_queue_pattern = re.compile(r"(?:черг[аиy]\s*)?(\d)\b")
 
     for wrap in reversed(message_wraps):
         text_div = wrap.find('div', class_='tgme_widget_message_text')
@@ -103,18 +111,22 @@ def parse_channel(url):
         updated_at_val = None
         queues_found = {}
 
+        # --- АНАЛИЗ СТРОК ---
         for line in lines:
+            # 1. Ищем дату
             if not explicit_date_key:
                 match = date_pattern.search(line)
                 if match:
                     day, month = match.groups()
                     explicit_date_key = f"{day} {month.upper()}"
 
+            # 2. Ищем время обновления
             if not updated_at_val:
                 time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", line, re.IGNORECASE)
                 if time_upd_match:
                     updated_at_val = time_upd_match.group(1)
 
+            # 3. Ищем графики
             time_matches = list(time_pattern.finditer(line))
             
             if time_matches:
@@ -125,29 +137,19 @@ def parse_channel(url):
                     end = end.replace('.', ':')
                     intervals.append({"start": start, "end": end})
 
+                # Ищем очереди ТОЛЬКО перед временем
                 text_before_time = line[:time_matches[0].start()]
+                
+                # Ищем только явные 1.1, 1.2
                 found_sub_queues = specific_queue_pattern.findall(text_before_time)
-                found_general_queues = []
-                possible_generals = general_queue_pattern.findall(text_before_time)
                 
-                for g in possible_generals:
-                    if 1 <= int(g) <= 6:
-                        found_general_queues.append(g)
-
-                target_queues = set()
-                for q in found_sub_queues:
-                    target_queues.add(q)
-                
-                for g in found_general_queues:
-                    for sub in QUEUE_GROUPS[g]:
-                        if sub not in found_sub_queues: 
-                            target_queues.add(sub)
-
-                for q_id in target_queues:
+                # Заполняем результат
+                for q_id in found_sub_queues:
                     if q_id not in queues_found:
                         queues_found[q_id] = []
                     queues_found[q_id].extend(intervals)
 
+        # --- ОБРАБОТКА РЕЗУЛЬТАТОВ ---
         if queues_found:
             # === ОЧИСТКА ДУБЛИКАТОВ ===
             for q_id in queues_found:
@@ -218,6 +220,9 @@ def main():
     
     for url in CHANNELS:
         print(f"📡 Парсинг {url}...")
+        # Небольшая пауза между запросами, чтобы не спамить
+        if len(all_found) > 0: time.sleep(2)
+        
         res = parse_channel(url)
         print(f"   Найдено {len(res)} графиков.")
         all_found.extend(res)
