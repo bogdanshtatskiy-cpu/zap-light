@@ -11,8 +11,6 @@ import requests.packages.urllib3.util.connection as urllib3_cn
 # ==========================
 # 🔧 ФИКС ДЛЯ GITHUB ACTIONS (IPv4)
 # ==========================
-# GitHub Actions часто пытается использовать IPv6 для t.me, что вызывает ошибку 101.
-# Этот блок кода принудительно заставляет requests использовать только IPv4.
 def allowed_gai_family():
     return socket.AF_INET
 
@@ -55,7 +53,6 @@ def get_kiev_time():
     return datetime.utcnow() + timedelta(hours=2)
 
 def get_html(url):
-    # Настраиваем сессию с повторными попытками (Retries)
     session = requests.Session()
     retries = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
     session.mount('https://', HTTPAdapter(max_retries=retries))
@@ -152,6 +149,19 @@ def parse_channel(url):
                     queues_found[q_id].extend(intervals)
 
         if queues_found:
+            # === ОЧИСТКА ДУБЛИКАТОВ ===
+            for q_id in queues_found:
+                unique_intervals = []
+                seen = set()
+                for interval in queues_found[q_id]:
+                    key = f"{interval['start']}-{interval['end']}"
+                    if key not in seen:
+                        seen.add(key)
+                        unique_intervals.append(interval)
+                unique_intervals.sort(key=lambda x: x['start'])
+                queues_found[q_id] = unique_intervals
+            # ==========================
+
             final_date_key = None
 
             if explicit_date_key:
