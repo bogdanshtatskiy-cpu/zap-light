@@ -8,33 +8,41 @@ from datetime import datetime, timedelta
 # ⚙️ НАСТРОЙКИ
 # ==========================
 
-# Список каналов для парсинга
+# Список каналов
 CHANNELS = [
     "https://t.me/s/Zaporizhzhyaoblenergo_news",  # Официальный
     "https://t.me/s/info_zp"                      # Альтернативный
 ]
 
-# Ключевые слова (корни слов для поиска)
+# Ключевые слова для поиска постов
 KEYWORDS = [
     "ГПВ", "ГРАФІК", "ВІДКЛЮЧЕН", "ЕЛЕКТРО", "ЧЕРГ", 
     "ОНОВЛЕН", "ЗМІН", "ОБЛЕНЕРГО", "УКРЕНЕРГО", "СВІТЛ"
 ]
 
-# Маппинг месяцев (Родительный падеж -> Число)
+# Маппинг месяцев
 UA_MONTHS = {
     "СІЧНЯ": 1, "ЛЮТОГО": 2, "БЕРЕЗНЯ": 3, "КВІТНЯ": 4, "ТРАВНЯ": 5, "ЧЕРВНЯ": 6,
     "ЛИПНЯ": 7, "СЕРПНЯ": 8, "ВЕРЕСНЯ": 9, "ЖОВТНЯ": 10, "ЛИСТОПАДА": 11, "ГРУДНЯ": 12
 }
-
-# Обратный маппинг (Число -> Название) для формирования ключа даты
 UA_MONTHS_REVERSE = {v: k for k, v in UA_MONTHS.items()}
+
+# Маппинг полных очередей на под-очереди
+# Если напишут "1 черга", это значит и 1.1, и 1.2
+QUEUE_GROUPS = {
+    "1": ["1.1", "1.2"],
+    "2": ["2.1", "2.2"],
+    "3": ["3.1", "3.2"],
+    "4": ["4.1", "4.2"],
+    "5": ["5.1", "5.2"],
+    "6": ["6.1", "6.2"]
+}
 
 # ==========================
 # 🛠 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ==========================
 
 def get_kiev_time():
-    """Получает текущее время UTC и добавляет 2 часа"""
     return datetime.utcnow() + timedelta(hours=2)
 
 def get_html(url):
@@ -52,31 +60,31 @@ def parse_channel(url):
     if not html: return []
 
     soup = BeautifulSoup(html, 'html.parser')
-    # Ищем блоки сообщений Telegram Web
     message_wraps = soup.find_all('div', class_='tgme_widget_message_wrap')
     
     found_schedules = []
 
-    # === РЕГУЛЯРНЫЕ ВЫРАЖЕНИЯ ===
+    # Регулярки
     months_regex = "|".join(UA_MONTHS.keys())
-    # Поиск даты: "25 ГРУДНЯ"
     date_pattern = re.compile(rf"(\d{{1,2}})\s+({months_regex})", re.IGNORECASE)
-    # Поиск очереди: "1.1: ..."
-    queue_pattern = re.compile(r"^(\d\.\d)\s*[:]\s*(.*)")
-    # Поиск времени: "00:00 - 04:00" (поддержка разных тире)
-    time_pattern = re.compile(r"(\d{1,2}:\d{2})\s*[-–—−]\s*(\d{1,2}:\d{2})")
+    
+    # Поиск времени: "00:00 - 04:00" (поддержка разных тире и точек 00.00)
+    time_pattern = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–—−]\s*(\d{1,2}[:.]\d{2})")
+    
+    # Поиск конкретных очередей (1.1, 2.1)
+    specific_queue_pattern = re.compile(r"\b([1-6]\.[12])\b")
+    
+    # Поиск общих очередей (Черга 1, 1 черга, просто 1:)
+    general_queue_pattern = re.compile(r"(?:черг[аиy]\s*)?(\d)\b")
 
-    # Перебираем сообщения (reversed = снизу вверх, но логика merge потом выберет лучшее)
     for wrap in reversed(message_wraps):
         text_div = wrap.find('div', class_='tgme_widget_message_text')
         if not text_div: continue
         text = text_div.get_text(separator="\n")
 
-        # Отсеиваем лишние посты без ключевых слов
         if not any(k in text.upper() for k in KEYWORDS):
             continue
 
-        # Получаем время публикации (timestamp)
         time_tag = wrap.find('time')
         post_timestamp = ""
         if time_tag and time_tag.has_attr('datetime'):
@@ -90,65 +98,98 @@ def parse_channel(url):
         updated_at_val = None
         queues_found = {}
 
-        # --- 1. ПАРСИНГ СТРОК ---
+        # --- АНАЛИЗ СТРОК ---
         for line in lines:
-            # А. Ищем явную дату в тексте (например "25 ГРУДНЯ")
+            # 1. Ищем дату
             if not explicit_date_key:
                 match = date_pattern.search(line)
                 if match:
                     day, month = match.groups()
                     explicit_date_key = f"{day} {month.upper()}"
 
-            # Б. Ищем время обновления (Оновлено о ...)
+            # 2. Ищем время обновления
             if not updated_at_val:
                 time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", line, re.IGNORECASE)
                 if time_upd_match:
                     updated_at_val = time_upd_match.group(1)
 
-            # В. Ищем очереди и время
-            q_match = queue_pattern.search(line)
-            if q_match:
-                q_id = q_match.group(1)
-                times_raw = q_match.group(2)
+            # 3. Ищем графики
+            # Стратегия: если в строке есть ВРЕМЯ (00:00 - 04:00), значит в ней должны быть и ОЧЕРЕДИ
+            time_matches = list(time_pattern.finditer(line))
+            
+            if time_matches:
+                # Нашли временные интервалы в этой строке
                 intervals = []
-                # Разбиваем по запятой или точке с запятой
-                parts = re.split(r"[,;]", times_raw)
-                for part in parts:
-                    t_match = time_pattern.search(part)
-                    if t_match:
-                        start, end = t_match.groups()
-                        intervals.append({"start": start, "end": end})
-                if intervals:
-                    queues_found[q_id] = intervals
+                for tm in time_matches:
+                    start, end = tm.groups()
+                    # Заменяем точки на двоеточия если нужно (09.00 -> 09:00)
+                    start = start.replace('.', ':')
+                    end = end.replace('.', ':')
+                    intervals.append({"start": start, "end": end})
 
-        # --- 2. ОБРАБОТКА РЕЗУЛЬТАТОВ ---
+                # Теперь ищем какие очереди в этой строке (ДО времени)
+                # Берем часть строки до первого времени
+                text_before_time = line[:time_matches[0].start()]
+                
+                # А. Ищем явные под-очереди (1.1, 1.2...)
+                found_sub_queues = specific_queue_pattern.findall(text_before_time)
+                
+                # Б. Ищем общие очереди (1, 2...), если явных не нашли или они смешаны
+                found_general_queues = []
+                # Ищем просто цифры 1-6, которые похожи на перечисление очередей
+                # Например: "1 черга:", "Черги 1, 2:"
+                possible_generals = general_queue_pattern.findall(text_before_time)
+                for g in possible_generals:
+                    if 1 <= int(g) <= 6:
+                        found_general_queues.append(g)
+
+                # Заполняем результат
+                target_queues = set()
+                
+                # Если нашли конкретные (1.1), добавляем их
+                for q in found_sub_queues:
+                    target_queues.add(q)
+                
+                # Если нашли общие (1), разворачиваем их в (1.1, 1.2)
+                # Но только если эта "1" не является частью "1.1" (regex \b должен был это обработать, но подстрахуемся)
+                for g in found_general_queues:
+                    # Если мы уже нашли 1.1 и 1.2, то "1" нам не нужна. 
+                    # Но если нашли только "1", значит это группа.
+                    # Простая логика: добавляем всё из группы
+                    for sub in QUEUE_GROUPS[g]:
+                        # Если этой под-очереди еще нет в списке (чтобы не дублировать, если было написано "1.1 и 1 черга")
+                        if sub not in found_sub_queues: 
+                            target_queues.add(sub)
+
+                # Привязываем интервалы к найденным очередям
+                for q_id in target_queues:
+                    if q_id not in queues_found:
+                        queues_found[q_id] = []
+                    queues_found[q_id].extend(intervals)
+
+        # --- ОБРАБОТКА РЕЗУЛЬТАТОВ ---
         if queues_found:
             final_date_key = None
 
             if explicit_date_key:
-                # Если дата была в тексте — используем её
                 final_date_key = explicit_date_key
             else:
-                # ФОЛЛБЭК: Если даты нет, используем дату поста
                 try:
                     dt = datetime.fromisoformat(post_timestamp.replace('Z', '+00:00'))
-                    dt_kiev = dt + timedelta(hours=2) # Конвертация в Киевское время
+                    dt_kiev = dt + timedelta(hours=2)
 
-                    # === ВАЖНОЕ ИСПРАВЛЕНИЕ: Логика "Завтра" ===
-                    # Если в тексте есть слово "завтра" (и нет явной даты), 
-                    # прибавляем 1 день к дате поста.
+                    # Логика "Завтра"
                     if "завтра" in text.lower():
                         dt_kiev += timedelta(days=1)
-                        print(f"ℹ️ Найден маркер 'завтра'. Дата смещена на {dt_kiev.strftime('%d.%m')}")
+                        print(f"ℹ️ Маркер 'завтра'. Дата: {dt_kiev.strftime('%d.%m')}")
 
                     day = dt_kiev.day
                     month_name = UA_MONTHS_REVERSE.get(dt_kiev.month, "ГРУДНЯ")
                     final_date_key = f"{day} {month_name}"
                 except Exception as e:
-                    print(f"⚠️ Ошибка вычисления даты: {e}")
+                    print(f"⚠️ Date error: {e}")
                     continue
 
-            # Если время обновления не нашли в тексте, берем время поста
             if not updated_at_val:
                 try:
                     dt = datetime.fromisoformat(post_timestamp.replace('Z', '+00:00'))
@@ -157,7 +198,6 @@ def parse_channel(url):
                 except:
                     updated_at_val = "??:??"
 
-            # Добавляем найденный график
             found_schedules.append({
                 "date": final_date_key,
                 "queues": queues_found,
@@ -168,43 +208,30 @@ def parse_channel(url):
     return found_schedules
 
 def merge_schedules(all_schedules):
-    """
-    Объединяет графики. Если на одну дату есть несколько постов,
-    выбирает тот, который был опубликован позже (source_ts).
-    """
     merged = {}
     for sch in all_schedules:
         d_key = sch['date']
         if d_key not in merged:
             merged[d_key] = sch
         else:
-            # Сравниваем время публикации постов
             existing_ts = merged[d_key]['source_ts']
             new_ts = sch['source_ts']
-            
-            # Строковое сравнение ISO дат работает корректно
             if new_ts > existing_ts:
-                print(f"🔄 Обновляем график на {d_key} из более свежего поста.")
+                print(f"🔄 Обновление {d_key} (свежий пост).")
                 merged[d_key] = sch
-            else:
-                pass 
-
     return list(merged.values())
 
 def main():
     all_found = []
     
-    # 1. Парсим все каналы
     for url in CHANNELS:
         print(f"📡 Парсинг {url}...")
         res = parse_channel(url)
         print(f"   Найдено {len(res)} графиков.")
         all_found.extend(res)
 
-    # 2. Объединяем и удаляем дубликаты
     final_list = merge_schedules(all_found)
 
-    # 3. Сортировка по дате
     def date_sorter(item):
         try:
             parts = item['date'].split()
@@ -213,39 +240,28 @@ def main():
             month = UA_MONTHS.get(month_str, 0)
             now = datetime.now()
             year = now.year
-            
-            # Обработка перехода года (Если сейчас Декабрь, а месяц Январь -> след. год)
-            if now.month == 12 and month == 1:
-                year += 1
-            # Если сейчас Январь, а месяц Декабрь -> прошлый год (чтобы не улетел в будущее)
-            elif now.month == 1 and month == 12:
-                year -= 1
-                
+            if now.month == 12 and month == 1: year += 1
+            elif now.month == 1 and month == 12: year -= 1
             return datetime(year, month, day)
         except:
             return datetime.now()
 
     final_list.sort(key=date_sorter)
-    
-    # Берем последние 3 дня (Вчера, Сегодня, Завтра)
     final_list = final_list[-3:]
 
-    # 4. Формируем итоговый JSON
     output_json = {
         "last_check": get_kiev_time().strftime("%d.%m %H:%M"),
         "schedules": final_list
     }
 
-    # Удаляем служебное поле source_ts перед сохранением
     for item in output_json["schedules"]:
         if "source_ts" in item:
             del item["source_ts"]
 
-    # 5. Сохраняем
     with open('schedule.json', 'w', encoding='utf-8') as f:
         json.dump(output_json, f, ensure_ascii=False, indent=4)
         
-    print(f"💾 Сохранено {len(final_list)} графиков в schedule.json")
+    print(f"💾 Сохранено {len(final_list)} графиков.")
 
 if __name__ == "__main__":
     main()
