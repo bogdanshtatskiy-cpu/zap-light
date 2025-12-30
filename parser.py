@@ -6,15 +6,7 @@ import time
 import sys
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-import requests.packages.urllib3.util.connection as urllib3_cn
-
-# ==========================
-# 🔧 ФИКС ДЛЯ GITHUB ACTIONS (IPv4)
-# ==========================
-def allowed_gai_family():
-    return socket.AF_INET
-
-urllib3_cn.allowed_gai_family = allowed_gai_family
+from urllib.parse import quote
 
 # ==========================
 # ⚙️ НАСТРОЙКИ
@@ -44,36 +36,51 @@ def get_kiev_time():
     return datetime.utcnow() + timedelta(hours=2)
 
 def log(msg):
-    """Вывод сообщений сразу в консоль (без буферизации)"""
     print(msg)
     sys.stdout.flush()
 
-def get_html(url):
+def get_html(target_url):
+    """
+    Скачивает HTML через веб-прокси, чтобы обойти бан IP GitHub со стороны Telegram.
+    """
+    # Список зеркал/прокси для обхода блокировки
+    # Мы кодируем URL, чтобы передать его как параметр
+    proxies = [
+        # Вариант 1: corsproxy.io (обычно самый быстрый)
+        f"https://corsproxy.io/?{quote(target_url)}",
+        # Вариант 2: codetabs (резерв)
+        f"https://api.codetabs.com/v1/proxy?quest={quote(target_url)}",
+        # Вариант 3: Прямое подключение (на случай, если запущено локально, а не на GitHub)
+        target_url
+    ]
+
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'
     }
-    
-    # Ручной цикл попыток, чтобы видеть прогресс
-    for attempt in range(1, 4):
+
+    for url in proxies:
+        is_direct = (url == target_url)
+        prefix = "DIRECT" if is_direct else "PROXY"
+        
         try:
-            log(f"   🔄 Попытка {attempt}/3 подключения к {url}...")
-            # Таймаут 10 секунд, чтобы не висеть вечно
-            response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code == 200:
+            log(f"   🔄 [{prefix}] Запрос к: {target_url}...")
+            
+            # Тайм-аут 15 сек
+            response = requests.get(url, headers=headers, timeout=15)
+            
+            if response.status_code == 200 and len(response.text) > 1000:
                 log("   ✅ Успешно!")
                 return response.text
             else:
-                log(f"   ⚠️ Ошибка: статус {response.status_code}")
+                log(f"   ⚠️ Неудачно (Status: {response.status_code}, Len: {len(response.text)})")
+                
         except Exception as e:
-            log(f"   ❌ Ошибка сети: {e}")
+            log(f"   ❌ Ошибка: {str(e)[:50]}...")
         
-        # Пауза перед следующей попыткой
-        time.sleep(2)
-    
+        # Небольшая пауза перед следующей попыткой
+        time.sleep(1)
+
+    log("   ⛔ Все методы подключения не сработали.")
     return None
 
 def parse_channel(url):
@@ -91,7 +98,7 @@ def parse_channel(url):
     # Время: "00:00 - 04:00"
     time_pattern = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–—−]\s*(\d{1,2}[:.]\d{2})")
     
-    # Только конкретные очереди (1.1, 2.1)
+    # Только конкретные очереди (1.1, 2.1). Групп "1" больше нет.
     specific_queue_pattern = re.compile(r"\b([1-6]\.[12])\b")
 
     for wrap in reversed(message_wraps):
