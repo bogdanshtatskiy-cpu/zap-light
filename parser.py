@@ -1,34 +1,43 @@
 import re
 import json
 import requests
+import socket
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+import requests.packages.urllib3.util.connection as urllib3_cn
+
+# ==========================
+# 🔧 ФИКС ДЛЯ GITHUB ACTIONS (IPv4)
+# ==========================
+# GitHub Actions часто пытается использовать IPv6 для t.me, что вызывает ошибку 101.
+# Этот блок кода принудительно заставляет requests использовать только IPv4.
+def allowed_gai_family():
+    return socket.AF_INET
+
+urllib3_cn.allowed_gai_family = allowed_gai_family
 
 # ==========================
 # ⚙️ НАСТРОЙКИ
 # ==========================
 
-# Список каналов
 CHANNELS = [
     "https://t.me/s/Zaporizhzhyaoblenergo_news",  # Официальный
     "https://t.me/s/info_zp"                      # Альтернативный
 ]
 
-# Ключевые слова для поиска постов
 KEYWORDS = [
     "ГПВ", "ГРАФІК", "ВІДКЛЮЧЕН", "ЕЛЕКТРО", "ЧЕРГ", 
     "ОНОВЛЕН", "ЗМІН", "ОБЛЕНЕРГО", "УКРЕНЕРГО", "СВІТЛ"
 ]
 
-# Маппинг месяцев
 UA_MONTHS = {
     "СІЧНЯ": 1, "ЛЮТОГО": 2, "БЕРЕЗНЯ": 3, "КВІТНЯ": 4, "ТРАВНЯ": 5, "ЧЕРВНЯ": 6,
     "ЛИПНЯ": 7, "СЕРПНЯ": 8, "ВЕРЕСНЯ": 9, "ЖОВТНЯ": 10, "ЛИСТОПАДА": 11, "ГРУДНЯ": 12
 }
 UA_MONTHS_REVERSE = {v: k for k, v in UA_MONTHS.items()}
 
-# Маппинг полных очередей на под-очереди
-# Если напишут "1 черга", это значит и 1.1, и 1.2
 QUEUE_GROUPS = {
     "1": ["1.1", "1.2"],
     "2": ["2.1", "2.2"],
@@ -46,9 +55,15 @@ def get_kiev_time():
     return datetime.utcnow() + timedelta(hours=2)
 
 def get_html(url):
+    # Настраиваем сессию с повторными попытками (Retries)
+    session = requests.Session()
+    retries = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+    session.mount('https://', HTTPAdapter(max_retries=retries))
+
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
+    
     try:
-        response = requests.get(url, headers=headers, timeout=15)
+        response = session.get(url, headers=headers, timeout=20)
         if response.status_code == 200:
             return response.text
     except Exception as e:
@@ -64,17 +79,10 @@ def parse_channel(url):
     
     found_schedules = []
 
-    # Регулярки
     months_regex = "|".join(UA_MONTHS.keys())
     date_pattern = re.compile(rf"(\d{{1,2}})\s+({months_regex})", re.IGNORECASE)
-    
-    # Поиск времени: "00:00 - 04:00" (поддержка разных тире и точек 00.00)
     time_pattern = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–—−]\s*(\d{1,2}[:.]\d{2})")
-    
-    # Поиск конкретных очередей (1.1, 2.1)
     specific_queue_pattern = re.compile(r"\b([1-6]\.[12])\b")
-    
-    # Поиск общих очередей (Черга 1, 1 черга, просто 1:)
     general_queue_pattern = re.compile(r"(?:черг[аиy]\s*)?(\d)\b")
 
     for wrap in reversed(message_wraps):
@@ -98,76 +106,51 @@ def parse_channel(url):
         updated_at_val = None
         queues_found = {}
 
-        # --- АНАЛИЗ СТРОК ---
         for line in lines:
-            # 1. Ищем дату
             if not explicit_date_key:
                 match = date_pattern.search(line)
                 if match:
                     day, month = match.groups()
                     explicit_date_key = f"{day} {month.upper()}"
 
-            # 2. Ищем время обновления
             if not updated_at_val:
                 time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", line, re.IGNORECASE)
                 if time_upd_match:
                     updated_at_val = time_upd_match.group(1)
 
-            # 3. Ищем графики
-            # Стратегия: если в строке есть ВРЕМЯ (00:00 - 04:00), значит в ней должны быть и ОЧЕРЕДИ
             time_matches = list(time_pattern.finditer(line))
             
             if time_matches:
-                # Нашли временные интервалы в этой строке
                 intervals = []
                 for tm in time_matches:
                     start, end = tm.groups()
-                    # Заменяем точки на двоеточия если нужно (09.00 -> 09:00)
                     start = start.replace('.', ':')
                     end = end.replace('.', ':')
                     intervals.append({"start": start, "end": end})
 
-                # Теперь ищем какие очереди в этой строке (ДО времени)
-                # Берем часть строки до первого времени
                 text_before_time = line[:time_matches[0].start()]
-                
-                # А. Ищем явные под-очереди (1.1, 1.2...)
                 found_sub_queues = specific_queue_pattern.findall(text_before_time)
-                
-                # Б. Ищем общие очереди (1, 2...), если явных не нашли или они смешаны
                 found_general_queues = []
-                # Ищем просто цифры 1-6, которые похожи на перечисление очередей
-                # Например: "1 черга:", "Черги 1, 2:"
                 possible_generals = general_queue_pattern.findall(text_before_time)
+                
                 for g in possible_generals:
                     if 1 <= int(g) <= 6:
                         found_general_queues.append(g)
 
-                # Заполняем результат
                 target_queues = set()
-                
-                # Если нашли конкретные (1.1), добавляем их
                 for q in found_sub_queues:
                     target_queues.add(q)
                 
-                # Если нашли общие (1), разворачиваем их в (1.1, 1.2)
-                # Но только если эта "1" не является частью "1.1" (regex \b должен был это обработать, но подстрахуемся)
                 for g in found_general_queues:
-                    # Если мы уже нашли 1.1 и 1.2, то "1" нам не нужна. 
-                    # Но если нашли только "1", значит это группа.
-                    # Простая логика: добавляем всё из группы
                     for sub in QUEUE_GROUPS[g]:
-                        # Если этой под-очереди еще нет в списке (чтобы не дублировать, если было написано "1.1 и 1 черга")
                         if sub not in found_sub_queues: 
                             target_queues.add(sub)
 
-                # Привязываем интервалы к найденным очередям
                 for q_id in target_queues:
                     if q_id not in queues_found:
                         queues_found[q_id] = []
                     queues_found[q_id].extend(intervals)
 
-        # --- ОБРАБОТКА РЕЗУЛЬТАТОВ ---
         if queues_found:
             final_date_key = None
 
@@ -178,7 +161,6 @@ def parse_channel(url):
                     dt = datetime.fromisoformat(post_timestamp.replace('Z', '+00:00'))
                     dt_kiev = dt + timedelta(hours=2)
 
-                    # Логика "Завтра"
                     if "завтра" in text.lower():
                         dt_kiev += timedelta(days=1)
                         print(f"ℹ️ Маркер 'завтра'. Дата: {dt_kiev.strftime('%d.%m')}")
