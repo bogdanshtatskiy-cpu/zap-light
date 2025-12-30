@@ -80,10 +80,9 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Оптимизированный снег (меньше элементов, фиксированное кол-во)
         function createSnow() {
             const container = document.getElementById('snow-container');
-            const count = 25; // Уменьшил до 25 для плавности
+            const count = 25; 
             for (let i = 0; i < count; i++) {
                 const flake = document.createElement('div');
                 flake.className = 'snowflake';
@@ -91,7 +90,7 @@
                 flake.style.width = size + 'px';
                 flake.style.height = size + 'px';
                 flake.style.left = Math.random() * 100 + 'vw';
-                flake.style.animationDuration = Math.random() * 5 + 10 + 's'; // Медленнее
+                flake.style.animationDuration = Math.random() * 5 + 10 + 's';
                 flake.style.animationDelay = Math.random() * 5 + 's';
                 container.appendChild(flake);
             }
@@ -188,7 +187,6 @@
             const container = document.getElementById('dates');
             container.innerHTML = '';
             
-            // Если внезапно будет больше 3 дней, просто добавляем, скролл скрыт стилями
             DATA.forEach((item, idx) => {
                 const btn = document.createElement('div');
                 btn.className = `date-tab ${idx === activeIdx ? 'active' : ''}`;
@@ -199,7 +197,6 @@
                     if (mIdx !== -1) label = `${parts[0]} ${RU_MONTHS[mIdx]}`;
                 }
                 btn.innerText = label;
-                // requestAnimationFrame помогает браузеру подготовиться к смене класса
                 btn.onclick = () => requestAnimationFrame(() => { selectDate(idx); renderDates(idx); });
                 container.appendChild(btn);
             });
@@ -267,30 +264,34 @@
             renderChangelog();
         }
 
+        // ============================================
+        // ИСПРАВЛЕННАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ (FIX 87h)
+        // ============================================
         function updateView() {
             if (!viewSchedule || !selectedQueue) return;
 
-            // Используем DocumentFragment для минимизации перерисовок (Lag Fix)
             const listEl = document.getElementById('details-list');
             const listFrag = document.createDocumentFragment();
             
             const timeline = document.getElementById('visual');
             const barFrag = document.createDocumentFragment();
             
+            // Получаем карту дня (true = свет есть, false = света нет)
             const map = getDayMap(viewSchedule, selectedQueue);
-            let offMins = 0;
+            
             let current = map[0];
             let start = 0;
 
+            // Строим визуализацию и список
             for(let i=1; i<=1440; i++) {
                 if(i===1440 || map[i] !== current) {
-                    // Строим бар
+                    // Бар
                     const d = document.createElement('div');
                     d.className = `chunk ${current ? 'on' : 'off'}`;
                     d.style.flexBasis = ((i-start)/1440*100) + '%';
                     barFrag.appendChild(d);
 
-                    // Строим список
+                    // Список
                     const row = document.createElement('div');
                     row.className = 'list-row';
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
@@ -309,21 +310,21 @@
                 }
             }
 
-            // Очистка и вставка одним махом
             timeline.innerHTML = '';
             timeline.appendChild(barFrag);
             
             listEl.innerHTML = '';
             listEl.appendChild(listFrag);
 
-            const outages = viewSchedule.queues[selectedQueue] || [];
-            outages.forEach(o => {
-                let s = timeToMins(o.start), e = timeToMins(o.end);
-                if(e===0) e=1440;
-                offMins += (e-s);
-            });
-            document.getElementById('val-off').innerText = fmtDur(offMins);
-            document.getElementById('val-on').innerText = fmtDur(1440 - offMins);
+            // Считаем отключения по карте (map), а не суммированием массива
+            // map[i] === false означает, что в эту минуту света нет
+            let offCount = 0;
+            for(let i=0; i<1440; i++) {
+                if(map[i] === false) offCount++;
+            }
+            
+            document.getElementById('val-off').innerText = fmtDur(offCount);
+            document.getElementById('val-on').innerText = fmtDur(1440 - offCount);
         }
 
         function updateQuote(type) {
