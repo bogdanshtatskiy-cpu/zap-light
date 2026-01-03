@@ -4,6 +4,7 @@ import requests
 import socket
 import time
 import sys
+import os
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -21,7 +22,6 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ⚙️ НАСТРОЙКИ
 # ==========================
 
-# Оставили только info_zp, как ты и просил
 CHANNELS = [
     "https://t.me/s/info_zp?embed=1&discussion=1"
 ]
@@ -82,21 +82,15 @@ def parse_channel(url):
     if not html: return []
 
     soup = BeautifulSoup(html, 'html.parser')
-    
     page_title = soup.title.string.strip() if soup.title else "Без заголовка"
     log(f"   🔎 Заголовок страницы: '{page_title}'")
     
     message_divs = soup.find_all('div', class_=re.compile(r'(tgme_widget_message_text|js-message_text)'))
     
-    log(f"   🔎 Найдено блоков с текстом: {len(message_divs)}")
-    
     if len(message_divs) == 0:
-        log("   ⚠️ HTML (первые 200 символов):")
-        log(f"   {str(soup)[:200]}")
         return []
 
     found_schedules = []
-
     months_regex = "|".join(UA_MONTHS.keys())
     date_pattern = re.compile(rf"(\d{{1,2}})\s+({months_regex})", re.IGNORECASE)
     time_pattern = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–—−]\s*(\d{1,2}[:.]\d{2})")
@@ -108,12 +102,12 @@ def parse_channel(url):
         if not any(k in text.upper() for k in KEYWORDS):
             continue
 
-        post_timestamp = datetime.utcnow().isoformat() 
-
+        updated_at_val = None
+        # Ищем дату публикации или обновления в тексте
+        
         lines = [line.strip().replace('\xa0', ' ') for line in text.split('\n') if line.strip()]
         
         explicit_date_key = None
-        updated_at_val = None
         queues_found = {}
 
         for line in lines:
@@ -121,12 +115,8 @@ def parse_channel(url):
                 match = date_pattern.search(line)
                 if match:
                     day_raw, month = match.groups()
-                    
-                    # === ИЗМЕНЕНИЕ: Нормализация даты ===
-                    # Превращаем "02" в 2, а потом обратно в строку "2"
-                    # Теперь "2 СІЧНЯ" и "02 СІЧНЯ" будут равны "2 СІЧНЯ"
+                    # Убираем ведущий ноль (02 -> 2)
                     day_clean = str(int(day_raw))
-                    
                     explicit_date_key = f"{day_clean} {month.upper()}"
 
             if not updated_at_val:
@@ -142,6 +132,9 @@ def parse_channel(url):
                     start, end = tm.groups()
                     start = start.replace('.', ':')
                     end = end.replace('.', ':')
+                    # Нормализация времени (08:00 -> 08:00, 8:00 -> 08:00)
+                    if len(start) == 4: start = "0" + start
+                    if len(end) == 4: end = "0" + end
                     intervals.append({"start": start, "end": end})
 
                 text_before_time = line[:time_matches[0].start()]
@@ -153,6 +146,7 @@ def parse_channel(url):
                     queues_found[q_id].extend(intervals)
 
         if queues_found:
+            # Чистка дублей интервалов
             for q_id in queues_found:
                 unique_intervals = []
                 seen = set()
@@ -172,7 +166,6 @@ def parse_channel(url):
                 now_kiev = get_kiev_time()
                 if "завтра" in text.lower():
                     target_date = now_kiev + timedelta(days=1)
-                    log(f"ℹ️ Найден график на ЗАВТРА (по ключевому слову).")
                 else:
                     target_date = now_kiev
                 
@@ -186,42 +179,60 @@ def parse_channel(url):
             found_schedules.append({
                 "date": final_date_key,
                 "queues": queues_found,
-                "updated_at": updated_at_val,
-                "source_ts": post_timestamp
+                "updated_at": updated_at_val
             })
 
     return found_schedules
 
-def merge_schedules(all_schedules):
+# ==========================
+# 💾 ЛОГИКА СОХРАНЕНИЯ (ИСПРАВЛЕННАЯ)
+# ==========================
+
+def load_existing_schedules():
+    """Загружает старый файл, чтобы не терять историю"""
+    if os.path.exists('schedule.json'):
+        try:
+            with open('schedule.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get("schedules", [])
+        except Exception as e:
+            log(f"⚠️ Ошибка чтения старого файла: {e}")
+    return []
+
+def merge_schedules(old_data, new_data):
+    """Объединяет старые и новые данные. Новые перезаписывают старые."""
     merged = {}
-    for sch in all_schedules:
-        # Теперь ключи всегда нормализованы (без лишних нулей),
-        # поэтому дубликаты (02 и 2) сольются в один ключ
-        d_key = sch['date']
-        merged[d_key] = sch
+    
+    # Сначала кладем старые
+    for sch in old_data:
+        merged[sch['date']] = sch
+        
+    # Сверху кладем новые (свежие)
+    for sch in new_data:
+        merged[sch['date']] = sch # Перезапись, если дата совпала
+        
     return list(merged.values())
 
 def main():
-    all_found = []
-    
+    # 1. Загружаем то, что уже было
+    old_schedules = load_existing_schedules()
+    log(f"📂 Загружено старых записей: {len(old_schedules)}")
+
+    # 2. Парсим новое
+    new_found = []
     for url in CHANNELS:
         log(f"📡 Парсинг канала: {url}")
         res = parse_channel(url)
         if res:
-            log(f"   ✅ Найдено графиков: {len(res)}")
-            all_found.extend(res)
+            log(f"   ✅ Найдено свежих графиков: {len(res)}")
+            new_found.extend(res)
         else:
-            log("   ❌ Графиков не найдено.")
+            log("   ❌ Свежих графиков не найдено.")
 
-    final_list = merge_schedules(all_found)
+    # 3. Объединяем
+    final_list = merge_schedules(old_schedules, new_found)
 
-    # === ПРЕДОХРАНИТЕЛЬ ===
-    if not final_list:
-        log("\n⚠️ ВНИМАНИЕ: Парсер не нашел новых данных.")
-        log("⚠️ Файл schedule.json НЕ БУДЕТ ИЗМЕНЕН, чтобы сохранить ручные данные.")
-        return
-    # =======================
-
+    # 4. Сортируем и оставляем только 3 последних
     def date_sorter(item):
         try:
             parts = item['date'].split()
@@ -238,7 +249,8 @@ def main():
             return datetime.now()
 
     final_list.sort(key=date_sorter)
-    # Оставляем последние 3 дня
+    
+    # Оставляем последние 3 дня (например, вчера, сегодня, завтра)
     final_list = final_list[-3:]
 
     output_json = {
@@ -246,15 +258,11 @@ def main():
         "schedules": final_list
     }
 
-    # Чистим служебные поля
-    for item in output_json["schedules"]:
-        if "source_ts" in item:
-            del item["source_ts"]
-
+    # 5. Сохраняем
     with open('schedule.json', 'w', encoding='utf-8') as f:
         json.dump(output_json, f, ensure_ascii=False, indent=4)
         
-    log(f"💾 Сохранено {len(final_list)} дней в schedule.json")
+    log(f"💾 Итого в файле: {[item['date'] for item in final_list]}")
 
 if __name__ == "__main__":
     main()
