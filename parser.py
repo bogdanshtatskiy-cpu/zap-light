@@ -21,9 +21,8 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ⚙️ НАСТРОЙКИ
 # ==========================
 
-# Используем режим EMBED (Виджет), он легче парсится и реже блокируется
+# Оставили только info_zp, как ты и просил
 CHANNELS = [
-    "https://t.me/s/Zaporizhzhyaoblenergo_news?embed=1&discussion=1",
     "https://t.me/s/info_zp?embed=1&discussion=1"
 ]
 
@@ -50,7 +49,6 @@ def log(msg):
     sys.stdout.flush()
 
 def get_html(target_url):
-    # Список прокси. allorigins часто лучше работает с текстом
     proxies = [
         f"https://api.allorigins.win/raw?url={quote(target_url)}",
         f"https://corsproxy.io/?{quote(target_url)}",
@@ -85,18 +83,14 @@ def parse_channel(url):
 
     soup = BeautifulSoup(html, 'html.parser')
     
-    # === DEBUG INFO (ЧТОБЫ ПОНЯТЬ, ЧТО СКАЧАЛОСЬ) ===
     page_title = soup.title.string.strip() if soup.title else "Без заголовка"
     log(f"   🔎 Заголовок страницы: '{page_title}'")
     
-    # Ищем сообщения. В embed-режиме классы могут отличаться, ищем универсально
-    # Обычно это tgme_widget_message_text или js-message_text
     message_divs = soup.find_all('div', class_=re.compile(r'(tgme_widget_message_text|js-message_text)'))
     
     log(f"   🔎 Найдено блоков с текстом: {len(message_divs)}")
     
     if len(message_divs) == 0:
-        # Если не нашли, выводим кусочек HTML для анализа
         log("   ⚠️ HTML (первые 200 символов):")
         log(f"   {str(soup)[:200]}")
         return []
@@ -108,21 +102,12 @@ def parse_channel(url):
     time_pattern = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–—−]\s*(\d{1,2}[:.]\d{2})")
     specific_queue_pattern = re.compile(r"\b([1-6]\.[12])\b")
 
-    # Ищем timestamps отдельно, так как они в других блоках
-    # В Embed режиме timestamp может быть сложнее достать, поэтому используем дату поста из текста
-    
-    # Проходим по всем найденным текстовым блокам
     for text_div in message_divs:
         text = text_div.get_text(separator="\n")
 
         if not any(k in text.upper() for k in KEYWORDS):
             continue
 
-        # В Embed режиме дату поста сложно достать из HTML, берем текущую дату
-        # Но если в тексте есть дата (25 ГРУДНЯ) - это нас спасет
-        
-        # Эмуляция timestamp (берем текущее время, если не нашли)
-        # В большинстве случаев нам важна дата из текста сообщения
         post_timestamp = datetime.utcnow().isoformat() 
 
         lines = [line.strip().replace('\xa0', ' ') for line in text.split('\n') if line.strip()]
@@ -135,8 +120,14 @@ def parse_channel(url):
             if not explicit_date_key:
                 match = date_pattern.search(line)
                 if match:
-                    day, month = match.groups()
-                    explicit_date_key = f"{day} {month.upper()}"
+                    day_raw, month = match.groups()
+                    
+                    # === ИЗМЕНЕНИЕ: Нормализация даты ===
+                    # Превращаем "02" в 2, а потом обратно в строку "2"
+                    # Теперь "2 СІЧНЯ" и "02 СІЧНЯ" будут равны "2 СІЧНЯ"
+                    day_clean = str(int(day_raw))
+                    
+                    explicit_date_key = f"{day_clean} {month.upper()}"
 
             if not updated_at_val:
                 time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", line, re.IGNORECASE)
@@ -162,7 +153,6 @@ def parse_channel(url):
                     queues_found[q_id].extend(intervals)
 
         if queues_found:
-            # Чистка дублей
             for q_id in queues_found:
                 unique_intervals = []
                 seen = set()
@@ -179,8 +169,6 @@ def parse_channel(url):
             if explicit_date_key:
                 final_date_key = explicit_date_key
             else:
-                # Если даты в тексте нет, пробуем угадать по слову "Завтра"
-                # Опираемся на "сейчас" + смещение
                 now_kiev = get_kiev_time()
                 if "завтра" in text.lower():
                     target_date = now_kiev + timedelta(days=1)
@@ -207,9 +195,9 @@ def parse_channel(url):
 def merge_schedules(all_schedules):
     merged = {}
     for sch in all_schedules:
+        # Теперь ключи всегда нормализованы (без лишних нулей),
+        # поэтому дубликаты (02 и 2) сольются в один ключ
         d_key = sch['date']
-        # Просто перезаписываем последним найденным (так как source_ts в embed не надежен)
-        # Но поскольку мы идем по ленте, последние посты обычно актуальнее
         merged[d_key] = sch
     return list(merged.values())
 
@@ -242,6 +230,7 @@ def main():
             month = UA_MONTHS.get(month_str, 0)
             now = datetime.now()
             year = now.year
+            # Логика смены года
             if now.month == 12 and month == 1: year += 1
             elif now.month == 1 and month == 12: year -= 1
             return datetime(year, month, day)
@@ -249,6 +238,7 @@ def main():
             return datetime.now()
 
     final_list.sort(key=date_sorter)
+    # Оставляем последние 3 дня
     final_list = final_list[-3:]
 
     output_json = {
