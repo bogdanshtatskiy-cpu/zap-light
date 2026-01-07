@@ -33,7 +33,7 @@
     <div class="queue-grid" id="queues"></div>
 
     <div class="hero glass-panel" id="hero" style="display:none">
-        <span class="icon" id="icon">🎄</span>
+        <span class="icon" id="icon">❄️</span>
         <div class="status-main" id="status">...</div>
         <div class="timer" id="timer">...</div>
         <div class="quote-box" id="quote"></div>
@@ -82,16 +82,20 @@
 
         function createSnow() {
             const container = document.getElementById('snow-container');
-            const count = 25; 
+            container.innerHTML = ''; // Очистка
+            const count = 30; // Оптимальна кількість
             for (let i = 0; i < count; i++) {
                 const flake = document.createElement('div');
                 flake.className = 'snowflake';
-                const size = Math.random() * 5 + 3; 
+                const size = Math.random() * 4 + 2; 
                 flake.style.width = size + 'px';
                 flake.style.height = size + 'px';
                 flake.style.left = Math.random() * 100 + 'vw';
-                flake.style.animationDuration = Math.random() * 5 + 10 + 's';
-                flake.style.animationDelay = Math.random() * 5 + 's';
+                flake.style.opacity = Math.random() * 0.5 + 0.3;
+                // Різна швидкість падіння для об'єму
+                const duration = Math.random() * 10 + 8;
+                flake.style.animationDuration = duration + 's';
+                flake.style.animationDelay = (Math.random() * duration * -1) + 's'; // Починати з випадкового місця
                 container.appendChild(flake);
             }
         }
@@ -264,9 +268,6 @@
             renderChangelog();
         }
 
-        // ============================================
-        // ИСПРАВЛЕННАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ (FIX 87h)
-        // ============================================
         function updateView() {
             if (!viewSchedule || !selectedQueue) return;
 
@@ -276,27 +277,24 @@
             const timeline = document.getElementById('visual');
             const barFrag = document.createDocumentFragment();
             
-            // Получаем карту дня (true = свет есть, false = света нет)
             const map = getDayMap(viewSchedule, selectedQueue);
             
             let current = map[0];
             let start = 0;
 
-            // Строим визуализацию и список
             for(let i=1; i<=1440; i++) {
                 if(i===1440 || map[i] !== current) {
-                    // Бар
                     const d = document.createElement('div');
                     d.className = `chunk ${current ? 'on' : 'off'}`;
                     d.style.flexBasis = ((i-start)/1440*100) + '%';
                     barFrag.appendChild(d);
 
-                    // Список
                     const row = document.createElement('div');
                     row.className = 'list-row';
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
                     const badgeClass = current ? 'badge-on' : 'badge-off';
-                    const icon = current ? '🎄' : '🕯️';
+                    // Зимова іконка
+                    const icon = current ? '❄️' : '🕯️';
                     const text = current ? T[lang].on : T[lang].off;
                     
                     row.innerHTML = `
@@ -316,8 +314,6 @@
             listEl.innerHTML = '';
             listEl.appendChild(listFrag);
 
-            // Считаем отключения по карте (map), а не суммированием массива
-            // map[i] === false означает, что в эту минуту света нет
             let offCount = 0;
             for(let i=0; i<1440; i++) {
                 if(map[i] === false) offCount++;
@@ -432,7 +428,8 @@
 
             if (isLight) {
                 body.classList.remove('dark-mode');
-                if (icon.innerText !== '🎄') icon.innerText = '🎄'; 
+                // Сніжинка замість ялинки
+                if (icon.innerText !== '❄️') icon.innerText = '❄️'; 
                 if (st.innerText !== T[lang].on) st.innerText = T[lang].on;
                 st.style.color = 'var(--text)';
                 
@@ -464,7 +461,6 @@
             return map;
         }
 
-        // --- MODAL & INFO ---
         function openInfo() {
             renderChangelog();
             const modal = document.getElementById('info-modal');
