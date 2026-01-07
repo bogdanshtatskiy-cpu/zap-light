@@ -82,20 +82,16 @@
 
         function createSnow() {
             const container = document.getElementById('snow-container');
-            container.innerHTML = ''; // Очистка
-            const count = 30; // Оптимальна кількість
+            const count = 25; 
             for (let i = 0; i < count; i++) {
                 const flake = document.createElement('div');
                 flake.className = 'snowflake';
-                const size = Math.random() * 4 + 2; 
+                const size = Math.random() * 5 + 3; 
                 flake.style.width = size + 'px';
                 flake.style.height = size + 'px';
                 flake.style.left = Math.random() * 100 + 'vw';
-                flake.style.opacity = Math.random() * 0.5 + 0.3;
-                // Різна швидкість падіння для об'єму
-                const duration = Math.random() * 10 + 8;
-                flake.style.animationDuration = duration + 's';
-                flake.style.animationDelay = (Math.random() * duration * -1) + 's'; // Починати з випадкового місця
+                flake.style.animationDuration = Math.random() * 5 + 10 + 's';
+                flake.style.animationDelay = Math.random() * 5 + 's';
                 container.appendChild(flake);
             }
         }
@@ -293,7 +289,6 @@
                     row.className = 'list-row';
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
                     const badgeClass = current ? 'badge-on' : 'badge-off';
-                    // Зимова іконка
                     const icon = current ? '❄️' : '🕯️';
                     const text = current ? T[lang].on : T[lang].off;
                     
@@ -428,10 +423,8 @@
 
             if (isLight) {
                 body.classList.remove('dark-mode');
-                // Сніжинка замість ялинки
                 if (icon.innerText !== '❄️') icon.innerText = '❄️'; 
                 if (st.innerText !== T[lang].on) st.innerText = T[lang].on;
-                st.style.color = 'var(--text)';
                 
                 const newHtml = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml;
@@ -441,7 +434,6 @@
                 body.classList.add('dark-mode');
                 if (icon.innerText !== '🕯️') icon.innerText = '🕯️';
                 if (st.innerText !== T[lang].off) st.innerText = T[lang].off;
-                st.style.color = 'var(--off)';
                 
                 const newHtml = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml;
@@ -461,6 +453,7 @@
             return map;
         }
 
+        // --- MODAL & INFO ---
         function openInfo() {
             renderChangelog();
             const modal = document.getElementById('info-modal');
