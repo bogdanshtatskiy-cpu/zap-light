@@ -15,13 +15,14 @@
     
     --accent: #2563eb;        /* Яскравий синій */
     
-    /* Кольори статусів (м'якші) */
+    /* Кольори статусів тексту */
     --on: #059669;            /* Смарагдовий */
     --off: #dc2626;           /* Червоний */
     
-    /* Кольори смужки (Timeline) */
-    --chunk-on: #6ee7b7;      /* М'ятний */
-    --chunk-off: #fca5a5;     /* Світло-червоний */
+    /* --- ВІЗУАЛІЗАЦІЯ (СМУЖКИ ТА ЗНАЧКИ) --- */
+    /* Зробив яскравішими та насиченішими */
+    --chunk-on: #10b981;      /* Яскравий смарагдовий */
+    --chunk-off: #ef4444;     /* Яскравий червоний */
     
     --modal-overlay: rgba(255, 255, 255, 0.4);
     --blur-strength: 20px;
@@ -48,9 +49,9 @@ body.dark-mode {
     --on: #34d399;            /* Світло-зелений */
     --off: #fb7185;           /* М'який червоний */
     
-    /* Кольори смужки в темряві (світяться) */
-    --chunk-on: rgba(52, 211, 153, 0.6);
-    --chunk-off: rgba(251, 113, 133, 0.3);
+    /* Кольори смужки в темряві (Неонові) */
+    --chunk-on: #34d399;      /* Світиться зеленим */
+    --chunk-off: #f87171;     /* Світиться червоним */
     
     --modal-overlay: rgba(0, 0, 0, 0.7);
     --dev-gradient: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%);
@@ -140,16 +141,16 @@ body {
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
-/* DATE TABS (Виправлено: розтягнуто) */
+/* DATE TABS */
 .date-wrap { margin-bottom: 20px; position: relative; z-index: 1; }
 .date-container { 
     display: flex; 
     gap: 8px; 
-    width: 100%; /* На всю ширину */
+    width: 100%; 
 }
 
 .date-tab { 
-    flex: 1; /* Розтягуємо рівномірно */
+    flex: 1; 
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     padding: 12px 0; 
@@ -163,7 +164,6 @@ body {
     background: var(--accent); 
     border-color: var(--accent);
     color: #fff; 
-    /* Прибрано box-shadow, щоб не обрізався */
     transform: translateY(-2px);
 }
 
@@ -194,7 +194,6 @@ body {
     padding: 30px 20px; text-align: center; margin-bottom: 25px; 
     overflow: hidden; border-radius: 28px;
 }
-/* Легкий відблиск */
 .hero::after {
     content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%);
@@ -230,10 +229,10 @@ body {
 }
 .last-update { font-size: 11px; margin-top: 15px; opacity: 0.5; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
 
-/* VISUAL BAR (Покращено) */
+/* VISUAL BAR */
 .bar-wrap { position: relative; height: 50px; margin-bottom: 25px; z-index: 1;}
 .bar { 
-    display: flex; height: 34px; /* Зробив товстішою */
+    display: flex; height: 34px; 
     border-radius: 12px; overflow: hidden; 
     border: 1px solid var(--glass-border); 
     background: rgba(0,0,0,0.05);
@@ -272,12 +271,27 @@ body {
 .list-row:last-child { border-bottom: none; }
 
 .row-time { font-size: 16px; font-weight: 700; letter-spacing: -0.5px; }
+
 .row-badge { 
-    font-size: 13px; font-weight: 800; padding: 6px 12px; border-radius: 10px; 
+    font-size: 13px; font-weight: 800; 
+    padding: 8px 14px; /* Трохи збільшив відступи */
+    border-radius: 12px; 
     display: flex; align-items: center; gap: 6px; 
+    
+    /* Новий стиль: заливка в тон + білий текст */
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
-.badge-on { background: var(--chunk-on); color: #064e3b; }
-.badge-off { background: var(--chunk-off); color: #7f1d1d; }
+
+.badge-on { 
+    background: var(--chunk-on); 
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); /* Легке світіння в тон */
+}
+
+.badge-off { 
+    background: var(--chunk-off); 
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); /* Легке світіння в тон */
+}
 
 .loader { text-align: center; padding: 50px; font-weight: 700; opacity: 0.6; font-size: 16px; }
 
