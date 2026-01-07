@@ -23,7 +23,7 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ==========================
 
 CHANNELS = [
-    "https://t.me/s/info_zp?embed=1&discussion=1"
+    "https://t.me/Zaporizhzhyaoblenergo_news"
 ]
 
 KEYWORDS = [
@@ -266,3 +266,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
