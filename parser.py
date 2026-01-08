@@ -22,7 +22,7 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ⚙️ НАСТРОЙКИ
 # ==========================
 
-# ВАЖНО: Добавлена /s/ в URL для доступа к веб-версии канала
+# Ссылка с /s/ для доступа к веб-версии
 CHANNELS = [
     "https://t.me/s/svitlo_zaporozhye"
 ]
@@ -50,6 +50,7 @@ def log(msg):
     sys.stdout.flush()
 
 def get_html(target_url):
+    # Используем прокси для обхода защиты Telegram
     proxies = [
         f"https://api.allorigins.win/raw?url={quote(target_url)}",
         f"https://corsproxy.io/?{quote(target_url)}",
@@ -68,7 +69,6 @@ def get_html(target_url):
             log(f"   🔄 Пробуем через: {url[:40]}...")
             response = requests.get(url, headers=headers, timeout=20)
             
-            # Проверяем, что вернулось достаточно данных (страница с постами обычно > 20кб)
             if response.status_code == 200 and len(response.text) > 2000:
                 log(f"   ✅ Скачано {len(response.text)} байт.")
                 return response.text
@@ -92,9 +92,7 @@ def parse_channel(url):
     
     # Ищем блоки сообщений
     message_divs = soup.find_all('div', class_='tgme_widget_message_text')
-    
     if not message_divs:
-        # Пробуем альтернативный класс (иногда бывает js-message_text)
         message_divs = soup.find_all('div', class_='js-message_text')
         
     log(f"   🔎 Найдено сообщений для анализа: {len(message_divs)}")
@@ -103,10 +101,15 @@ def parse_channel(url):
         return []
 
     found_schedules = []
+    
+    # Регулярки
     months_regex = "|".join(UA_MONTHS.keys())
     date_pattern = re.compile(rf"(\d{{1,2}})\s+({months_regex})", re.IGNORECASE)
-    # Регулярка для времени (учтены разные тире и пробелы)
+    # Время: "00:00 - 02:00" (учтены разные тире)
     time_pattern = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–—−]\s*(\d{1,2}[:.]\d{2})")
+    # Очередь в начале строки: "1.1: ..."
+    direct_queue_pattern = re.compile(r"^(\d\.\d)\s*[:]\s*(.*)")
+    # Очередь где-то в тексте (старый формат)
     specific_queue_pattern = re.compile(r"\b([1-6]\.[12])\b")
 
     for text_div in message_divs:
@@ -122,7 +125,7 @@ def parse_channel(url):
         queues_found = {}
 
         for line in lines:
-            # 1. Поиск даты (08 СІЧНЯ)
+            # 1. Поиск даты (напр. "8 СІЧНЯ")
             if not explicit_date_key:
                 match = date_pattern.search(line)
                 if match:
@@ -130,56 +133,77 @@ def parse_channel(url):
                     day_clean = str(int(day_raw))
                     explicit_date_key = f"{day_clean} {month.upper()}"
 
-            # 2. Поиск времени обновления
+            # 2. Поиск времени обновления поста
             if not updated_at_val:
                 time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", line, re.IGNORECASE)
                 if time_upd_match:
                     updated_at_val = time_upd_match.group(1)
 
-            # 3. Поиск интервалов
-            time_matches = list(time_pattern.finditer(line))
+            # 3. АНАЛИЗ СТРОКИ С ОЧЕРЕДЬЮ
+            # Сначала проверяем формат "1.1: время..."
+            queue_match = direct_queue_pattern.search(line)
             
-            if time_matches:
+            if queue_match:
+                # Нашли явное начало "1.1:"
+                q_id = queue_match.group(1)
+                content = queue_match.group(2)
+                
                 intervals = []
+                time_matches = list(time_pattern.finditer(content))
                 for tm in time_matches:
                     start, end = tm.groups()
                     start = start.replace('.', ':')
                     end = end.replace('.', ':')
-                    # Нормализация (8:00 -> 08:00)
                     if len(start) == 4: start = "0" + start
                     if len(end) == 4: end = "0" + end
                     intervals.append({"start": start, "end": end})
-
-                # Ищем очередь ТОЛЬКО перед временем в той же строке
-                # (1.1: 00:00 - 02:00...)
-                text_before_time = line[:time_matches[0].start()]
-                found_sub_queues = specific_queue_pattern.findall(text_before_time)
                 
-                for q_id in found_sub_queues:
-                    if q_id not in queues_found:
-                        queues_found[q_id] = []
-                    queues_found[q_id].extend(intervals)
+                # Если интервалов нет, но строка есть (напр. "4.2: не вимикається") -> это пустой список (свет есть)
+                # Записываем пустой массив intervals, это корректно обработается как "Свет есть"
+                queues_found[q_id] = intervals
+                
+            else:
+                # Старая логика: ищем время, а перед ним очередь
+                time_matches = list(time_pattern.finditer(line))
+                if time_matches:
+                    intervals = []
+                    for tm in time_matches:
+                        start, end = tm.groups()
+                        start = start.replace('.', ':')
+                        end = end.replace('.', ':')
+                        if len(start) == 4: start = "0" + start
+                        if len(end) == 4: end = "0" + end
+                        intervals.append({"start": start, "end": end})
 
+                    text_before_time = line[:time_matches[0].start()]
+                    found_sub_queues = specific_queue_pattern.findall(text_before_time)
+                    
+                    for q_id in found_sub_queues:
+                        if q_id not in queues_found:
+                            queues_found[q_id] = []
+                        queues_found[q_id].extend(intervals)
+
+        # 4. Сохранение результата парсинга поста
         if queues_found:
-            # Удаление дубликатов
+            # Сортировка интервалов внутри очередей
             for q_id in queues_found:
-                unique_intervals = []
+                # Удаление дубликатов интервалов (на всякий случай)
+                unique = []
                 seen = set()
-                for interval in queues_found[q_id]:
-                    key = f"{interval['start']}-{interval['end']}"
+                for i in queues_found[q_id]:
+                    key = f"{i['start']}-{i['end']}"
                     if key not in seen:
                         seen.add(key)
-                        unique_intervals.append(interval)
-                # Сортировка по времени начала
-                unique_intervals.sort(key=lambda x: x['start'])
-                queues_found[q_id] = unique_intervals
+                        unique.append(i)
+                unique.sort(key=lambda x: x['start'])
+                queues_found[q_id] = unique
 
             final_date_key = None
 
             if explicit_date_key:
                 final_date_key = explicit_date_key
             else:
-                # Если даты в тексте нет, пробуем "завтра" или текущую
+                # Пытаемся угадать дату по "завтра"/"сегодня"
                 now_kiev = get_kiev_time()
                 if "завтра" in text.lower():
                     target_date = now_kiev + timedelta(days=1)
@@ -193,7 +217,8 @@ def parse_channel(url):
             if not updated_at_val:
                 updated_at_val = get_kiev_time().strftime("%H:%M")
 
-            log(f"   ➕ Найден график на {final_date_key}")
+            log(f"   ➕ Найден график на {final_date_key} (очередей: {len(queues_found)})")
+            
             found_schedules.append({
                 "date": final_date_key,
                 "queues": queues_found,
@@ -218,8 +243,10 @@ def load_existing_schedules():
 
 def merge_schedules(old_data, new_data):
     merged = {}
+    # Сначала старые
     for sch in old_data:
         merged[sch['date']] = sch
+    # Потом новые (перезаписывают старые)
     for sch in new_data:
         merged[sch['date']] = sch
     return list(merged.values())
@@ -233,10 +260,15 @@ def main():
         log(f"📡 Парсинг канала: {url}")
         res = parse_channel(url)
         if res:
-            log(f"   ✅ Всего извлечено графиков: {len(res)}")
+            log(f"   ✅ Извлечено постов с графиками: {len(res)}")
             new_found.extend(res)
         else:
-            log("   ❌ Графиков не извлечено.")
+            log("   ❌ Графиков в постах не найдено.")
+
+    # Если ничего не нашли нового, не трогаем файл, чтобы не стереть старое
+    if not new_found:
+        log("⚠️ Новых данных нет. Файл не изменен.")
+        return
 
     final_list = merge_schedules(old_schedules, new_found)
 
@@ -248,6 +280,7 @@ def main():
             month = UA_MONTHS.get(month_str, 0)
             now = datetime.now()
             year = now.year
+            # Обработка смены года (декабрь -> январь)
             if now.month == 12 and month == 1: year += 1
             elif now.month == 1 and month == 12: year -= 1
             return datetime(year, month, day)
@@ -266,9 +299,7 @@ def main():
         json.dump(output_json, f, ensure_ascii=False, indent=4)
         
     dates_in_file = [item['date'] for item in final_list]
-    log(f"💾 Итого в файле: {dates_in_file}")
+    log(f"💾 Успешно сохранено! Даты в файле: {dates_in_file}")
 
 if __name__ == "__main__":
     main()
-
-
