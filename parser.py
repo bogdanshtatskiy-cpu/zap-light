@@ -24,7 +24,7 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 
 # ВАЖНО: Добавлена /s/ в URL для доступа к веб-версии канала
 CHANNELS = [
-    "https://t.me/s/Zaporizhzhyaoblenergo_news"
+    "https://t.me/s/tvoe_zaporizhzhia"
 ]
 
 KEYWORDS = [
@@ -270,3 +270,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
