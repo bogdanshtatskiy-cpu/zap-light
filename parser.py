@@ -24,7 +24,7 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 
 # Ссылка с /s/ для доступа к веб-версии
 CHANNELS = [
-    "https://t.me/s/svitlo_zaporozhye"
+    "https://t.me/s/zapnovini"
 ]
 
 KEYWORDS = [
@@ -303,3 +303,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
