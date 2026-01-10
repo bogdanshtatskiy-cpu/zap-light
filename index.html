@@ -10,7 +10,7 @@
     
     <script src="quotes.js"></script> 
     <script src="changelog.js"></script>
-    <script src="weather.js"></script>
+    <script src="weather_advice.js"></script> <script src="weather.js"></script>
 </head>
 <body>
     
@@ -19,7 +19,10 @@
     <div class="header">
         <div class="header-left">
             <div class="info-btn" onclick="openInfo()">i</div>
-            <div class="title-wrap">
+            <div class="weather-toggle-btn active" id="weather-toggle" onclick="toggleWeatherWidget()">
+                🌤️
+            </div>
+            <div class="title-wrap" style="margin-left: 10px;">
                 <div class="app-title" id="app-title">⚡ ГПВ</div>
                 <div class="app-subtitle" id="city-label">м. Запоріжжя</div>
             </div>
@@ -30,7 +33,7 @@
         </div>
     </div>
 
-    <div id="weather-widget" class="weather-widget glass-panel" style="display: none;">
+    <div id="weather-widget" class="weather-widget glass-panel">
         <div class="w-current">
             <div class="w-main">
                 <span class="w-icon" id="w-icon"></span>
@@ -42,6 +45,9 @@
             </div>
         </div>
         <div class="w-hourly" id="w-hourly"></div>
+        <div class="w-advice">
+            <div class="w-advice-text" id="w-advice-text">...</div>
+        </div>
     </div>
 
     <div class="date-wrap">
@@ -51,7 +57,10 @@
     <div class="queue-grid" id="queues"></div>
 
     <div class="hero glass-panel" id="hero" style="display:none">
-        <span class="icon" id="icon">❄️</span>
+        <div class="icon w-icon" id="status-icon-container" style="margin: 0 auto 15px auto;">
+            <img id="icon-img" src="" alt="status">
+        </div>
+        
         <div class="status-main" id="status">...</div>
         <div class="timer" id="timer">...</div>
         <div class="quote-box" id="quote"></div>
@@ -117,8 +126,12 @@
         const UA_MONTHS = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
         const RU_MONTHS = ["ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
         
+        // Ссылки на дорогие иконки для статуса
+        const ICON_LIGHT_ON = "https://basmilius.github.io/weather-icons/production/fill/all/clear-day.svg";
+        const ICON_LIGHT_OFF = "https://basmilius.github.io/weather-icons/production/fill/all/moon-full.svg"; // Или starry-night.svg
+
         let DATA = [];
-        let generatedAt = ""; // Время генерации файла
+        let generatedAt = "";
         let todaySchedule = null;
         let viewSchedule = null;
         
@@ -128,8 +141,7 @@
 
         const T = {
             uk: { 
-                title: "⚡ ГПВ",
-                city: "м. Запоріжжя",
+                title: "⚡ ГПВ", city: "м. Запоріжжя",
                 load: "Завантаження...", nodata: "Даних немає", choose: "Оберіть чергу", 
                 on: "СВІТЛО Є", off: "СВІТЛА НЕМА", 
                 in_on: "Ввімкнення через:", in_off: "Вимкнення через:", 
@@ -139,8 +151,7 @@
                 modal_title: "Інформація", dev: "Розробник", cl: "Історія змін"
             },
             ru: { 
-                title: "⚡ ГПО",
-                city: "г. Запорожье",
+                title: "⚡ ГПО", city: "г. Запорожье",
                 load: "Загрузка...", nodata: "Данных нет", choose: "Выберите очередь", 
                 on: "СВЕТ ЕСТЬ", off: "СВЕТА НЕТ", 
                 in_on: "Включение через:", in_off: "Отключение через:", 
@@ -154,14 +165,14 @@
         async function init() {
             createSnow();
             setLang(lang);
-            initWeather();
+            initWeather(); 
             document.getElementById('loader').innerText = T[lang].load;
 
             try {
                 const res = await fetch('schedule.json?v=' + Date.now());
                 const json = await res.json();
                 DATA = json.schedules;
-                generatedAt = json.generated_at || ""; // Берем время из JSON
+                generatedAt = json.generated_at || "";
 
                 if (!DATA || DATA.length === 0) {
                     document.getElementById('loader').innerText = T[lang].nodata;
@@ -190,7 +201,7 @@
                 todaySchedule = DATA[activeIdx]; 
                 
                 renderDates(activeIdx);
-                selectDate(activeIdx); // Тут вызовется и погода
+                selectDate(activeIdx);
 
                 if (selectedQueue) selectQueue(selectedQueue);
                 else {
@@ -199,7 +210,7 @@
                 }
 
                 setInterval(tick, 1000);
-                tick(); // Сразу обновим надписи
+                tick();
 
             } catch (e) {
                 console.error(e);
@@ -241,7 +252,6 @@
 
         function selectDate(idx) {
             viewSchedule = DATA[idx]; 
-            // Обновляем погоду для выбранной даты
             if (typeof renderWeatherForDate === "function") {
                 renderWeatherForDate(viewSchedule.date);
             }
@@ -273,12 +283,9 @@
             document.getElementById('btn-ru').className = `lang-btn ${l==='ru'?'active':''}`;
             
             document.getElementById('app-title').innerText = T[l].title;
-            // Перевод города
             document.getElementById('city-label').innerText = T[l].city;
-            
             document.getElementById('lbl-on').innerText = T[l].lbl_on;
             document.getElementById('lbl-off').innerText = T[l].lbl_off;
-            
             document.getElementById('modal-title').innerText = T[l].modal_title;
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
@@ -302,10 +309,8 @@
 
             const listEl = document.getElementById('details-list');
             const listFrag = document.createDocumentFragment();
-            
             const timeline = document.getElementById('visual');
             const barFrag = document.createDocumentFragment();
-            
             const map = getDayMap(viewSchedule, selectedQueue);
             
             let current = map[0];
@@ -322,8 +327,11 @@
                     row.className = 'list-row';
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
                     const badgeClass = current ? 'badge-on' : 'badge-off';
-                    const icon = current ? '❄️' : '🕯️';
                     const text = current ? T[lang].on : T[lang].off;
+                    
+                    // Тут тоже можно использовать красивые иконки, но они мелкие
+                    // Оставим эмодзи для списка, чтобы не грузить лишнее
+                    const icon = current ? '💡' : '🕯️';
                     
                     row.innerHTML = `
                         <div class="row-time">${timeRange}</div>
@@ -338,15 +346,11 @@
 
             timeline.innerHTML = '';
             timeline.appendChild(barFrag);
-            
             listEl.innerHTML = '';
             listEl.appendChild(listFrag);
 
             let offCount = 0;
-            for(let i=0; i<1440; i++) {
-                if(map[i] === false) offCount++;
-            }
-            
+            for(let i=0; i<1440; i++) { if(map[i] === false) offCount++; }
             document.getElementById('val-off').innerText = fmtDur(offCount);
             document.getElementById('val-on').innerText = fmtDur(1440 - offCount);
         }
@@ -371,7 +375,6 @@
         function tick() {
             if (!todaySchedule || !selectedQueue) return;
 
-            // Время обновления берем из generatedAt, а не из конкретного графика
             const updateTimeStr = generatedAt || todaySchedule.updated_at;
             const updText = `${T[lang].upd} ${updateTimeStr}`;
             const updEl = document.getElementById('updated');
@@ -387,12 +390,8 @@
             const isViewingToday = (vD === now.getDate() && vMIdx === now.getMonth());
 
             const marker = document.getElementById('marker');
-            if (isViewingToday) {
-                marker.style.display = 'block';
-                marker.style.left = (curMins / 1440 * 100) + '%';
-            } else {
-                marker.style.display = 'none';
-            }
+            marker.style.display = isViewingToday ? 'block' : 'none';
+            if(isViewingToday) marker.style.left = (curMins / 1440 * 100) + '%';
 
             const map = getDayMap(todaySchedule, selectedQueue);
             const isLight = map[curMins] !== undefined ? map[curMins] : true;
@@ -407,11 +406,11 @@
             
             if (nextChange !== -1) {
                 totalSecsLeft = (nextChange * 60) - curSecs;
+                eventTimeLabel = minsToTime(nextChange);
             } else {
                 const secsToMidnight = (1440 * 60) - curSecs;
                 const currentIdx = DATA.indexOf(todaySchedule);
                 const nextDaySchedule = DATA[currentIdx + 1];
-
                 let foundChangeTomorrow = false;
                 let nextChangeTom = -1;
 
@@ -426,8 +425,6 @@
                             const eventTimeLabel = minsToTime(nextChangeTom);
                             timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} ${eventTimeLabel})</span>`;
                             foundChangeTomorrow = true;
-                        } else {
-                            totalSecsLeft = secsToMidnight;
                         }
                     } else {
                         totalSecsLeft = secsToMidnight;
@@ -435,10 +432,7 @@
                         foundChangeTomorrow = true;
                     }
                 } 
-
-                if (!foundChangeTomorrow) {
-                    totalSecsLeft = secsToMidnight;
-                }
+                if (!foundChangeTomorrow) totalSecsLeft = secsToMidnight;
             }
 
             const h = Math.floor(totalSecsLeft / 3600);
@@ -447,27 +441,29 @@
             const timeStr = `${pad(h)}:${pad(m)}:${pad(s)}`;
 
             const body = document.body;
-            const icon = document.getElementById('icon');
+            const iconImg = document.getElementById('icon-img');
             const st = document.getElementById('status');
             const tm = document.getElementById('timer');
 
             if (isLight) {
                 body.classList.remove('dark-mode');
-                if (icon.innerText !== '❄️') icon.innerText = '❄️'; 
-                if (st.innerText !== T[lang].on) st.innerText = T[lang].on;
+                // Ставим крутую иконку Солнца
+                if (iconImg.src !== ICON_LIGHT_ON) iconImg.src = ICON_LIGHT_ON;
                 
+                if (st.innerText !== T[lang].on) st.innerText = T[lang].on;
+                st.style.color = 'var(--text)';
                 const newHtml = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml;
-                
                 updateQuote('on');
             } else {
                 body.classList.add('dark-mode');
-                if (icon.innerText !== '🕯️') icon.innerText = '🕯️';
-                if (st.innerText !== T[lang].off) st.innerText = T[lang].off;
+                // Ставим крутую иконку Луны
+                if (iconImg.src !== ICON_LIGHT_OFF) iconImg.src = ICON_LIGHT_OFF;
                 
+                if (st.innerText !== T[lang].off) st.innerText = T[lang].off;
+                st.style.color = 'var(--off)';
                 const newHtml = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml;
-                
                 updateQuote('off');
             }
         }
@@ -500,14 +496,11 @@
             if (typeof CHANGELOG_DATA === 'undefined') return;
             const container = document.getElementById('changelog-container');
             container.innerHTML = '';
-            
             CHANGELOG_DATA.forEach(ver => {
                 const item = document.createElement('div');
                 item.className = 'cl-item';
-                
                 const changesList = ver.changes[lang] || ver.changes['uk'];
                 const listHtml = changesList.map(c => `<li>${c}</li>`).join('');
-
                 item.innerHTML = `
                     <div class="cl-ver">v${ver.version}</div>
                     <span class="cl-date">${ver.date}</span>
