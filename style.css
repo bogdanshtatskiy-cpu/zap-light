@@ -130,7 +130,7 @@ body {
     transition: 0.3s;
     opacity: 0.6;
     filter: grayscale(1);
-    position: relative; /* Для тултіпа */
+    position: relative; 
 }
 .weather-toggle-btn.active {
     opacity: 1;
@@ -151,7 +151,7 @@ body {
     font-size: 12px;
     line-height: 1.4;
     z-index: 100;
-    pointer-events: none; /* Щоб не заважав клікам */
+    pointer-events: none;
     opacity: 0;
     transform: translateY(-10px);
     transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
@@ -163,7 +163,6 @@ body {
     transform: translateY(0);
     pointer-events: auto;
 }
-/* Стрілочка тултіпа */
 .tooltip::after {
     content: ''; position: absolute;
     top: -6px; left: 14px;
@@ -201,17 +200,28 @@ body {
 }
 .w-current { display: flex; justify-content: space-between; align-items: center; }
 .w-main { display: flex; align-items: center; gap: 12px; }
+
+/* ИКОНКИ ПОГОДЫ (НАСТРОЙКА ДЛЯ СВЕТЛОЙ И ТЕМНОЙ ТЕМЫ) */
 .w-icon {
     display: flex; align-items: center; justify-content: center;
     width: 70px; height: 70px;
-    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.25));
+    /* Светлая тема: без тени, четче */
+    filter: none;
 }
+/* Темная тема: добавляем тень/свечение */
+body.dark-mode .w-icon {
+    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4));
+}
+
 .w-icon img { width: 100%; height: 100%; object-fit: contain; }
+
 .w-temp {
     font-size: 38px; font-weight: 900; color: var(--text);
     font-family: var(--font-alt); margin-left: -5px;
-    text-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    text-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
+body.dark-mode .w-temp { text-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+
 .w-info { text-align: right; display: flex; flex-direction: column; justify-content: center; }
 .w-desc { font-size: 15px; font-weight: 800; margin-bottom: 4px; text-transform: capitalize; color: var(--text); }
 .w-feel { font-size: 12px; opacity: 0.7; font-weight: 600; }
@@ -237,11 +247,18 @@ body {
 }
 .w-hour.past-hour { opacity: 0.3; transform: scale(0.95); filter: grayscale(1); }
 .wh-time { font-size: 11px; opacity: 0.7; margin-bottom: 6px; font-weight: 700; }
+
+/* МАЛЕНЬКИЕ ИКОНКИ */
 .wh-icon {
     width: 38px; height: 38px; margin-bottom: 6px;
     display: flex; align-items: center; justify-content: center;
-    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.2));
+    filter: none; /* Светлая тема - чисто */
 }
+/* Темная тема - тень */
+body.dark-mode .wh-icon {
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3));
+}
+
 .wh-icon img { width: 100%; height: 100%; object-fit: contain; }
 .wh-temp { font-size: 14px; font-weight: 900; }
 
