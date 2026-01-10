@@ -10,7 +10,8 @@
     
     <script src="quotes.js"></script> 
     <script src="changelog.js"></script>
-    <script src="weather.js"></script> </head>
+    <script src="weather.js"></script>
+</head>
 <body>
     
     <div id="snow-container"></div>
@@ -20,7 +21,8 @@
             <div class="info-btn" onclick="openInfo()">i</div>
             <div class="title-wrap">
                 <div class="app-title" id="app-title">⚡ ГПВ</div>
-                <div class="app-subtitle">м. Запоріжжя</div> </div>
+                <div class="app-subtitle" id="city-label">м. Запоріжжя</div>
+            </div>
         </div>
         <div class="lang-switch">
             <div class="lang-btn active" id="btn-uk" onclick="setLang('uk')">UA</div>
@@ -39,8 +41,7 @@
                 <div class="w-feel" id="w-feel"></div>
             </div>
         </div>
-        <div class="w-hourly" id="w-hourly">
-            </div>
+        <div class="w-hourly" id="w-hourly"></div>
     </div>
 
     <div class="date-wrap">
@@ -117,6 +118,7 @@
         const RU_MONTHS = ["ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
         
         let DATA = [];
+        let generatedAt = ""; // Время генерации файла
         let todaySchedule = null;
         let viewSchedule = null;
         
@@ -127,20 +129,22 @@
         const T = {
             uk: { 
                 title: "⚡ ГПВ",
+                city: "м. Запоріжжя",
                 load: "Завантаження...", nodata: "Даних немає", choose: "Оберіть чергу", 
                 on: "СВІТЛО Є", off: "СВІТЛА НЕМА", 
                 in_on: "Ввімкнення через:", in_off: "Вимкнення через:", 
-                upd: "Актуально на:", h: "год", m: "хв", 
+                upd: "Оновлено:", h: "год", m: "хв", 
                 lbl_on: "Світло є", lbl_off: "Світла нема",
                 tom: "завтра", at: "о",
                 modal_title: "Інформація", dev: "Розробник", cl: "Історія змін"
             },
             ru: { 
                 title: "⚡ ГПО",
+                city: "г. Запорожье",
                 load: "Загрузка...", nodata: "Данных нет", choose: "Выберите очередь", 
                 on: "СВЕТ ЕСТЬ", off: "СВЕТА НЕТ", 
                 in_on: "Включение через:", in_off: "Отключение через:", 
-                upd: "Актуально на:", h: "ч", m: "мин", 
+                upd: "Обновлено:", h: "ч", m: "мин", 
                 lbl_on: "Свет есть", lbl_off: "Света нет",
                 tom: "завтра", at: "в",
                 modal_title: "Информация", dev: "Разработчик", cl: "История изменений"
@@ -150,13 +154,14 @@
         async function init() {
             createSnow();
             setLang(lang);
-            initWeather(); // 4. ЗАПУСК ПОГОДИ
+            initWeather();
             document.getElementById('loader').innerText = T[lang].load;
 
             try {
                 const res = await fetch('schedule.json?v=' + Date.now());
                 const json = await res.json();
                 DATA = json.schedules;
+                generatedAt = json.generated_at || ""; // Берем время из JSON
 
                 if (!DATA || DATA.length === 0) {
                     document.getElementById('loader').innerText = T[lang].nodata;
@@ -185,7 +190,7 @@
                 todaySchedule = DATA[activeIdx]; 
                 
                 renderDates(activeIdx);
-                selectDate(activeIdx);
+                selectDate(activeIdx); // Тут вызовется и погода
 
                 if (selectedQueue) selectQueue(selectedQueue);
                 else {
@@ -194,6 +199,7 @@
                 }
 
                 setInterval(tick, 1000);
+                tick(); // Сразу обновим надписи
 
             } catch (e) {
                 console.error(e);
@@ -235,6 +241,10 @@
 
         function selectDate(idx) {
             viewSchedule = DATA[idx]; 
+            // Обновляем погоду для выбранной даты
+            if (typeof renderWeatherForDate === "function") {
+                renderWeatherForDate(viewSchedule.date);
+            }
             if (selectedQueue) updateView();
         }
 
@@ -263,6 +273,9 @@
             document.getElementById('btn-ru').className = `lang-btn ${l==='ru'?'active':''}`;
             
             document.getElementById('app-title').innerText = T[l].title;
+            // Перевод города
+            document.getElementById('city-label').innerText = T[l].city;
+            
             document.getElementById('lbl-on').innerText = T[l].lbl_on;
             document.getElementById('lbl-off').innerText = T[l].lbl_off;
             
@@ -270,7 +283,7 @@
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
             
-            if (typeof updateWeatherLang === "function") updateWeatherLang(); // 5. Оновлюємо мову погоди
+            if (typeof updateWeatherLang === "function") updateWeatherLang();
 
             if(DATA.length) {
                 const idx = DATA.indexOf(viewSchedule);
@@ -358,13 +371,15 @@
         function tick() {
             if (!todaySchedule || !selectedQueue) return;
 
+            // Время обновления берем из generatedAt, а не из конкретного графика
+            const updateTimeStr = generatedAt || todaySchedule.updated_at;
+            const updText = `${T[lang].upd} ${updateTimeStr}`;
+            const updEl = document.getElementById('updated');
+            if (updEl.innerText !== updText) updEl.innerText = updText;
+
             const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
             const curMins = now.getHours() * 60 + now.getMinutes();
             const curSecs = curMins * 60 + now.getSeconds();
-
-            const updText = `${T[lang].upd} ${todaySchedule.updated_at}`;
-            const updEl = document.getElementById('updated');
-            if (updEl.innerText !== updText) updEl.innerText = updText;
 
             const viewParts = viewSchedule.date.split(' ');
             const vD = parseInt(viewParts[0]);
@@ -389,11 +404,9 @@
 
             let totalSecsLeft = 0;
             let timeInfoStr = "";
-            let eventTimeLabel = "";
-
+            
             if (nextChange !== -1) {
                 totalSecsLeft = (nextChange * 60) - curSecs;
-                eventTimeLabel = minsToTime(nextChange);
             } else {
                 const secsToMidnight = (1440 * 60) - curSecs;
                 const currentIdx = DATA.indexOf(todaySchedule);
@@ -410,16 +423,14 @@
                         }
                         if (nextChangeTom !== -1) {
                             totalSecsLeft = secsToMidnight + (nextChangeTom * 60);
-                            eventTimeLabel = minsToTime(nextChangeTom);
+                            const eventTimeLabel = minsToTime(nextChangeTom);
                             timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} ${eventTimeLabel})</span>`;
                             foundChangeTomorrow = true;
                         } else {
                             totalSecsLeft = secsToMidnight;
-                            eventTimeLabel = "24:00";
                         }
                     } else {
                         totalSecsLeft = secsToMidnight;
-                        eventTimeLabel = "00:00";
                         timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} 00:00)</span>`;
                         foundChangeTomorrow = true;
                     }
@@ -427,7 +438,6 @@
 
                 if (!foundChangeTomorrow) {
                     totalSecsLeft = secsToMidnight;
-                    eventTimeLabel = "24:00";
                 }
             }
 
@@ -473,7 +483,6 @@
             return map;
         }
 
-        // --- MODAL & INFO ---
         function openInfo() {
             renderChangelog();
             const modal = document.getElementById('info-modal');
