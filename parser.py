@@ -22,9 +22,8 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ⚙️ НАСТРОЙКИ
 # ==========================
 
-# Ссылка с /s/ для доступа к веб-версии
 CHANNELS = [
-    "https://t.me/s/info_zp"
+    "https://t.me/s/zoe_alarm"
 ]
 
 KEYWORDS = [
@@ -38,8 +37,10 @@ UA_MONTHS = {
 }
 UA_MONTHS_REVERSE = {v: k for k, v in UA_MONTHS.items()}
 
-# Фразы, означающие отсутствие отключений для очереди
-NO_OUTAGE_PHRASES = ["НЕ ВИМИКАЄТЬСЯ", "НЕ ЗАСТОСОВУЮТЬСЯ", "БЕЗ ВІДКЛЮЧЕНЬ", "СКАСОВАНО"]
+NO_OUTAGE_PHRASES = [
+    "НЕ ВИМИКАЄТЬСЯ", "НЕ ЗАСТОСОВУЮТЬСЯ", "БЕЗ ВІДКЛЮЧЕНЬ", 
+    "СКАСОВАНО", "БІЛИЙ", "ЗЕЛЕНИЙ"
+]
 
 # ==========================
 # 🛠 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -78,19 +79,16 @@ def get_html(target_url):
     return None
 
 def determine_date_from_text(text):
-    """Определяет дату, к которой относится график, на основе текста сообщения."""
     text_upper = text.upper()
     now_kiev = get_kiev_time()
     
-    # 1. Приоритет: Явная дата (напр. "9 СІЧНЯ")
     months_regex = "|".join(UA_MONTHS.keys())
-    date_match = re.search(rf"(\d{{1,2}})\s+({months_regex})", text_upper)
+    date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})\b", text_upper)
     if date_match:
         day = int(date_match.group(1))
         month_name = date_match.group(2)
         return f"{day} {month_name}"
 
-    # 2. Приоритет: Слова "Завтра" / "Сьогодні"
     if "ЗАВТРА" in text_upper:
         target_date = now_kiev + timedelta(days=1)
         day = target_date.day
@@ -103,18 +101,16 @@ def determine_date_from_text(text):
         month_name = UA_MONTHS_REVERSE.get(target_date.month, "ГРУДНЯ")
         return f"{day} {month_name}"
 
-    # 3. Фолбэк: Если ничего не нашли, считаем что это на сегодня
-    day = now_kiev.day
-    month_name = UA_MONTHS_REVERSE.get(now_kiev.month, "ГРУДНЯ")
-    return f"{day} {month_name}"
+    return None
 
 def parse_channel(url):
     html = get_html(url)
     if not html: return []
 
     soup = BeautifulSoup(html, 'html.parser')
+    page_title = soup.title.string.strip() if soup.title else "Без заголовка"
+    log(f"   🔎 Заголовок страницы: '{page_title}'")
     
-    # Ищем блоки сообщений
     message_divs = soup.find_all('div', class_='tgme_widget_message_text')
     if not message_divs:
         message_divs = soup.find_all('div', class_='js-message_text')
@@ -124,9 +120,8 @@ def parse_channel(url):
 
     found_schedules = []
     
-    # Регулярки
     time_pattern = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–—−]\s*(\d{1,2}[:.]\d{2})")
-    queue_pattern = re.compile(r"^(\d\.\d)\s*[:]\s*(.*)") # Ищет "1.1: текст..."
+    queue_pattern = re.compile(r"^(\d\.\d)\s*[:]\s*(.*)") 
 
     for text_div in message_divs:
         text = text_div.get_text(separator="\n")
@@ -134,50 +129,44 @@ def parse_channel(url):
         if not any(k in text.upper() for k in KEYWORDS):
             continue
 
-        lines = [line.strip().replace('\xa0', ' ') for line in text.split('\n') if line.strip()]
-        
-        # Определяем дату для ЭТОГО сообщения
         final_date_key = determine_date_from_text(text)
-        
-        # Ищем время обновления (внутри текста сообщения)
-        updated_at_val = get_kiev_time().strftime("%H:%M") # Дефолт
+        if not final_date_key:
+            continue
+
+        updated_at_val = get_kiev_time().strftime("%H:%M") 
         time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", text, re.IGNORECASE)
         if time_upd_match:
             updated_at_val = time_upd_match.group(1)
 
+        lines = [line.strip().replace('\xa0', ' ') for line in text.split('\n') if line.strip()]
         queues_found = {}
 
         for line in lines:
-            # Ищем строку вида "1.1: 12:00-14:00" или "4.2: не вимикається"
             q_match = queue_pattern.search(line)
-            
             if q_match:
                 q_id = q_match.group(1)
                 content = q_match.group(2).lower()
                 
-                # Проверка на "не вимикається"
                 if any(phrase.lower() in content for phrase in NO_OUTAGE_PHRASES):
-                    queues_found[q_id] = [] # Пустой список = свет есть
+                    queues_found[q_id] = [] 
                     continue
 
-                # Поиск времени
                 intervals = []
                 time_matches = list(time_pattern.finditer(content))
-                
                 for tm in time_matches:
                     start, end = tm.groups()
                     start = start.replace('.', ':')
                     end = end.replace('.', ':')
-                    # Нормализация (7:30 -> 07:30)
                     if len(start) == 4: start = "0" + start
                     if len(end) == 4: end = "0" + end
                     intervals.append({"start": start, "end": end})
                 
                 if intervals:
                     queues_found[q_id] = intervals
-            
+                elif not intervals and len(content) < 50:
+                     queues_found[q_id] = []
+
         if queues_found:
-            # Удаление дубликатов и сортировка
             for q_id in queues_found:
                 unique = []
                 seen = set()
@@ -215,10 +204,8 @@ def load_existing_schedules():
 
 def merge_schedules(old_data, new_data):
     merged = {}
-    # Сначала старые
     for sch in old_data:
         merged[sch['date']] = sch
-    # Потом новые (перезаписывают старые)
     for sch in new_data:
         merged[sch['date']] = sch
     return list(merged.values())
@@ -236,10 +223,7 @@ def main():
         else:
             log("   ❌ Пусто.")
 
-    if not new_found:
-        log("⚠️ Новых данных нет. Файл не изменен.")
-        return
-
+    # Объединяем всегда, даже если новых нет (чтобы обновить дату генерации)
     final_list = merge_schedules(old_schedules, new_found)
 
     def date_sorter(item):
@@ -257,13 +241,11 @@ def main():
             return datetime.now()
 
     final_list.sort(key=date_sorter)
-    
-    # === ИЗМЕНЕНИЕ ЗДЕСЬ ===
-    final_list = final_list[-7:] # Храним последние 7 дней
-    # =======================
+    final_list = final_list[-7:] 
 
+    # ТЕПЕРЬ ТУТ ЕСТЬ generated_at
     output_json = {
-        "last_check": get_kiev_time().strftime("%d.%m %H:%M"),
+        "generated_at": get_kiev_time().strftime("%d.%m %H:%M"), 
         "schedules": final_list
     }
 
