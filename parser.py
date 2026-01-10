@@ -22,9 +22,9 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ⚙️ НАСТРОЙКИ
 # ==========================
 
-# Основной канал облэнерго (с /s/ для веб-версии)
+# Используем embed-версию (она легче и реже блокируется)
 CHANNELS = [
-    "https://t.me/s/zoe_alarm"
+    "https://t.me/s/zoe_alarm?embed=1&discussion=1"
 ]
 
 KEYWORDS = [
@@ -56,29 +56,46 @@ def log(msg):
     sys.stdout.flush()
 
 def get_html(target_url):
-    # Ротация прокси для обхода блокировок Telegram
-    proxies = [
-        f"https://api.allorigins.win/raw?url={quote(target_url)}",
-        f"https://corsproxy.io/?{quote(target_url)}",
-        f"https://api.codetabs.com/v1/proxy?quest={quote(target_url)}"
+    # 1. Сначала пробуем прямой запрос с "человеческими" заголовками
+    # 2. Если не вышло — пробуем через надежный прокси
+    
+    strategies = [
+        {"url": target_url, "type": "DIRECT"},
+        {"url": f"https://api.codetabs.com/v1/proxy?quest={quote(target_url)}", "type": "PROXY (CodeTabs)"},
+        {"url": f"https://api.allorigins.win/raw?url={quote(target_url)}", "type": "PROXY (AllOrigins)"}
     ]
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Cache-Control': 'no-cache'
+        'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+        'Upgrade-Insecure-Requests': '1',
+        'Referer': 'https://www.google.com/'
     }
 
-    for url in proxies:
+    for strategy in strategies:
+        url = strategy["url"]
         try:
-            log(f"   🔄 Пробуем через: {url[:40]}...")
-            response = requests.get(url, headers=headers, timeout=20)
-            if response.status_code == 200 and len(response.text) > 2000:
-                log(f"   ✅ Скачано {len(response.text)} байт.")
-                return response.text
-        except Exception:
-            pass
-        time.sleep(1)
+            log(f"   🔄 Метод: {strategy['type']}...")
+            response = requests.get(url, headers=headers, timeout=15)
+            
+            if response.status_code == 200:
+                content = response.text
+                # ПРОВЕРКА: Действительно ли это Телеграм?
+                if "tgme_widget" in content or "js-message_text" in content:
+                    log(f"   ✅ Успешно! (Скачано {len(content)} байт)")
+                    return content
+                else:
+                    log(f"   ⚠️ Скачано, но это не похоже на Телеграм (Заголовок: {content[:100]}...)")
+            else:
+                log(f"   ⚠️ Ошибка: Код {response.status_code}")
+                
+        except Exception as e:
+            log(f"   ❌ Ошибка сети: {str(e)[:50]}")
+        
+        time.sleep(2) # Пауза перед следующей попыткой
+
     return None
 
 def determine_date_from_text(text):
@@ -110,7 +127,6 @@ def determine_date_from_text(text):
         month_name = UA_MONTHS_REVERSE.get(target_date.month, "ГРУДНЯ")
         return f"{day} {month_name}"
 
-    # 3. Если даты нет, возвращаем None (чтобы не придумывать)
     return None
 
 def parse_channel(url):
@@ -119,11 +135,12 @@ def parse_channel(url):
 
     soup = BeautifulSoup(html, 'html.parser')
     page_title = soup.title.string.strip() if soup.title else "Без заголовка"
-    log(f"   🔎 Заголовок страницы: '{page_title}'")
+    log(f"   🔎 Заголовок: '{page_title}'")
     
-    message_divs = soup.find_all('div', class_='tgme_widget_message_text')
-    if not message_divs:
-        message_divs = soup.find_all('div', class_='js-message_text')
+    # Ищем блоки сообщений (учитываем классы embed-версии)
+    message_divs = soup.find_all('div', class_=re.compile(r'(tgme_widget_message_text|js-message_text)'))
+    
+    log(f"   🔎 Найдено постов: {len(message_divs)}")
     
     if len(message_divs) == 0:
         return []
@@ -145,11 +162,11 @@ def parse_channel(url):
         # Пытаемся найти дату
         final_date_key = determine_date_from_text(text)
         
-        # Если дата не найдена - пропускаем сообщение (чтобы не создавать мусор)
+        # Если дата не найдена - пропускаем
         if not final_date_key:
             continue
 
-        # Время обновления (из текста)
+        # Время обновления
         updated_at_val = get_kiev_time().strftime("%H:%M") 
         time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", text, re.IGNORECASE)
         if time_upd_match:
@@ -171,29 +188,26 @@ def parse_channel(url):
                     queues_found[q_id] = [] # Пустой список = свет есть
                     continue
 
-                # Поиск всех интервалов времени в строке
+                # Поиск всех интервалов времени
                 intervals = []
                 time_matches = list(time_pattern.finditer(content))
                 
                 for tm in time_matches:
                     start, end = tm.groups()
-                    # Заменяем точки на двоеточия (12.00 -> 12:00)
                     start = start.replace('.', ':')
                     end = end.replace('.', ':')
-                    # Добавляем ноль в начале (7:30 -> 07:30)
+                    # Добавляем ноль (7:30 -> 07:30)
                     if len(start) == 4: start = "0" + start
                     if len(end) == 4: end = "0" + end
                     intervals.append({"start": start, "end": end})
                 
-                # Если нашли время - записываем
                 if intervals:
                     queues_found[q_id] = intervals
-                # Если строка есть, а времени нет - считаем что свет есть (защита)
                 elif not intervals and len(content) < 50:
+                     # Защита: если строка короткая и времени нет -> свет есть
                      queues_found[q_id] = []
 
         if queues_found:
-            # Удаление дубликатов и сортировка
             for q_id in queues_found:
                 unique = []
                 seen = set()
@@ -205,7 +219,7 @@ def parse_channel(url):
                 unique.sort(key=lambda x: x['start'])
                 queues_found[q_id] = unique
 
-            log(f"   ➕ Найден график на {final_date_key} (черг: {len(queues_found)})")
+            log(f"   ➕ График на {final_date_key} (черг: {len(queues_found)})")
             
             found_schedules.append({
                 "date": final_date_key,
@@ -231,10 +245,9 @@ def load_existing_schedules():
 
 def merge_schedules(old_data, new_data):
     merged = {}
-    # Сначала старые
     for sch in old_data:
         merged[sch['date']] = sch
-    # Потом новые (перезаписывают старые)
+    # Новые перезаписывают старые
     for sch in new_data:
         merged[sch['date']] = sch
     return list(merged.values())
@@ -250,7 +263,7 @@ def main():
         if res:
             new_found.extend(res)
         else:
-            log("   ❌ Пусто (или защита сработала).")
+            log("   ❌ Пусто (возможно, сработала защита Telegram).")
 
     if not new_found:
         log("⚠️ Новых данных нет. Файл не изменен.")
@@ -273,7 +286,7 @@ def main():
             return datetime.now()
 
     final_list.sort(key=date_sorter)
-    final_list = final_list[-3:] # Храним 3 дня
+    final_list = final_list[-3:] 
 
     output_json = {
         "last_check": get_kiev_time().strftime("%d.%m %H:%M"),
