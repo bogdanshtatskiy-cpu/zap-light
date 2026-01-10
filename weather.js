@@ -1,6 +1,6 @@
 const ICON_BASE_URL = "https://basmilius.github.io/weather-icons/production/fill/all/";
 
-// Запрашиваем 5 дней в прошлом и 2 в будущем
+// Запитуємо 5 днів назад і 2 вперед (щоб покрити весь тиждень архіву)
 const WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude=47.8388&longitude=35.1396&current=temperature_2m,apparent_temperature,weather_code,is_day&hourly=temperature_2m,weather_code,is_day&timezone=auto&forecast_days=2&past_days=5";
 
 const WMO_CODES = {
@@ -31,10 +31,10 @@ const WMO_CODES = {
 };
 
 let weatherData = null;
-let currentViewingDateStr = null; // Храним строку даты (напр. "10 СІЧНЯ")
+let currentViewingDateStr = null;
 
 async function initWeather() {
-    // Восстанавливаем состояние видимости
+    // Відновлення видимості
     const isHidden = localStorage.getItem('weatherHidden') === 'true';
     const widget = document.getElementById('weather-widget');
     const toggleBtn = document.getElementById('weather-toggle');
@@ -53,6 +53,17 @@ async function initWeather() {
         const res = await fetch(WEATHER_API_URL);
         if (!res.ok) throw new Error("Weather API Error");
         weatherData = await res.json();
+        
+        // Спробуємо відрендерити відразу для "сьогодні", якщо дата ще не обрана
+        if (!currentViewingDateStr) {
+            const today = new Date();
+            const day = today.getDate();
+            const months = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
+            renderWeatherForDate(`${day} ${months[today.getMonth()]}`);
+        } else {
+            renderWeatherForDate(currentViewingDateStr);
+        }
+
     } catch (e) {
         console.error("Weather load failed:", e);
         if (widget) widget.style.display = 'none';
@@ -77,12 +88,12 @@ function toggleWeatherWidget() {
 
 function renderWeatherForDate(dateStr) {
     if (!weatherData) return;
-    currentViewingDateStr = dateStr; // Запоминаем для смены языка
+    currentViewingDateStr = dateStr;
 
     const widget = document.getElementById('weather-widget');
     const adviceBox = document.getElementById('w-advice-text');
     
-    // Парсим дату графика
+    // Парсинг дати
     const targetDate = parseScheduleDate(dateStr);
     const today = new Date();
     today.setHours(0,0,0,0,0);
@@ -90,14 +101,12 @@ function renderWeatherForDate(dateStr) {
 
     const isToday = targetDate.getTime() === today.getTime();
     
-    // 1. БОЛЬШАЯ КАРТОЧКА (Всегда ТЕКУЩАЯ погода СЕЙЧАС, если смотрим сегодня,
-    // или погода на 12:00, если смотрим другой день)
-    
+    // 1. ГОЛОВНА КАРТКА
     let displayData = null;
     let isCurrent = false;
 
     if (isToday) {
-        // Показываем данные "прямо сейчас"
+        // Якщо сьогодні - беремо "current" з API (найточніше)
         const current = weatherData.current;
         displayData = {
             code: current.weather_code,
@@ -107,7 +116,7 @@ function renderWeatherForDate(dateStr) {
         };
         isCurrent = true;
     } else {
-        // Ищем данные на 12:00 дня выбранной даты
+        // Якщо інший день - шукаємо погоду на 14:00
         const times = weatherData.hourly.time;
         let foundIndex = -1;
         
@@ -119,20 +128,18 @@ function renderWeatherForDate(dateStr) {
             }
         }
         
-        // Если нашли (дата доступна в прогнозе)
         if (foundIndex !== -1) {
             displayData = {
                 code: weatherData.hourly.weather_code[foundIndex],
                 temp: weatherData.hourly.temperature_2m[foundIndex],
-                isDay: true, // Днем в 14:00 обычно светло
-                feel: weatherData.hourly.temperature_2m[foundIndex] // API hourly doesn't give apparent easily here, using temp
+                isDay: true,
+                feel: weatherData.hourly.temperature_2m[foundIndex] 
             };
         }
     }
 
     if (!displayData) {
-        // Дата за пределами прогноза (-5 дней или +2 дня)
-        widget.style.opacity = '0.5'; // Делаем полупрозрачным, показываем что данных нет
+        widget.style.opacity = '0.5';
         document.getElementById('w-desc').innerText = lang === 'uk' ? "Дані відсутні" : "Данные отсутствуют";
         document.getElementById('w-hourly').innerHTML = '';
         return;
@@ -140,7 +147,7 @@ function renderWeatherForDate(dateStr) {
         widget.style.opacity = '1';
     }
 
-    // Рендер основной части
+    // Рендер
     const wmo = WMO_CODES[displayData.code] || WMO_CODES[0];
     const iconFile = displayData.isDay ? wmo.img : wmo.img_night;
     const iconUrl = `${ICON_BASE_URL}${iconFile}`;
@@ -150,53 +157,49 @@ function renderWeatherForDate(dateStr) {
     document.getElementById('w-temp').innerText = `${Math.round(displayData.temp)}°`;
     document.getElementById('w-desc').innerText = desc;
     
-    // Фраза "Ощущается как" только для "сейчас", для прогноза просто пусто или дата
     if (isCurrent) {
         document.getElementById('w-feel').innerText = `${lang === 'uk' ? 'Відчувається як' : 'Ощущается как'} ${Math.round(displayData.feel)}°`;
     } else {
-        // Форматируем дату для подписи
         const d = targetDate.getDate();
         const m = targetDate.getMonth() + 1;
         document.getElementById('w-feel').innerText = `${pad(d)}.${pad(m)}`;
     }
 
-    // НАПУТСТВИЕ
+    // НАПУТСТВИЕ (Advice)
     if (typeof getWeatherAdvice === 'function') {
         const advice = getWeatherAdvice(displayData.code, lang);
-        adviceBox.innerText = advice;
+        if (adviceBox) adviceBox.innerText = advice;
     }
 
-    // 2. ПОЧАСОВОЙ ПРОГНОЗ (Умный скролл)
+    // 2. ПОГОДИННИЙ ПРОГНОЗ
     const hourlyContainer = document.getElementById('w-hourly');
     if (hourlyContainer) {
         hourlyContainer.innerHTML = '';
         
-        const hourlyData = [];
         const times = weatherData.hourly.time;
         const currentHour = new Date().getHours();
         let scrollToIndex = 0;
+        let hasData = false;
 
         for (let i = 0; i < times.length; i++) {
             const t = new Date(times[i]);
-            // Фильтр по выбранному дню
+            // Фільтр по дню
             if (t.getDate() === targetDate.getDate() && t.getMonth() === targetDate.getMonth()) {
-                
+                hasData = true;
                 const hour = t.getHours();
                 const code = weatherData.hourly.weather_code[i];
                 const isDayH = weatherData.hourly.is_day[i] === 1;
                 const temp = weatherData.hourly.temperature_2m[i];
                 
-                // Рендер элемента
                 const wmoH = WMO_CODES[code] || WMO_CODES[0];
                 const iconHFile = isDayH ? wmoH.img : wmoH.img_night;
                 const iconHUrl = `${ICON_BASE_URL}${iconHFile}`;
                 
                 let activeClass = '';
-                // Если это СЕГОДНЯ:
                 if (isToday) {
                     if (hour === currentHour) {
                         activeClass = 'current-hour';
-                        scrollToIndex = hourlyData.length; // Запоминаем индекс для скролла
+                        scrollToIndex = hourlyContainer.children.length; 
                     } else if (hour < currentHour) {
                         activeClass = 'past-hour';
                     }
@@ -210,14 +213,12 @@ function renderWeatherForDate(dateStr) {
                     <div class="wh-temp">${Math.round(temp)}°</div>
                 `;
                 hourlyContainer.appendChild(item);
-                hourlyData.push(item);
             }
         }
 
-        // Скроллим к нужному месту
+        // Скрол до поточного часу
         requestAnimationFrame(() => {
             if (isToday && scrollToIndex > 0) {
-                // Скролл так, чтобы текущий час был вторым слева (комфортно)
                 const scrollPos = (scrollToIndex - 1) * 60; 
                 hourlyContainer.scrollTo({ left: scrollPos, behavior: 'smooth' });
             } else {
@@ -228,11 +229,11 @@ function renderWeatherForDate(dateStr) {
 }
 
 function parseScheduleDate(dateStr) {
+    if (!dateStr) return new Date();
     const parts = dateStr.split(' ');
     const day = parseInt(parts[0]);
     const monthName = parts[1];
     
-    // Маппинг месяцев (такой же как в index.html)
     const monthMap = {
         "СІЧНЯ":0, "ЛЮТОГО":1, "БЕРЕЗНЯ":2, "КВІТНЯ":3, "ТРАВНЯ":4, "ЧЕРВНЯ":5,
         "ЛИПНЯ":6, "СЕРПНЯ":7, "ВЕРЕСНЯ":8, "ЖОВТНЯ":9, "ЛИСТОПАДА":10, "ГРУДНЯ":11
