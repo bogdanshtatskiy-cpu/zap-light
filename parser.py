@@ -5,6 +5,7 @@ import socket
 import time
 import sys
 import os
+import random
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -54,16 +55,21 @@ def log(msg):
     sys.stdout.flush()
 
 def get_html(target_url):
+    # Додаємо рандом, щоб збити кеш проксі
+    rnd = random.randint(1, 999999)
+    
     proxies = [
-        f"https://api.allorigins.win/raw?url={quote(target_url)}",
-        f"https://corsproxy.io/?{quote(target_url)}",
-        f"https://api.codetabs.com/v1/proxy?quest={quote(target_url)}"
+        f"https://api.allorigins.win/raw?url={quote(target_url)}&rnd={rnd}",
+        f"https://corsproxy.io/?{quote(target_url)}", # іноді працює
+        f"https://api.codetabs.com/v1/proxy?quest={quote(target_url)}&rnd={rnd}"
     ]
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
     }
 
     for url in proxies:
@@ -71,8 +77,10 @@ def get_html(target_url):
             log(f"   🔄 Пробуем через: {url[:40]}...")
             response = requests.get(url, headers=headers, timeout=20)
             if response.status_code == 200 and len(response.text) > 2000:
-                log(f"   ✅ Скачано {len(response.text)} байт.")
-                return response.text
+                content = response.text
+                if "tgme_widget" in content or "js-message_text" in content:
+                    log(f"   ✅ Скачано {len(content)} байт.")
+                    return content
         except Exception:
             pass
         time.sleep(1)
@@ -108,8 +116,6 @@ def parse_channel(url):
     if not html: return []
 
     soup = BeautifulSoup(html, 'html.parser')
-    page_title = soup.title.string.strip() if soup.title else "Без заголовка"
-    log(f"   🔎 Заголовок страницы: '{page_title}'")
     
     message_divs = soup.find_all('div', class_='tgme_widget_message_text')
     if not message_divs:
@@ -120,8 +126,12 @@ def parse_channel(url):
 
     found_schedules = []
     
-    time_pattern = re.compile(r"(\d{1,2}[:.]\d{2})\s*[-–—−]\s*(\d{1,2}[:.]\d{2})")
-    queue_pattern = re.compile(r"^(\d\.\d)\s*[:]\s*(.*)") 
+    # --- FIX REGEX ---
+    # Час: дозволяємо : . ; (фікс друківок типу 02;00)
+    time_pattern = re.compile(r"(\d{1,2}[:.;]\d{2})\s*[-–—−]\s*(\d{1,2}[:.;]\d{2})")
+    
+    # Черга: дозволяємо пробіли на початку рядка
+    queue_pattern = re.compile(r"^\s*(\d\.\d)\s*[:)]\s*(.*)") 
 
     for text_div in message_divs:
         text = text_div.get_text(separator="\n")
@@ -147,23 +157,31 @@ def parse_channel(url):
                 q_id = q_match.group(1)
                 content = q_match.group(2).lower()
                 
+                # Перевірка на відсутність відключень
                 if any(phrase.lower() in content for phrase in NO_OUTAGE_PHRASES):
                     queues_found[q_id] = [] 
                     continue
 
                 intervals = []
                 time_matches = list(time_pattern.finditer(content))
+                
                 for tm in time_matches:
                     start, end = tm.groups()
-                    start = start.replace('.', ':')
-                    end = end.replace('.', ':')
+                    # Нормалізація роздільників (заміна ; та . на :)
+                    start = start.replace('.', ':').replace(';', ':')
+                    end = end.replace('.', ':').replace(';', ':')
+                    
                     if len(start) == 4: start = "0" + start
                     if len(end) == 4: end = "0" + end
                     intervals.append({"start": start, "end": end})
                 
                 if intervals:
                     queues_found[q_id] = intervals
-                elif not intervals and len(content) < 50:
+                # Логіка захисту: якщо є черга, але немає часу - ігноруємо, 
+                # бо це може бути помилка парсингу, а не "світло є".
+                # АЛЕ якщо рядок короткий (напр. "4.1: "), то може й світло є.
+                # Тут краще бути обережним.
+                elif not intervals and len(content) < 20:
                      queues_found[q_id] = []
 
         if queues_found:
@@ -223,7 +241,6 @@ def main():
         else:
             log("   ❌ Пусто.")
 
-    # Объединяем всегда, даже если новых нет (чтобы обновить дату генерации)
     final_list = merge_schedules(old_schedules, new_found)
 
     def date_sorter(item):
@@ -243,7 +260,6 @@ def main():
     final_list.sort(key=date_sorter)
     final_list = final_list[-7:] 
 
-    # ТЕПЕРЬ ТУТ ЕСТЬ generated_at
     output_json = {
         "generated_at": get_kiev_time().strftime("%d.%m %H:%M"), 
         "schedules": final_list
