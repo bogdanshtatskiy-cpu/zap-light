@@ -393,7 +393,10 @@ body.dark-mode .cl-item { background: rgba(0,0,0,0.2); }
     display: flex;
     flex-direction: column;
     gap: 12px;
+    /* Легкая анимация появления */
+    animation: fadeIn 0.5s ease-out;
 }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
 .w-current {
     display: flex;
@@ -404,42 +407,57 @@ body.dark-mode .cl-item { background: rgba(0,0,0,0.2); }
 .w-main {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
+/* Настройка большой иконки */
 .w-icon {
-    font-size: 32px;
-    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.1));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15)); /* Тень для объема */
+}
+.w-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .w-temp {
-    font-size: 28px;
+    font-size: 32px; /* Чуть крупнее */
     font-weight: 900;
     color: var(--text);
     font-family: var(--font-alt);
+    margin-left: -5px;
 }
 
 .w-info {
     text-align: right;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .w-desc {
     font-size: 14px;
     font-weight: 700;
     margin-bottom: 2px;
+    text-transform: capitalize;
 }
 
 .w-feel {
     font-size: 11px;
     opacity: 0.6;
+    font-weight: 600;
 }
 
 .w-hourly {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     overflow-x: auto;
     padding-bottom: 5px;
-    /* Hide Scrollbar */
     scrollbar-width: none;
 }
 .w-hourly::-webkit-scrollbar { display: none; }
@@ -448,22 +466,35 @@ body.dark-mode .cl-item { background: rgba(0,0,0,0.2); }
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 45px;
+    min-width: 50px;
     background: rgba(255,255,255,0.05);
-    padding: 8px 5px;
-    border-radius: 12px;
+    padding: 10px 5px;
+    border-radius: 16px;
     border: 1px solid rgba(255,255,255,0.05);
+    transition: transform 0.2s;
 }
+.w-hour:active { transform: scale(0.95); }
 
 .wh-time {
     font-size: 11px;
-    opacity: 0.7;
-    margin-bottom: 4px;
+    opacity: 0.6;
+    margin-bottom: 5px;
+    font-weight: 600;
 }
 
+/* Настройка маленьких иконок в скролле */
 .wh-icon {
-    font-size: 18px;
-    margin-bottom: 4px;
+    width: 32px;
+    height: 32px;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wh-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .wh-temp {
