@@ -368,7 +368,7 @@ body.dark-mode .cl-item { background: rgba(0,0,0,0.2); }
 
 @keyframes float { 0%, 100% {transform:translateY(0)} 50% {transform:translateY(-10px)} }
 
-/* --- WEATHER WIDGET & CITY LABEL --- */
+/* --- WEATHER WIDGET & HEADER --- */
 
 .title-wrap {
     display: flex;
@@ -385,18 +385,48 @@ body.dark-mode .cl-item { background: rgba(0,0,0,0.2); }
     text-transform: uppercase;
 }
 
-.weather-widget {
-    margin-bottom: 20px;
-    padding: 15px;
+/* Кнопка погоды (тумблер) */
+.weather-toggle-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
-    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer;
+    margin-left: 8px;
+    transition: 0.3s;
+    opacity: 0.6;
+    filter: grayscale(1);
+}
+.weather-toggle-btn.active {
+    opacity: 1;
+    filter: grayscale(0);
+    box-shadow: 0 0 10px var(--accent-glow);
+    background: rgba(255,255,255,0.1);
+}
+
+.weather-widget {
+    margin-bottom: 20px;
+    padding: 20px 15px 15px 15px; /* Больше паддинг сверху */
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    animation: fadeIn 0.5s ease-out;
+    gap: 15px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden;
+    max-height: 500px; /* Для анимации скрытия */
 }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Скрытый виджет (анимация) */
+.weather-widget.hidden {
+    max-height: 0;
+    padding: 0 15px;
+    margin-bottom: 0;
+    opacity: 0;
+    border: none;
+}
 
 .w-current {
     display: flex;
@@ -407,32 +437,28 @@ body.dark-mode .cl-item { background: rgba(0,0,0,0.2); }
 .w-main {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
-/* ИКОНКИ: Делаем их "вкусными" и видимыми */
+/* ИКОНКИ: Глубокие тени для светлой темы */
 .w-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 64px;
-    height: 64px;
+    width: 70px;
+    height: 70px;
     /* Тень помогает отделить иконку от светлого фона */
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); 
+    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.25)); 
 }
-.w-icon img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
+.w-icon img { width: 100%; height: 100%; object-fit: contain; }
 
 .w-temp {
-    font-size: 34px;
+    font-size: 38px;
     font-weight: 900;
     color: var(--text);
     font-family: var(--font-alt);
     margin-left: -5px;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    text-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
 .w-info {
@@ -443,26 +469,29 @@ body.dark-mode .cl-item { background: rgba(0,0,0,0.2); }
 }
 
 .w-desc {
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 2px;
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 4px;
     text-transform: capitalize;
+    color: var(--text);
 }
 
 .w-feel {
-    font-size: 11px;
+    font-size: 12px;
     opacity: 0.7;
     font-weight: 600;
 }
 
+/* Скролл погоды */
 .w-hourly {
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    padding-bottom: 5px;
+    /* Увеличил паддинг, чтобы активный блок не резался сверху */
+    padding: 10px 2px 5px 2px; 
     scrollbar-width: none;
-    mask-image: linear-gradient(to right, transparent, black 10px, black 90%, transparent);
-    -webkit-mask-image: linear-gradient(to right, transparent, black 10px, black 90%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 15px, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 15px, black 90%, transparent);
 }
 .w-hourly::-webkit-scrollbar { display: none; }
 
@@ -470,54 +499,65 @@ body.dark-mode .cl-item { background: rgba(0,0,0,0.2); }
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 55px;
-    background: rgba(255,255,255,0.05); /* Легкая подложка */
-    padding: 10px 5px;
-    border-radius: 16px;
+    min-width: 58px;
+    background: rgba(255,255,255,0.06); 
+    padding: 12px 5px;
+    border-radius: 18px;
     border: 1px solid rgba(255,255,255,0.05);
     transition: all 0.3s ease;
 }
 
-/* Текущий час - выделяем */
+/* Текущий час - ВЫДЕЛЕНИЕ */
 .w-hour.current-hour {
     background: var(--accent);
-    color: #fff;
+    color: #fff; /* Белый текст на акценте */
     border-color: var(--accent);
-    transform: scale(1.05);
-    box-shadow: 0 4px 15px var(--accent-glow);
+    transform: scale(1.1) translateY(-2px); /* Чуть выше и больше */
+    box-shadow: 0 8px 20px var(--accent-glow);
+    z-index: 2;
 }
 
-/* Прошедшие часы - тусклые */
+/* Прошедшие часы */
 .w-hour.past-hour {
-    opacity: 0.4;
+    opacity: 0.3;
     transform: scale(0.95);
-    background: transparent;
+    filter: grayscale(1);
 }
 
 .wh-time {
     font-size: 11px;
     opacity: 0.7;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
     font-weight: 700;
 }
 
+/* Иконки в скролле */
 .wh-icon {
-    width: 36px;
-    height: 36px;
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* И тут тень для контраста */
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+    width: 38px;
+    height: 38px;
+    margin-bottom: 6px;
+    display: flex; align-items: center; justify-content: center;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.2));
 }
-.wh-icon img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
+.wh-icon img { width: 100%; height: 100%; object-fit: contain; }
 
 .wh-temp {
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 900;
+}
+
+/* НАПУТСТВИЕ */
+.w-advice {
+    margin-top: 5px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    text-align: center;
+}
+.w-advice-text {
+    font-size: 13px;
+    font-style: italic;
+    opacity: 0.85;
+    line-height: 1.4;
+    color: var(--text);
+    font-weight: 500;
 }
