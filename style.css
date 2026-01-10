@@ -142,48 +142,61 @@ body {
 /* --- TOOLTIP (ПІДКАЗКА) --- */
 .tooltip {
     position: absolute;
-    top: 45px; left: 0;
+    top: 50px; /* Трохи нижче, щоб не перекривало */
+    left: 30px; /* Зсув вправо, щоб бути під кнопкою погоди */
     width: 200px;
     background: rgba(30, 41, 59, 0.95);
     color: #fff;
-    padding: 10px 12px;
-    border-radius: 12px;
-    font-size: 12px;
+    padding: 12px;
+    border-radius: 16px;
+    font-size: 13px;
     line-height: 1.4;
     z-index: 100;
     pointer-events: none;
     opacity: 0;
     transform: translateY(-10px);
-    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.15);
 }
+
 .tooltip.show {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
 }
+
+/* Стрілочка тултіпа */
 .tooltip::after {
-    content: ''; position: absolute;
-    top: -6px; left: 14px;
-    width: 0; height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-bottom: 6px solid rgba(30, 41, 59, 0.95);
+    content: '';
+    position: absolute;
+    top: -8px; 
+    left: 32px; /* Стрілочка центрується відносно кнопки погоди */
+    width: 0; 
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid rgba(30, 41, 59, 0.95);
 }
+
 .tooltip-btn {
-    margin-top: 8px;
+    display: block;
+    margin-top: 10px;
     background: var(--accent);
     color: white;
     border: none;
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: 11px;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
     font-weight: 700;
     cursor: pointer;
     float: right;
+    transition: 0.2s;
 }
-
+.tooltip-btn:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+}
 /* --- WEATHER WIDGET --- */
 .weather-widget {
     margin-bottom: 20px;
@@ -459,3 +472,4 @@ body.dark-mode .wh-icon {
 .cl-desc li::before { content: "•"; color: var(--accent); position: absolute; left: -10px; font-weight: bold; }
 .cl-desc ul { padding-left: 15px; margin: 0; }
 @keyframes float { 0%, 100% {transform:translateY(0)} 50% {transform:translateY(-10px)} }
+
