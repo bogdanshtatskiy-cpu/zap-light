@@ -10,7 +10,7 @@
     
     <script src="quotes.js"></script> 
     <script src="changelog.js"></script>
-</head>
+    <script src="weather.js"></script> </head>
 <body>
     
     <div id="snow-container"></div>
@@ -18,12 +18,29 @@
     <div class="header">
         <div class="header-left">
             <div class="info-btn" onclick="openInfo()">i</div>
-            <div class="app-title" id="app-title">⚡ ГПВ</div>
+            <div class="title-wrap">
+                <div class="app-title" id="app-title">⚡ ГПВ</div>
+                <div class="app-subtitle">м. Запоріжжя</div> </div>
         </div>
         <div class="lang-switch">
             <div class="lang-btn active" id="btn-uk" onclick="setLang('uk')">UA</div>
             <div class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</div>
         </div>
+    </div>
+
+    <div id="weather-widget" class="weather-widget glass-panel" style="display: none;">
+        <div class="w-current">
+            <div class="w-main">
+                <span class="w-icon" id="w-icon"></span>
+                <span class="w-temp" id="w-temp"></span>
+            </div>
+            <div class="w-info">
+                <div class="w-desc" id="w-desc"></div>
+                <div class="w-feel" id="w-feel"></div>
+            </div>
+        </div>
+        <div class="w-hourly" id="w-hourly">
+            </div>
     </div>
 
     <div class="date-wrap">
@@ -133,6 +150,7 @@
         async function init() {
             createSnow();
             setLang(lang);
+            initWeather(); // 4. ЗАПУСК ПОГОДИ
             document.getElementById('loader').innerText = T[lang].load;
 
             try {
@@ -252,6 +270,8 @@
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
             
+            if (typeof updateWeatherLang === "function") updateWeatherLang(); // 5. Оновлюємо мову погоди
+
             if(DATA.length) {
                 const idx = DATA.indexOf(viewSchedule);
                 renderDates(idx !== -1 ? idx : 0);
