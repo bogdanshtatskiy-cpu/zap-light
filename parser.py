@@ -5,7 +5,7 @@ import socket
 import time
 import sys
 import os
-import random
+import random # Добавил для защиты от кеша
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -55,12 +55,12 @@ def log(msg):
     sys.stdout.flush()
 
 def get_html(target_url):
-    # Додаємо рандом, щоб збити кеш проксі
+    # Додаємо рандом, щоб збити кеш проксі і бачити оновлення відразу
     rnd = random.randint(1, 999999)
     
     proxies = [
         f"https://api.allorigins.win/raw?url={quote(target_url)}&rnd={rnd}",
-        f"https://corsproxy.io/?{quote(target_url)}", # іноді працює
+        f"https://corsproxy.io/?{quote(target_url)}", 
         f"https://api.codetabs.com/v1/proxy?quest={quote(target_url)}&rnd={rnd}"
     ]
 
@@ -116,6 +116,8 @@ def parse_channel(url):
     if not html: return []
 
     soup = BeautifulSoup(html, 'html.parser')
+    page_title = soup.title.string.strip() if soup.title else "Без заголовка"
+    log(f"   🔎 Заголовок страницы: '{page_title}'")
     
     message_divs = soup.find_all('div', class_='tgme_widget_message_text')
     if not message_divs:
@@ -126,12 +128,12 @@ def parse_channel(url):
 
     found_schedules = []
     
-    # --- FIX REGEX ---
-    # Час: дозволяємо : . ; (фікс друківок типу 02;00)
-    time_pattern = re.compile(r"(\d{1,2}[:.;]\d{2})\s*[-–—−]\s*(\d{1,2}[:.;]\d{2})")
+    # --- ОНОВЛЕНІ РЕГУЛЯРКИ ---
+    # Час: розуміє "до", різні тире, і фіксить друківки типу 02;00 або 02.00
+    time_pattern = re.compile(r"(\d{1,2}[:.;]\d{2})\s*(?:[-–—−]|до)\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
     
-    # Черга: дозволяємо пробіли на початку рядка
-    queue_pattern = re.compile(r"^\s*(\d\.\d)\s*[:)]\s*(.*)") 
+    # Черга: розуміє "Черга 1.1", "1.1:", "Черга 1.1" (без двокрапки)
+    queue_pattern = re.compile(r"^\s*(?:Черга\s*)?(\d\.\d)\s*[:)]?\s*(.*)", re.IGNORECASE)
 
     for text_div in message_divs:
         text = text_div.get_text(separator="\n")
@@ -157,7 +159,7 @@ def parse_channel(url):
                 q_id = q_match.group(1)
                 content = q_match.group(2).lower()
                 
-                # Перевірка на відсутність відключень
+                # Перевірка на "не вимикається"
                 if any(phrase.lower() in content for phrase in NO_OUTAGE_PHRASES):
                     queues_found[q_id] = [] 
                     continue
@@ -167,21 +169,19 @@ def parse_channel(url):
                 
                 for tm in time_matches:
                     start, end = tm.groups()
-                    # Нормалізація роздільників (заміна ; та . на :)
+                    # Нормалізація часу (заміна крапок і крапок з комою на двокрапку)
                     start = start.replace('.', ':').replace(';', ':')
                     end = end.replace('.', ':').replace(';', ':')
                     
+                    # Додаємо нуль на початку (7:00 -> 07:00)
                     if len(start) == 4: start = "0" + start
                     if len(end) == 4: end = "0" + end
                     intervals.append({"start": start, "end": end})
                 
                 if intervals:
                     queues_found[q_id] = intervals
-                # Логіка захисту: якщо є черга, але немає часу - ігноруємо, 
-                # бо це може бути помилка парсингу, а не "світло є".
-                # АЛЕ якщо рядок короткий (напр. "4.1: "), то може й світло є.
-                # Тут краще бути обережним.
-                elif not intervals and len(content) < 20:
+                # Захист: якщо рядок короткий і без часу -> світло є
+                elif not intervals and len(content) < 30:
                      queues_found[q_id] = []
 
         if queues_found:
