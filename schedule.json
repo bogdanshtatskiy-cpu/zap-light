@@ -1,5 +1,5 @@
 {
-    "generated_at": "11.01 21:08",
+    "generated_at": "11.01 21:32",
     "schedules": [
         {
             "date": "9 СІЧНЯ",
@@ -445,7 +445,7 @@
                     }
                 ]
             },
-            "updated_at": "21:08"
+            "updated_at": "21:32"
         },
         {
             "date": "12 СІЧНЯ",
@@ -623,7 +623,7 @@
                     }
                 ]
             },
-            "updated_at": "21:08"
+            "updated_at": "21:32"
         }
     ]
 }
