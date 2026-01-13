@@ -12,6 +12,43 @@
     <script src="changelog.js"></script>
     <script src="weather_advice.js"></script>
     <script src="weather.js"></script>
+
+    <style>
+        .donate-wrap {
+            text-align: center;
+            margin-bottom: 15px; /* Отступ до погоды */
+            margin-top: -10px;   /* Чуть ближе к шапке */
+            position: relative;
+            z-index: 5;
+        }
+        .donate-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--glass-bg, rgba(255, 255, 255, 0.65)); /* Фолбек если переменная не подгрузится */
+            border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8));
+            padding: 8px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            color: var(--text, #1e3a8a);
+            font-size: 14px;
+            font-weight: 800;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .donate-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        /* В темной теме (если переменные css настроены) */
+        body.dark-mode .donate-btn {
+            background: rgba(30, 41, 59, 0.6);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+        }
+    </style>
 </head>
 <body>
     
@@ -37,6 +74,12 @@
             <div class="lang-btn active" id="btn-uk" onclick="setLang('uk')">UA</div>
             <div class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</div>
         </div>
+    </div>
+
+    <div class="donate-wrap">
+        <a href="https://mobile-app.pumb.ua/YCLM" target="_blank" class="donate-btn">
+            ☕ <span id="donate-text">Підтримати</span>
+        </a>
     </div>
 
     <div id="weather-widget" class="weather-widget glass-panel">
@@ -181,7 +224,8 @@
                 lbl_on: "Світло є", lbl_off: "Світла нема",
                 tom: "завтра", at: "о",
                 modal_title: "Інформація", dev: "Розробник", cl: "Історія змін",
-                tip: "Натисни сюди, щоб сховати або показати погоду 🌤️", tip_btn: "Зрозуміло"
+                tip: "Натисни сюди, щоб сховати або показати погоду 🌤️", tip_btn: "Зрозуміло",
+                support: "Підтримати"
             },
             ru: { 
                 title: "⚡ ГПО", city: "г. Запорожье",
@@ -192,7 +236,8 @@
                 lbl_on: "Свет есть", lbl_off: "Света нет",
                 tom: "завтра", at: "в",
                 modal_title: "Информация", dev: "Разработчик", cl: "История изменений",
-                tip: "Нажми сюда, чтобы скрыть или показать погоду 🌤️", tip_btn: "Понял"
+                tip: "Нажми сюда, чтобы скрыть или показать погоду 🌤️", tip_btn: "Понял",
+                support: "Поддержать"
             }
         };
 
@@ -361,6 +406,12 @@
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
             
+            // Текст кнопки доната
+            const donateText = document.getElementById('donate-text');
+            if (donateText && T[l].support) {
+                donateText.innerText = T[l].support;
+            }
+
             const tooltip = document.getElementById('weather-tooltip');
             if (tooltip) {
                 tooltip.innerHTML = `${T[l].tip} <button class="tooltip-btn" onclick="hideTooltip()">${T[l].tip_btn}</button>`;
