@@ -212,7 +212,11 @@
             document.getElementById('loader').innerText = T[lang].load;
 
             try {
-                const res = await fetch('schedule.json?v=' + Date.now());
+                // ВИКОРИСТОВУЄМО RAW ПОСИЛАННЯ ДЛЯ МИТТЄВОГО ОНОВЛЕННЯ
+                const res = await fetch('https://raw.githubusercontent.com/bogdanshtatskiy-cpu/zap-light/main/schedule.json?v=' + Date.now());
+                
+                if (!res.ok) throw new Error("Failed to fetch");
+                
                 const json = await res.json();
                 DATA = json.schedules;
                 generatedAt = json.generated_at || "";
@@ -257,7 +261,7 @@
 
             } catch (e) {
                 console.error(e);
-                document.getElementById('loader').innerText = "Error loading data";
+                document.getElementById('loader').innerText = "Error loading data (Github Raw)";
             }
         }
 
