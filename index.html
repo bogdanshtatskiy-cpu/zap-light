@@ -114,7 +114,6 @@
         tg.expand();
 
         // --- ВЕКТОРНІ ЛАМПОЧКИ (SVG) ---
-        // Жовта (Світло є)
         const SVG_BULB_ON = `
         <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -132,7 +131,6 @@
             <path fill="#bdbdbd" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/>
         </svg>`;
 
-        // Сіра (Світла нема)
         const SVG_BULB_OFF = `
         <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -163,7 +161,6 @@
         }
 
         const UA_MONTHS = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
-        const RU_MONTHS = ["ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
         
         let DATA = [];
         let generatedAt = "";
@@ -202,9 +199,8 @@
         async function init() {
             createSnow();
             setLang(lang);
-            checkTooltip(); // Перевіряємо, чи треба показувати підказку
+            checkTooltip(); 
             
-            // Запускаємо погоду ВІДРАЗУ
             if (typeof initWeather === "function") {
                 await initWeather(); 
             }
@@ -212,9 +208,8 @@
             document.getElementById('loader').innerText = T[lang].load;
 
             try {
-                // ВИКОРИСТОВУЄМО RAW ПОСИЛАННЯ ДЛЯ МИТТЄВОГО ОНОВЛЕННЯ
+                // ВИКОРИСТОВУЄМО RAW ПОСИЛАННЯ
                 const res = await fetch('https://raw.githubusercontent.com/bogdanshtatskiy-cpu/zap-light/main/schedule.json?v=' + Date.now());
-                
                 if (!res.ok) throw new Error("Failed to fetch");
                 
                 const json = await res.json();
@@ -248,7 +243,7 @@
                 todaySchedule = DATA[activeIdx]; 
                 
                 renderDates(activeIdx);
-                selectDate(activeIdx); // Це викличе і малювання погоди
+                selectDate(activeIdx);
 
                 if (selectedQueue) selectQueue(selectedQueue);
                 else {
@@ -270,7 +265,6 @@
             if (!localStorage.getItem('weatherTooltipSeen')) {
                 const tooltip = document.getElementById('weather-tooltip');
                 tooltip.classList.add('show');
-                // Автоматичне зникнення через 5 секунд (але користувач може закрити раніше)
                 setTimeout(() => {
                     if (!localStorage.getItem('weatherTooltipSeen')) hideTooltip();
                 }, 5000); 
@@ -283,6 +277,7 @@
             localStorage.setItem('weatherTooltipSeen', 'true');
         }
 
+        // --- НОВА ФУНКЦІЯ ВІДОБРАЖЕННЯ ДАТ (12.01) ---
         function renderDates(activeIdx) {
             const container = document.getElementById('dates');
             container.innerHTML = '';
@@ -290,12 +285,22 @@
             DATA.forEach((item, idx) => {
                 const btn = document.createElement('div');
                 btn.className = `date-tab ${idx === activeIdx ? 'active' : ''}`;
+                
+                // Перетворення "12 СІЧНЯ" -> "12.01"
                 let label = item.date;
-                if (lang === 'ru') {
-                    const parts = item.date.split(' ');
-                    const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
-                    if (mIdx !== -1) label = `${parts[0]} ${RU_MONTHS[mIdx]}`;
+                const parts = item.date.split(' ');
+                
+                if (parts.length === 2) {
+                    const day = parts[0].padStart(2, '0');
+                    const monthName = parts[1].toUpperCase();
+                    const monthIdx = UA_MONTHS.indexOf(monthName);
+                    
+                    if (monthIdx !== -1) {
+                        const monthNum = (monthIdx + 1).toString().padStart(2, '0');
+                        label = `${day}.${monthNum}`;
+                    }
                 }
+
                 btn.innerText = label;
                 btn.onclick = () => requestAnimationFrame(() => { selectDate(idx); renderDates(idx); });
                 container.appendChild(btn);
@@ -317,6 +322,7 @@
 
         function selectDate(idx) {
             viewSchedule = DATA[idx]; 
+            // Тут ми передаємо оригінальну дату (напр. "12 СІЧНЯ") для погоди
             if (typeof renderWeatherForDate === "function") {
                 renderWeatherForDate(viewSchedule.date);
             }
@@ -355,13 +361,15 @@
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
             
-            // Тултіп текст
             const tooltip = document.getElementById('weather-tooltip');
             if (tooltip) {
                 tooltip.innerHTML = `${T[l].tip} <button class="tooltip-btn" onclick="hideTooltip()">${T[l].tip_btn}</button>`;
             }
             
-            if (typeof updateWeatherLang === "function") updateWeatherLang();
+            // Оновлюємо погоду без прив'язки до тексту кнопки
+            if (typeof updateWeatherLang === "function") {
+                if (viewSchedule) renderWeatherForDate(viewSchedule.date);
+            }
 
             if(DATA.length) {
                 const idx = DATA.indexOf(viewSchedule);
@@ -399,7 +407,6 @@
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
                     const badgeClass = current ? 'badge-on' : 'badge-off';
                     const text = current ? T[lang].on : T[lang].off;
-                    
                     const icon = current ? '💡' : '🕯️';
                     
                     row.innerHTML = `
@@ -517,10 +524,9 @@
 
             if (isLight) {
                 body.classList.remove('dark-mode');
-                // Вставляємо SVG тільки якщо він змінився, щоб не смикати DOM
                 if (iconContainer.innerHTML !== SVG_BULB_ON) {
                     iconContainer.innerHTML = SVG_BULB_ON;
-                    bulbWrap.classList.add('bulb-on-glow'); // Додаємо ефект світіння
+                    bulbWrap.classList.add('bulb-on-glow'); 
                 }
                 
                 if (st.innerText !== T[lang].on) st.innerText = T[lang].on;
