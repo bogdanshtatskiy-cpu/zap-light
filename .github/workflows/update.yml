@@ -2,10 +2,17 @@ name: Update Schedule
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/30 * * * *' # Запуск каждые 30 минут
   workflow_dispatch: # Кнопка ручного запуска
 
-# ВОТ ЭТО ИСПРАВЛЯЕТ ОШИБКУ 128:
+# --- ВАЖНОЕ ДОБАВЛЕНИЕ ---
+# Это предотвращает наслоение задач. 
+# Если запускается новый процесс, а старый завис — старый отменяется.
+concurrency:
+  group: "schedule-update"
+  cancel-in-progress: true
+# -------------------------
+
 permissions:
   contents: write
 
@@ -31,7 +38,21 @@ jobs:
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git add schedule.json
-          # Эта хитрая строка делает коммит ТОЛЬКО если есть изменения
-          # Если изменений нет - она просто ничего не делает и не выдает ошибку
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update schedule" && git push)
+          
+          # Сначала проверяем, есть ли файл
+          if [ -f schedule.json ]; then
+            git add schedule.json
+          else
+            echo "Файл schedule.json не найден, ничего не делаем."
+            exit 0
+          fi
+          
+          # Проверяем, есть ли изменения перед коммитом
+          if git diff --staged --quiet; then
+            echo "Нет изменений в графике. Пропускаем."
+          else
+            git commit -m "Update schedule"
+            # Важно: сначала забираем свежие изменения, чтобы не было конфликтов
+            git pull --rebase
+            git push
+          fi
