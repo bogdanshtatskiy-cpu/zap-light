@@ -77,14 +77,14 @@
         /* Тело: Желтое, круглое, левитирует */
         .mode-on #body-shape {
             fill: url(#gradOn);
-            transform: translateY(-20px); /* Поднимается вверх */
+            transform: translateY(-25px); /* Поднимается выше */
             filter: url(#glow);
         }
         
-        /* Тень: Уменьшается и становится прозрачнее (эффект полета) */
+        /* Тень: Уменьшается, становится прозрачнее и МЯГЧЕ */
         .mode-on #shadow {
-            opacity: 0.4;
-            transform: scale(0.8) translateY(20px);
+            opacity: 0.5;
+            transform: scale(0.7) translateY(25px);
             fill: #ffc107;
         }
 
@@ -96,13 +96,13 @@
         /* Спрятанные очки (улетают вверх) */
         #sunglasses-group { 
             opacity: 0; 
-            transform: translateY(-100px) rotate(-10deg); 
+            transform: translateY(-120px) rotate(-15deg); 
         }
 
         /* Свеча: Прячется вниз */
         .mode-on #candle-group {
             opacity: 0;
-            transform: translateY(50px) scale(0.5);
+            transform: translateY(60px) scale(0.4);
         }
 
         /* Глаза: Открытые (спрятаны за очками, но активны) */
@@ -124,9 +124,9 @@
             filter: none;
         }
 
-        /* Тень: Темная и широкая */
+        /* Тень: Темная, широкая и МЯГКАЯ */
         .mode-off #shadow {
-            opacity: 0.6;
+            opacity: 0.7;
             transform: scale(1.1) translateY(15px);
             fill: #000;
         }
@@ -158,18 +158,18 @@
         /* --- KEYFRAMES --- */
         @keyframes levitate {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-15px); }
+            50% { transform: translateY(-18px); }
         }
 
         @keyframes flicker {
-            0% { transform: scale(1) rotate(-2deg); opacity: 0.9; }
-            100% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+            0% { transform: scale(1) rotate(-2deg); opacity: 0.85; }
+            100% { transform: scale(1.15) rotate(2deg); opacity: 1; }
         }
 
         @keyframes coldShiver {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(1deg); }
-            75% { transform: rotate(-1deg); }
+            0%, 100% { transform: rotate(0deg) translateX(0); }
+            25% { transform: rotate(1deg) translateX(1px); }
+            75% { transform: rotate(-1deg) translateX(-1px); }
         }
 
     </style>
@@ -246,38 +246,40 @@
                         <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
                         <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
                     </filter>
+                    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="8" result="blur"/>
+                    </filter>
                 </defs>
 
-                <ellipse id="shadow" cx="200" cy="360" rx="80" ry="15" fill="#000" opacity="0.3" />
+                <ellipse id="shadow" cx="200" cy="360" rx="90" ry="18" fill="#000" opacity="0.4" filter="url(#softShadow)"/>
 
                 <g id="main-group">
                     <circle id="body-shape" cx="200" cy="200" r="100" fill="url(#gradOff)" />
 
                     <g id="eyes-open" fill="#3E2723" opacity="0">
-                        <circle cx="170" cy="190" r="12" />
-                        <circle cx="230" cy="190" r="12" />
-                        <path d="M180,220 Q200,235 220,220" fill="none" stroke="#3E2723" stroke-width="5" stroke-linecap="round" />
+                        <circle cx="165" cy="185" r="18" /> <circle cx="235" cy="185" r="18" />
+                        <path d="M170,225 Q200,250 230,225" fill="none" stroke="#3E2723" stroke-width="8" stroke-linecap="round" />
                     </g>
 
-                    <g id="eyes-sad" fill="#CFD8DC" opacity="1">
-                        <path d="M160,185 L180,205 M180,185 L160,205" stroke="#CFD8DC" stroke-width="5" stroke-linecap="round" />
-                        <path d="M220,185 L240,205 M240,185 L220,205" stroke="#CFD8DC" stroke-width="5" stroke-linecap="round" />
-                        <path d="M185,230 L215,230" stroke="#CFD8DC" stroke-width="5" stroke-linecap="round" />
+                    <g id="eyes-sad" fill="none" stroke="#CFD8DC" stroke-width="8" stroke-linecap="round" opacity="1">
+                        <path d="M155,175 L185,205 M185,175 L155,205" />
+                        <path d="M215,175 L245,205 M245,175 L215,205" />
+                        <path d="M170,240 L230,240" />
                     </g>
 
                     <g id="sunglasses-group">
-                        <path fill="#212121" d="M120,160 H280 V185 H260 V200 H230 V185 H170 V200 H140 V185 H120 Z" />
-                        <rect x="130" y="165" width="30" height="5" fill="white" opacity="0.3"/>
-                        <rect x="240" y="165" width="30" height="5" fill="white" opacity="0.3"/>
+                        <path fill="#212121" d="M115,155 H285 V185 H260 V205 H230 V185 H170 V205 H140 V185 H115 Z" />
+                        <rect x="125" y="160" width="35" height="6" fill="white" opacity="0.3"/>
+                        <rect x="240" y="160" width="35" height="6" fill="white" opacity="0.3"/>
                     </g>
 
                     <g id="candle-group">
-                        <circle cx="160" cy="260" r="15" fill="#37474F" />
-                        <circle cx="240" cy="260" r="15" fill="#37474F" />
+                        <circle cx="160" cy="260" r="16" fill="#37474F" />
+                        <circle cx="240" cy="260" r="16" fill="#37474F" />
                         
-                        <rect x="185" y="240" width="30" height="50" fill="#F5F5F5" rx="2" />
-                        <path id="flame" d="M200,240 Q190,230 200,210 Q210,230 200,240 Z" fill="#FF5722">
-                            <animate attributeName="fill" values="#FF5722;#FFC107;#FF5722" dur="0.5s" repeatCount="indefinite" />
+                        <rect x="185" y="235" width="30" height="55" fill="#F5F5F5" rx="3" />
+                        <path id="flame" d="M200,235 Q185,220 200,195 Q215,220 200,235 Z" fill="#FF5722">
+                            <animate attributeName="fill" values="#FF5722;#FFC107;#FF9800" dur="0.4s" repeatCount="indefinite" />
                         </path>
                     </g>
                 </g>
