@@ -23,8 +23,6 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ⚙️ НАСТРОЙКИ
 # ==========================
 
-# Каналы парсятся по очереди. Последний в списке имеет приоритет (перезаписывает предыдущие).
-# Официальный канал ставим последним, чтобы он был "главным", если там есть инфа.
 CHANNELS = [
     "https://t.me/s/it_is_zp_tg",
     "https://t.me/s/tvoe_zaporizhzhia",
@@ -95,7 +93,6 @@ def determine_date_from_text(text):
     text_upper = text.upper()
     now_kiev = get_kiev_time()
     
-    # 1. Сначала ищем явную дату (15 СІЧНЯ)
     months_regex = "|".join(UA_MONTHS.keys())
     date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})\b", text_upper)
     if date_match:
@@ -103,14 +100,12 @@ def determine_date_from_text(text):
         month_name = date_match.group(2)
         return f"{day} {month_name}"
 
-    # 2. Если явной даты нет, ищем "ЗАВТРА"
     if "ЗАВТРА" in text_upper:
         target_date = now_kiev + timedelta(days=1)
         day = target_date.day
         month_name = UA_MONTHS_REVERSE.get(target_date.month, "ГРУДНЯ")
         return f"{day} {month_name}"
     
-    # 3. Если нет, ищем "СЬОГОДНІ"
     if "СЬОГОДНІ" in text_upper:
         target_date = now_kiev
         day = target_date.day
@@ -136,11 +131,7 @@ def parse_channel(url):
 
     found_schedules = []
     
-    # --- ОНОВЛЕНІ РЕГУЛЯРКИ ---
-    # Час: розуміє "з 08:00 до 12:00", "08.00-12.00", "08:00 по 12:00"
     time_pattern = re.compile(r"(?:з\s*)?(\d{1,2}[:.;]\d{2})\s*(?:[-–—−]|до|по)\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
-    
-    # Черга: "Черга 1.1", "1.1:", "1.1 "
     queue_pattern = re.compile(r"^\s*(?:Черга\s*)?(\d\.\d)\s*[:)]?\s*(.*)", re.IGNORECASE)
 
     for text_div in message_divs:
@@ -153,10 +144,17 @@ def parse_channel(url):
         if not final_date_key:
             continue
 
-        updated_at_val = get_kiev_time().strftime("%H:%M") 
+        # 🔥 ЗМІНЕНО ТУТ: Додаємо ДАТУ + ЧАС
+        # За замовчуванням беремо час запуску скрипта
+        updated_at_val = get_kiev_time().strftime("%d.%m %H:%M") 
+        
+        # Якщо в пості є час оновлення, використовуємо його (але дату все одно беремо поточну)
+        # На жаль, у постах зазвичай нема дати оновлення, тільки час.
         time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", text, re.IGNORECASE)
         if time_upd_match:
-            updated_at_val = time_upd_match.group(1)
+            # Склеюємо поточну дату (день.місяць) + знайдений час
+            current_date_str = get_kiev_time().strftime("%d.%m")
+            updated_at_val = f"{current_date_str} {time_upd_match.group(1)}"
 
         lines = [line.strip().replace('\xa0', ' ') for line in text.split('\n') if line.strip()]
         queues_found = {}
@@ -167,7 +165,6 @@ def parse_channel(url):
                 q_id = q_match.group(1)
                 content = q_match.group(2).lower()
                 
-                # Перевірка на "не вимикається"
                 if any(phrase.lower() in content for phrase in NO_OUTAGE_PHRASES):
                     queues_found[q_id] = [] 
                     continue
@@ -177,17 +174,14 @@ def parse_channel(url):
                 
                 for tm in time_matches:
                     start, end = tm.groups()
-                    # Нормалізація часу
                     start = start.replace('.', ':').replace(';', ':')
                     end = end.replace('.', ':').replace(';', ':')
-                    
                     if len(start) == 4: start = "0" + start
                     if len(end) == 4: end = "0" + end
                     intervals.append({"start": start, "end": end})
                 
                 if intervals:
                     queues_found[q_id] = intervals
-                # Захист: якщо рядок короткий і без часу -> світло є
                 elif not intervals and len(content) < 30:
                      queues_found[q_id] = []
 
@@ -203,19 +197,15 @@ def parse_channel(url):
                 unique.sort(key=lambda x: x['start'])
                 queues_found[q_id] = unique
 
-            log(f"   ➕ Найден график на {final_date_key} (очередей: {len(queues_found)})")
+            log(f"   ➕ Найден график на {final_date_key}")
             
             found_schedules.append({
                 "date": final_date_key,
                 "queues": queues_found,
-                "updated_at": updated_at_val
+                "updated_at": updated_at_val # Тепер тут "14.01 09:43"
             })
 
     return found_schedules
-
-# ==========================
-# 💾 ЛОГИКА СОХРАНЕНИЯ
-# ==========================
 
 def load_existing_schedules():
     if os.path.exists('schedule.json'):
@@ -231,10 +221,6 @@ def merge_schedules(old_data, new_data):
     merged = {}
     for sch in old_data:
         merged[sch['date']] = sch
-    
-    # Новые данные перезаписывают старые.
-    # Так как каналы парсятся по порядку, последний канал (ZOE)
-    # имеет наивысший приоритет и перезапишет новостные каналы.
     for sch in new_data:
         merged[sch['date']] = sch
     return list(merged.values())
@@ -269,7 +255,7 @@ def main():
             return datetime.now()
 
     final_list.sort(key=date_sorter)
-    final_list = final_list[-7:] # Храним только последние 7 дней
+    final_list = final_list[-7:]
 
     output_json = {
         "generated_at": get_kiev_time().strftime("%d.%m %H:%M"), 
