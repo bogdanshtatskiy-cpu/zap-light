@@ -5,7 +5,7 @@ import socket
 import time
 import sys
 import os
-import random # Добавил для защиты от кеша
+import random
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -23,7 +23,13 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ⚙️ НАСТРОЙКИ
 # ==========================
 
+# Каналы парсятся по очереди. Последний в списке имеет приоритет (перезаписывает предыдущие).
+# Официальный канал ставим последним, чтобы он был "главным", если там есть инфа.
 CHANNELS = [
+    "https://t.me/s/it_is_zp_tg",
+    "https://t.me/s/tvoe_zaporizhzhia",
+    "https://t.me/s/zapnovini",
+    "https://t.me/s/info_zp",
     "https://t.me/s/zoe_alarm"
 ]
 
@@ -55,7 +61,6 @@ def log(msg):
     sys.stdout.flush()
 
 def get_html(target_url):
-    # Додаємо рандом, щоб збити кеш проксі і бачити оновлення відразу
     rnd = random.randint(1, 999999)
     
     proxies = [
@@ -90,6 +95,7 @@ def determine_date_from_text(text):
     text_upper = text.upper()
     now_kiev = get_kiev_time()
     
+    # 1. Сначала ищем явную дату (15 СІЧНЯ)
     months_regex = "|".join(UA_MONTHS.keys())
     date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})\b", text_upper)
     if date_match:
@@ -97,12 +103,14 @@ def determine_date_from_text(text):
         month_name = date_match.group(2)
         return f"{day} {month_name}"
 
+    # 2. Если явной даты нет, ищем "ЗАВТРА"
     if "ЗАВТРА" in text_upper:
         target_date = now_kiev + timedelta(days=1)
         day = target_date.day
         month_name = UA_MONTHS_REVERSE.get(target_date.month, "ГРУДНЯ")
         return f"{day} {month_name}"
     
+    # 3. Если нет, ищем "СЬОГОДНІ"
     if "СЬОГОДНІ" in text_upper:
         target_date = now_kiev
         day = target_date.day
@@ -117,7 +125,7 @@ def parse_channel(url):
 
     soup = BeautifulSoup(html, 'html.parser')
     page_title = soup.title.string.strip() if soup.title else "Без заголовка"
-    log(f"   🔎 Заголовок страницы: '{page_title}'")
+    log(f"   🔎 Канал: '{page_title}'")
     
     message_divs = soup.find_all('div', class_='tgme_widget_message_text')
     if not message_divs:
@@ -129,10 +137,10 @@ def parse_channel(url):
     found_schedules = []
     
     # --- ОНОВЛЕНІ РЕГУЛЯРКИ ---
-    # Час: розуміє "до", різні тире, і фіксить друківки типу 02;00 або 02.00
-    time_pattern = re.compile(r"(\d{1,2}[:.;]\d{2})\s*(?:[-–—−]|до)\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
+    # Час: розуміє "з 08:00 до 12:00", "08.00-12.00", "08:00 по 12:00"
+    time_pattern = re.compile(r"(?:з\s*)?(\d{1,2}[:.;]\d{2})\s*(?:[-–—−]|до|по)\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
     
-    # Черга: розуміє "Черга 1.1", "1.1:", "Черга 1.1" (без двокрапки)
+    # Черга: "Черга 1.1", "1.1:", "1.1 "
     queue_pattern = re.compile(r"^\s*(?:Черга\s*)?(\d\.\d)\s*[:)]?\s*(.*)", re.IGNORECASE)
 
     for text_div in message_divs:
@@ -169,11 +177,10 @@ def parse_channel(url):
                 
                 for tm in time_matches:
                     start, end = tm.groups()
-                    # Нормалізація часу (заміна крапок і крапок з комою на двокрапку)
+                    # Нормалізація часу
                     start = start.replace('.', ':').replace(';', ':')
                     end = end.replace('.', ':').replace(';', ':')
                     
-                    # Додаємо нуль на початку (7:00 -> 07:00)
                     if len(start) == 4: start = "0" + start
                     if len(end) == 4: end = "0" + end
                     intervals.append({"start": start, "end": end})
@@ -196,7 +203,7 @@ def parse_channel(url):
                 unique.sort(key=lambda x: x['start'])
                 queues_found[q_id] = unique
 
-            log(f"   ➕ Найден график на {final_date_key} (черг: {len(queues_found)})")
+            log(f"   ➕ Найден график на {final_date_key} (очередей: {len(queues_found)})")
             
             found_schedules.append({
                 "date": final_date_key,
@@ -224,6 +231,10 @@ def merge_schedules(old_data, new_data):
     merged = {}
     for sch in old_data:
         merged[sch['date']] = sch
+    
+    # Новые данные перезаписывают старые.
+    # Так как каналы парсятся по порядку, последний канал (ZOE)
+    # имеет наивысший приоритет и перезапишет новостные каналы.
     for sch in new_data:
         merged[sch['date']] = sch
     return list(merged.values())
@@ -239,7 +250,7 @@ def main():
         if res:
             new_found.extend(res)
         else:
-            log("   ❌ Пусто.")
+            log("   ❌ Пусто или ошибка.")
 
     final_list = merge_schedules(old_schedules, new_found)
 
@@ -258,7 +269,7 @@ def main():
             return datetime.now()
 
     final_list.sort(key=date_sorter)
-    final_list = final_list[-7:] 
+    final_list = final_list[-7:] # Храним только последние 7 дней
 
     output_json = {
         "generated_at": get_kiev_time().strftime("%d.%m %H:%M"), 
@@ -273,4 +284,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
