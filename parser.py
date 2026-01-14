@@ -7,7 +7,7 @@ import sys
 import os
 import random
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 import requests.packages.urllib3.util.connection as urllib3_cn
 
@@ -52,7 +52,7 @@ NO_OUTAGE_PHRASES = [
 # ==========================
 
 def get_kiev_time():
-    return datetime.utcnow() + timedelta(hours=2)
+    return datetime.now(timezone.utc) + timedelta(hours=2)
 
 def log(msg):
     print(msg)
@@ -60,39 +60,47 @@ def log(msg):
 
 def get_html(target_url):
     rnd = random.randint(1, 999999)
-    
     proxies = [
         f"https://api.allorigins.win/raw?url={quote(target_url)}&rnd={rnd}",
         f"https://corsproxy.io/?{quote(target_url)}", 
         f"https://api.codetabs.com/v1/proxy?quest={quote(target_url)}&rnd={rnd}"
     ]
-
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
     }
-
     for url in proxies:
         try:
-            log(f"   🔄 Пробуем через: {url[:40]}...")
+            log(f"   🔄 Пробуем через прокси...")
             response = requests.get(url, headers=headers, timeout=20)
             if response.status_code == 200 and len(response.text) > 2000:
                 content = response.text
-                if "tgme_widget" in content or "js-message_text" in content:
-                    log(f"   ✅ Скачано {len(content)} байт.")
+                if "tgme_widget" in content:
                     return content
         except Exception:
             pass
         time.sleep(1)
     return None
 
-def determine_date_from_text(text):
+def parse_post_date(date_str):
+    """Парсит дату поста из HTML (обычно ISO формат)"""
+    try:
+        # Пример: 2024-01-14T18:00:00+00:00
+        dt = datetime.fromisoformat(date_str)
+        # Конвертируем в Киевское время (UTC+2 / UTC+3)
+        return dt.astimezone(timezone(timedelta(hours=2)))
+    except Exception:
+        return get_kiev_time()
+
+def determine_date_from_text(text, post_date):
+    """
+    Определяет дату графика.
+    post_date - это datetime публикации сообщения (Киевское время)
+    """
     text_upper = text.upper()
-    now_kiev = get_kiev_time()
     
+    # 1. Поиск явной даты (15 СІЧНЯ)
     months_regex = "|".join(UA_MONTHS.keys())
     date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})\b", text_upper)
     if date_match:
@@ -100,14 +108,15 @@ def determine_date_from_text(text):
         month_name = date_match.group(2)
         return f"{day} {month_name}"
 
+    # 2. Относительные даты (СЧИТАЕМ ОТ ДАТЫ ПОСТА, А НЕ ОТ ТЕКУЩЕЙ)
     if "ЗАВТРА" in text_upper:
-        target_date = now_kiev + timedelta(days=1)
+        target_date = post_date + timedelta(days=1)
         day = target_date.day
         month_name = UA_MONTHS_REVERSE.get(target_date.month, "ГРУДНЯ")
         return f"{day} {month_name}"
     
     if "СЬОГОДНІ" in text_upper:
-        target_date = now_kiev
+        target_date = post_date
         day = target_date.day
         month_name = UA_MONTHS_REVERSE.get(target_date.month, "ГРУДНЯ")
         return f"{day} {month_name}"
@@ -119,43 +128,51 @@ def parse_channel(url):
     if not html: return []
 
     soup = BeautifulSoup(html, 'html.parser')
-    page_title = soup.title.string.strip() if soup.title else "Без заголовка"
-    log(f"   🔎 Канал: '{page_title}'")
+    page_title = soup.title.string.strip() if soup.title else "Channel"
+    log(f"   🔎 Анализ: {page_title}")
     
-    message_divs = soup.find_all('div', class_='tgme_widget_message_text')
-    if not message_divs:
-        message_divs = soup.find_all('div', class_='js-message_text')
+    # 🔥 Ищем блоки сообщений целиком, чтобы достать и ТЕКСТ, и ДАТУ
+    message_wraps = soup.find_all('div', class_='tgme_widget_message')
     
-    if len(message_divs) == 0:
+    if not message_wraps:
+        # Фоллбэк для старых версий прокси
         return []
 
     found_schedules = []
     
+    # Регулярки
     time_pattern = re.compile(r"(?:з\s*)?(\d{1,2}[:.;]\d{2})\s*(?:[-–—−]|до|по)\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
     queue_pattern = re.compile(r"^\s*(?:Черга\s*)?(\d\.\d)\s*[:)]?\s*(.*)", re.IGNORECASE)
 
-    for text_div in message_divs:
+    for msg in message_wraps:
+        # 1. Достаем текст
+        text_div = msg.find('div', class_='tgme_widget_message_text')
+        if not text_div: continue
         text = text_div.get_text(separator="\n")
 
         if not any(k in text.upper() for k in KEYWORDS):
             continue
 
-        final_date_key = determine_date_from_text(text)
+        # 2. Достаем дату публикации поста (для фикса "ЗАВТРА")
+        post_date = get_kiev_time()
+        time_tag = msg.find('time')
+        if time_tag and 'datetime' in time_tag.attrs:
+            post_date = parse_post_date(time_tag['datetime'])
+
+        # Определяем дату графика на основе даты поста
+        final_date_key = determine_date_from_text(text, post_date)
         if not final_date_key:
             continue
 
-        # 🔥 ЗМІНЕНО ТУТ: Додаємо ДАТУ + ЧАС
-        # За замовчуванням беремо час запуску скрипта
-        updated_at_val = get_kiev_time().strftime("%d.%m %H:%M") 
-        
-        # Якщо в пості є час оновлення, використовуємо його (але дату все одно беремо поточну)
-        # На жаль, у постах зазвичай нема дати оновлення, тільки час.
+        # Формируем метку времени обновления
+        # Берем время из поста, если есть "(оновлено 10:00)", иначе время поста
+        updated_at_val = post_date.strftime("%d.%m %H:%M")
         time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", text, re.IGNORECASE)
         if time_upd_match:
-            # Склеюємо поточну дату (день.місяць) + знайдений час
-            current_date_str = get_kiev_time().strftime("%d.%m")
-            updated_at_val = f"{current_date_str} {time_upd_match.group(1)}"
+            # Если есть явное время обновления, берем дату поста + это время
+            updated_at_val = f"{post_date.strftime('%d.%m')} {time_upd_match.group(1)}"
 
+        # Парсинг очередей
         lines = [line.strip().replace('\xa0', ' ') for line in text.split('\n') if line.strip()]
         queues_found = {}
 
@@ -171,7 +188,6 @@ def parse_channel(url):
 
                 intervals = []
                 time_matches = list(time_pattern.finditer(content))
-                
                 for tm in time_matches:
                     start, end = tm.groups()
                     start = start.replace('.', ':').replace(';', ':')
@@ -186,6 +202,7 @@ def parse_channel(url):
                      queues_found[q_id] = []
 
         if queues_found:
+            # Удаляем дубликаты интервалов
             for q_id in queues_found:
                 unique = []
                 seen = set()
@@ -197,12 +214,12 @@ def parse_channel(url):
                 unique.sort(key=lambda x: x['start'])
                 queues_found[q_id] = unique
 
-            log(f"   ➕ Найден график на {final_date_key}")
+            log(f"   ➕ График на {final_date_key} (из поста от {post_date.strftime('%d.%m %H:%M')})")
             
             found_schedules.append({
                 "date": final_date_key,
                 "queues": queues_found,
-                "updated_at": updated_at_val # Тепер тут "14.01 09:43"
+                "updated_at": updated_at_val
             })
 
     return found_schedules
@@ -219,27 +236,37 @@ def load_existing_schedules():
 
 def merge_schedules(old_data, new_data):
     merged = {}
+    
+    # 1. Загружаем старое
     for sch in old_data:
         merged[sch['date']] = sch
+    
+    # 2. Накладываем новое (приоритет у последних каналов в списке CHANNELS)
+    # Важно: если new_data содержит график на 15-е, он перезапишет старый
     for sch in new_data:
-        merged[sch['date']] = sch
+        # Простая защита: если в новом графике пусто (0 очередей), а в старом было, не затираем
+        # (Хотя логика парсера обычно не возвращает пустые объекты, но на всякий случай)
+        if sch['queues'] or sch['date'] not in merged:
+            merged[sch['date']] = sch
+            
     return list(merged.values())
 
 def main():
     old_schedules = load_existing_schedules()
-    log(f"📂 Старых записей: {len(old_schedules)}")
+    log(f"📂 Было записей: {len(old_schedules)}")
 
     new_found = []
     for url in CHANNELS:
-        log(f"📡 Парсинг: {url}")
+        log(f"📡 {url}")
         res = parse_channel(url)
         if res:
             new_found.extend(res)
         else:
-            log("   ❌ Пусто или ошибка.")
+            log("   ⚠️ Пусто.")
 
     final_list = merge_schedules(old_schedules, new_found)
 
+    # Сортировка по дате
     def date_sorter(item):
         try:
             parts = item['date'].split()
@@ -248,6 +275,7 @@ def main():
             month = UA_MONTHS.get(month_str, 0)
             now = datetime.now()
             year = now.year
+            # Обработка смены года
             if now.month == 12 and month == 1: year += 1
             elif now.month == 1 and month == 12: year -= 1
             return datetime(year, month, day)
@@ -255,7 +283,8 @@ def main():
             return datetime.now()
 
     final_list.sort(key=date_sorter)
-    final_list = final_list[-7:]
+    # Оставляем только 5 актуальных дней, чтобы не копить мусор
+    final_list = final_list[-5:]
 
     output_json = {
         "generated_at": get_kiev_time().strftime("%d.%m %H:%M"), 
@@ -266,7 +295,7 @@ def main():
         json.dump(output_json, f, ensure_ascii=False, indent=4)
         
     dates_in_file = [item['date'] for item in final_list]
-    log(f"💾 Сохранено! Даты: {dates_in_file}")
+    log(f"💾 ИТОГ: {dates_in_file}")
 
 if __name__ == "__main__":
     main()
