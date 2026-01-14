@@ -49,99 +49,129 @@
             color: #f1f5f9;
         }
 
-        /* --- НОВЫЕ СТИЛИ ДЛЯ АНИМАЦИИ ЛАМПОЧКИ --- */
+        /* --- НОВЫЕ СТИЛИ ДЛЯ ПЕРСОНАЖА (POWER SPIRIT) --- */
         .bulb-icon-wrap {
             overflow: visible; 
             padding: 10px 0;
             height: auto;
-            min-height: 250px;
+            min-height: 260px; /* Место для левитации */
             display: flex;
             justify-content: center;
             align-items: center;
         }
         
-        #smart-bulb {
+        #power-spirit {
             width: 100%;
-            max-width: 300px;
+            max-width: 280px;
             height: auto;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: visible;
         }
 
-        /* Скрываем элементы по умолчанию */
-        .glasses-hidden, .icicle-hidden, .rays-hidden {
-            opacity: 0;
-            transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        /* Базовые переходы для всех элементов */
+        #body-shape, #sunglasses-group, #candle-group, #eyes-open, #eyes-sad, #shadow {
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        /* === РЕЖИМ СВЕТ ЕСТЬ (PARTY MODE) === */
-        .bulb-on-mode #bulb-glass {
+        /* === РЕЖИМ СВЕТ ЕСТЬ (BOSS MODE) === */
+        
+        /* Тело: Желтое, круглое, левитирует */
+        .mode-on #body-shape {
             fill: url(#gradOn);
+            transform: translateY(-20px); /* Поднимается вверх */
             filter: url(#glow);
         }
         
-        /* Очки выпадают сверху */
-        .bulb-on-mode #sunglasses {
+        /* Тень: Уменьшается и становится прозрачнее (эффект полета) */
+        .mode-on #shadow {
+            opacity: 0.4;
+            transform: scale(0.8) translateY(20px);
+            fill: #ffc107;
+        }
+
+        /* Очки: Падают сверху на глаза */
+        .mode-on #sunglasses-group {
             opacity: 1;
             transform: translateY(0);
         }
-        .glasses-hidden { transform: translateY(-50px); }
-
-        /* Лучи крутятся */
-        .bulb-on-mode #light-rays {
-            opacity: 1;
-            animation: rotateRays 12s linear infinite;
-            transform-origin: 256px 256px;
+        /* Спрятанные очки (улетают вверх) */
+        #sunglasses-group { 
+            opacity: 0; 
+            transform: translateY(-100px) rotate(-10deg); 
         }
 
-        /* Лампочка плавно качается */
-        .bulb-on-mode #bulb-body-group {
-            animation: bobbing 3s ease-in-out infinite alternate;
-            transform-origin: 256px 500px;
+        /* Свеча: Прячется вниз */
+        .mode-on #candle-group {
+            opacity: 0;
+            transform: translateY(50px) scale(0.5);
         }
 
-        /* === РЕЖИМ СВЕТА НЕТ (FROZEN MODE) === */
-        .bulb-off-mode #bulb-glass {
+        /* Глаза: Открытые (спрятаны за очками, но активны) */
+        .mode-on #eyes-open { opacity: 1; }
+        .mode-on #eyes-sad { opacity: 0; }
+
+        /* Анимация левитации */
+        .mode-on #main-group {
+            animation: levitate 3s ease-in-out infinite;
+        }
+
+
+        /* === РЕЖИМ СВЕТА НЕТ (MEDIEVAL MODE) === */
+
+        /* Тело: Синее, сплюснутое снизу (сидит) */
+        .mode-off #body-shape {
             fill: url(#gradOff);
+            transform: translateY(15px) scaleY(0.95); /* Садится на пол */
             filter: none;
         }
 
-        /* Сосулька растет */
-        .bulb-off-mode #icicle {
-            opacity: 1;
-            transform: scaleY(1);
+        /* Тень: Темная и широкая */
+        .mode-off #shadow {
+            opacity: 0.6;
+            transform: scale(1.1) translateY(15px);
+            fill: #000;
         }
-        .icicle-hidden { transform: scaleY(0); transform-origin: top; }
 
-        /* Дрожание от холода */
-        .bulb-off-mode #bulb-body-group {
-            animation: shiver 0.15s linear infinite;
-            transform-origin: center center;
+        /* Свеча: Появляется */
+        .mode-off #candle-group {
+            opacity: 1;
+            transform: translateY(0) scale(1);
         }
+        /* Спрятанная свеча */
+        #candle-group { opacity: 0; }
+
+        /* Глаза: Грустные */
+        .mode-off #eyes-open { opacity: 0; }
+        .mode-off #eyes-sad { opacity: 1; }
+
+        /* Анимация огня */
+        .mode-off #flame {
+            animation: flicker 0.1s ease-in-out infinite alternate;
+            transform-origin: center bottom;
+        }
+        
+        /* Дрожание от холода */
+        .mode-off #main-group {
+            animation: coldShiver 2s ease-in-out infinite;
+        }
+
 
         /* --- KEYFRAMES --- */
-        @keyframes bobbing {
-            0% { transform: rotate(-3deg) translateY(0); }
-            100% { transform: rotate(3deg) translateY(-5px); }
+        @keyframes levitate {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
         }
 
-        @keyframes shiver {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -1px) rotate(-1deg); }
-            20% { transform: translate(-2px, 0px) rotate(1deg); }
-            30% { transform: translate(2px, 1px) rotate(0deg); }
-            40% { transform: translate(1px, -1px) rotate(1deg); }
-            50% { transform: translate(-1px, 1px) rotate(-1deg); }
-            60% { transform: translate(-2px, 1px) rotate(0deg); }
-            70% { transform: translate(2px, 1px) rotate(-1deg); }
-            80% { transform: translate(-1px, -1px) rotate(1deg); }
-            90% { transform: translate(1px, 1px) rotate(0deg); }
-            100% { transform: translate(1px, -1px) rotate(-1deg); }
+        @keyframes flicker {
+            0% { transform: scale(1) rotate(-2deg); opacity: 0.9; }
+            100% { transform: scale(1.1) rotate(2deg); opacity: 1; }
         }
 
-        @keyframes rotateRays {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+        @keyframes coldShiver {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(1deg); }
+            75% { transform: rotate(-1deg); }
         }
+
     </style>
 </head>
 <body>
@@ -202,48 +232,53 @@
     <div class="hero glass-panel" id="hero" style="display:none">
         
         <div class="bulb-icon-wrap" id="bulb-wrap">
-            <svg id="smart-bulb" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+            <svg id="power-spirit" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                    <linearGradient id="gradOn" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:#ffeb3b;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#ffc107;stop-opacity:1" />
+                    <linearGradient id="gradOn" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#FFA000;stop-opacity:1" />
                     </linearGradient>
-                    <linearGradient id="gradOff" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:#cfd8dc;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#546e7a;stop-opacity:1" />
+                    <linearGradient id="gradOff" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#546E7A;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#263238;stop-opacity:1" />
                     </linearGradient>
                     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="15" result="coloredBlur"/>
+                        <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
                         <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
                     </filter>
                 </defs>
-        
-                <g id="bulb-body-group">
-                    <g id="light-rays" class="rays-hidden">
-                         <path fill="#ffeb3b" opacity="0.6" d="M256,-20 L270,60 L256,80 L242,60 Z" />
-                         <path fill="#ffeb3b" opacity="0.6" d="M532,256 L452,270 L432,256 L452,242 Z" />
-                         <path fill="#ffeb3b" opacity="0.6" d="M256,532 L242,452 L256,432 L270,452 Z" />
-                         <path fill="#ffeb3b" opacity="0.6" d="M-20,256 L60,242 L80,256 L60,270 Z" />
-                         <path fill="#ffeb3b" opacity="0.4" d="M457,55 L390,122 L370,102 L437,35 Z" />
-                         <path fill="#ffeb3b" opacity="0.4" d="M457,457 L437,430 L390,390 L370,437 Z" />
-                         <path fill="#ffeb3b" opacity="0.4" d="M55,457 L122,390 L142,430 L35,477 Z" />
-                         <path fill="#ffeb3b" opacity="0.4" d="M55,55 L35,122 L82,142 L122,75 Z" />
+
+                <ellipse id="shadow" cx="200" cy="360" rx="80" ry="15" fill="#000" opacity="0.3" />
+
+                <g id="main-group">
+                    <circle id="body-shape" cx="200" cy="200" r="100" fill="url(#gradOff)" />
+
+                    <g id="eyes-open" fill="#3E2723" opacity="0">
+                        <circle cx="170" cy="190" r="12" />
+                        <circle cx="230" cy="190" r="12" />
+                        <path d="M180,220 Q200,235 220,220" fill="none" stroke="#3E2723" stroke-width="5" stroke-linecap="round" />
                     </g>
-        
-                    <path id="bulb-glass" fill="url(#gradOff)" d="M256,40C158.5,40,79.4,119.1,79.4,216.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,119.1,353.5,40,256,40z"/>
-                    
-                    <path fill="#e0e0e0" d="M189.9,465.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V465.4z"/>
-                    <path fill="#bdbdbd" d="M204.9,533.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,526.6,196.6,533.3,204.9,533.3z"/>
-        
-                    <g id="sunglasses" class="glasses-hidden">
-                        <path fill="#212121" d="M130,200 c0,0, -20,-30, 40,-40 c60,-10, 80,10, 86,10 c6,0, 26,-20, 86,-10 c60,10, 40,40, 40,40 c0,20, -30,50, -80,40 c-30,-6 -46,-25 -46,-25 c0,0, -16,19, -46,25 c-50,10, -80,-20, -80,-40 Z"/>
-                        <path fill="#ffffff" opacity="0.3" d="M150,190 L200,180 L190,210 Z"/>
-                        <path fill="#ffffff" opacity="0.3" d="M310,190 L360,180 L350,210 Z"/>
+
+                    <g id="eyes-sad" fill="#CFD8DC" opacity="1">
+                        <path d="M160,185 L180,205 M180,185 L160,205" stroke="#CFD8DC" stroke-width="5" stroke-linecap="round" />
+                        <path d="M220,185 L240,205 M240,185 L220,205" stroke="#CFD8DC" stroke-width="5" stroke-linecap="round" />
+                        <path d="M185,230 L215,230" stroke="#CFD8DC" stroke-width="5" stroke-linecap="round" />
                     </g>
-        
-                    <g id="icicle" class="icicle-hidden">
-                        <path fill="#81d4fa" opacity="0.9" d="M200,530 Q220,590 230,620 Q240,590 250,530 Z"/>
-                        <path fill="#e1f5fe" opacity="0.9" d="M250,530 Q270,570 280,590 Q290,570 300,530 Z"/>
+
+                    <g id="sunglasses-group">
+                        <path fill="#212121" d="M120,160 H280 V185 H260 V200 H230 V185 H170 V200 H140 V185 H120 Z" />
+                        <rect x="130" y="165" width="30" height="5" fill="white" opacity="0.3"/>
+                        <rect x="240" y="165" width="30" height="5" fill="white" opacity="0.3"/>
+                    </g>
+
+                    <g id="candle-group">
+                        <circle cx="160" cy="260" r="15" fill="#37474F" />
+                        <circle cx="240" cy="260" r="15" fill="#37474F" />
+                        
+                        <rect x="185" y="240" width="30" height="50" fill="#F5F5F5" rx="2" />
+                        <path id="flame" d="M200,240 Q190,230 200,210 Q210,230 200,240 Z" fill="#FF5722">
+                            <animate attributeName="fill" values="#FF5722;#FFC107;#FF5722" dur="0.5s" repeatCount="indefinite" />
+                        </path>
                     </g>
                 </g>
             </svg>
@@ -312,6 +347,7 @@
         }
 
         const UA_MONTHS = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
+        const RU_MONTHS = ["ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
         
         let DATA = [];
         let generatedAt = "";
@@ -439,7 +475,6 @@
                 const btn = document.createElement('div');
                 btn.className = `date-tab ${idx === activeIdx ? 'active' : ''}`;
                 
-                // Перетворення "12 СІЧНЯ" -> "12.01"
                 let label = item.date;
                 const parts = item.date.split(' ');
                 
@@ -475,7 +510,6 @@
 
         function selectDate(idx) {
             viewSchedule = DATA[idx]; 
-            // Тут ми передаємо оригінальну дату (напр. "12 СІЧНЯ") для погоди
             if (typeof renderWeatherForDate === "function") {
                 renderWeatherForDate(viewSchedule.date);
             }
@@ -514,7 +548,6 @@
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
             
-            // Текст кнопки доната
             const donateText = document.getElementById('donate-text');
             if (donateText && T[l].support) {
                 donateText.innerText = T[l].support;
@@ -525,7 +558,6 @@
                 tooltip.innerHTML = `${T[l].tip} <button class="tooltip-btn" onclick="hideTooltip()">${T[l].tip_btn}</button>`;
             }
             
-            // Оновлюємо погоду без прив'язки до тексту кнопки
             if (typeof updateWeatherLang === "function") {
                 if (viewSchedule) renderWeatherForDate(viewSchedule.date);
             }
@@ -677,17 +709,17 @@
 
             const body = document.body;
             
-            // --- НОВАЯ ЛОГИКА АНИМАЦИИ ---
-            const smartBulb = document.getElementById('smart-bulb');
+            // --- ЛОГІКА ПЕРСОНАЖА ---
+            const powerSpirit = document.getElementById('power-spirit');
             const st = document.getElementById('status');
             const tm = document.getElementById('timer');
 
             if (isLight) {
                 body.classList.remove('dark-mode');
                 
-                // Включаем "режим вечеринки" (очки, качание, желтый цвет)
-                smartBulb.classList.add('bulb-on-mode');
-                smartBulb.classList.remove('bulb-off-mode');
+                // Вмикаємо режим BOSS
+                powerSpirit.classList.add('mode-on');
+                powerSpirit.classList.remove('mode-off');
                 
                 if (st.innerText !== T[lang].on) st.innerText = T[lang].on;
                 st.style.color = 'var(--text)';
@@ -697,9 +729,9 @@
             } else {
                 body.classList.add('dark-mode');
                 
-                // Включаем "режим холода" (сосулька, дрожание, серый цвет)
-                smartBulb.classList.add('bulb-off-mode');
-                smartBulb.classList.remove('bulb-on-mode');
+                // Вмикаємо режим MEDIEVAL
+                powerSpirit.classList.add('mode-off');
+                powerSpirit.classList.remove('mode-on');
                 
                 if (st.innerText !== T[lang].off) st.innerText = T[lang].off;
                 st.style.color = 'var(--off)';
