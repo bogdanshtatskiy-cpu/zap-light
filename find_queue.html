@@ -18,7 +18,6 @@
             --bg-gradient: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
         }
 
-        /* Темна тема (вмикається через JS) */
         body.dark-mode {
             --glass-bg: rgba(30, 41, 59, 0.7);
             --glass-border: rgba(255, 255, 255, 0.1);
@@ -57,37 +56,19 @@
             transition: all 0.3s ease;
         }
 
-        /* --- КРАСИВА КНОПКА НАЗАД --- */
-        .header-row {
-            display: flex; align-items: center; margin-bottom: 25px;
-        }
+        .header-row { display: flex; align-items: center; margin-bottom: 25px; }
         .back-btn {
-            text-decoration: none;
-            margin-right: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 44px; height: 44px;
-            border-radius: 14px;
-            background: rgba(255,255,255,0.4);
-            border: 1px solid var(--glass-border);
-            color: var(--text);
-            font-size: 20px;
+            text-decoration: none; margin-right: 15px; display: flex;
+            align-items: center; justify-content: center; width: 44px; height: 44px;
+            border-radius: 14px; background: rgba(255,255,255,0.4);
+            border: 1px solid var(--glass-border); color: var(--text); font-size: 20px;
             transition: all 0.2s;
         }
         .back-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.6); }
-        
-        body.dark-mode .back-btn {
-            background: rgba(0,0,0,0.3);
-            border-color: rgba(255,255,255,0.1);
-        }
+        body.dark-mode .back-btn { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.1); }
 
-        h1 {
-            margin: 0; font-family: 'SF Pro Display', sans-serif;
-            font-size: 22px; font-weight: 800;
-        }
+        h1 { margin: 0; font-family: 'SF Pro Display', sans-serif; font-size: 22px; font-weight: 800; }
 
-        /* INPUTS */
         .input-group { margin-bottom: 20px; position: relative; }
         label { display: block; margin-bottom: 8px; font-weight: 700; font-size: 14px; opacity: 0.8; }
         
@@ -100,15 +81,12 @@
             transition: all 0.3s;
         }
         body.dark-mode input { background: rgba(0,0,0,0.2); }
-        
         input:focus {
-            background: rgba(255,255,255,0.8);
-            border-color: var(--primary);
+            background: rgba(255,255,255,0.8); border-color: var(--primary);
             box-shadow: 0 4px 15px rgba(251, 192, 45, 0.15);
         }
         body.dark-mode input:focus { background: rgba(0,0,0,0.4); }
 
-        /* LIST */
         .autocomplete-list {
             position: absolute; top: 105%; left: 0; right: 0;
             background: var(--glass-bg); backdrop-filter: blur(15px);
@@ -121,12 +99,8 @@
             padding: 12px 15px; cursor: pointer; border-radius: 10px;
             margin-bottom: 2px; font-size: 15px; color: var(--text);
         }
-        .autocomplete-item:hover {
-            background-color: rgba(251, 192, 45, 0.2); /* Yellow tint */
-            font-weight: 700;
-        }
+        .autocomplete-item:hover { background-color: rgba(251, 192, 45, 0.2); font-weight: 700; }
 
-        /* RESULT */
         #result-card {
             margin-top: 30px;
             background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
@@ -142,8 +116,33 @@
             filter: drop-shadow(0 4px 10px rgba(24bc2d, 0.3));
         }
         
+        /* СТИЛІ ДЛЯ КНОПКИ ЗВОРОТНОГО ЗВ'ЯЗКУ */
+        .footer-contact {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 13px;
+            opacity: 0.8;
+        }
+        .footer-contact a {
+            color: var(--text);
+            text-decoration: none;
+            border-bottom: 1px dashed rgba(0,0,0,0.3);
+            padding-bottom: 2px;
+            transition: all 0.2s;
+        }
+        body.dark-mode .footer-contact a { border-bottom-color: rgba(255,255,255,0.3); }
+        
+        .footer-contact a:hover {
+            color: var(--primary);
+            border-bottom-style: solid;
+            opacity: 1;
+        }
+
         .loader { text-align: center; font-size: 14px; opacity: 0.7; margin-top: 10px; }
         @keyframes popIn { 0% { transform: scale(0.8) translateY(10px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
     </style>
 </head>
 <body>
@@ -178,16 +177,18 @@
             <div style="text-transform: uppercase; opacity: 0.6; font-size: 12px; letter-spacing: 1px;">Ваша черга</div>
             <span id="result-queue">-</span>
         </div>
+
+        <div class="footer-contact">
+            <a href="https://t.me/desoope" target="_blank">
+                Знайшли помилку? Напишіть мені ✈️
+            </a>
+        </div>
     </div>
 
     <script>
-        // Check theme from URL
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('theme') === 'dark') {
-            document.body.classList.add('dark-mode');
-        }
+        if (urlParams.get('theme') === 'dark') document.body.classList.add('dark-mode');
 
-        // Snow animation
         function createSnow() {
             const container = document.getElementById('snow-container');
             const count = 20; 
@@ -204,7 +205,6 @@
         }
         createSnow();
 
-        // Logic
         const QUEUE_FILES = ["1.1.xlsx", "1.2.xlsx", "2.1.xlsx", "2.2.xlsx", "3.1.xlsx", "3.2.xlsx", "4.1.xlsx", "4.2.xlsx", "5.1.xlsx", "5.2.xlsx", "6.1.xlsx", "6.2.xlsx"];
         const BASE_PATH = "./xls/"; 
         let database = [], uniqueStreets = [], selectedStreet = null;
@@ -242,10 +242,9 @@
                 const row = rows[i];
                 if (!row || row.length < 2) continue;
                 const rawStreet = String(row[0]).trim();
-                const cleanStreetName = normalizeStreetName(rawStreet);
                 const houses = expandHouseRanges(String(row[1]).trim());
                 houses.forEach(house => {
-                    database.push({ fullStreet: rawStreet, cleanStreet: cleanStreetName, house: house, queue: queueId });
+                    database.push({ fullStreet: rawStreet, house: house, queue: queueId });
                 });
             }
         }
@@ -273,7 +272,20 @@
         }
 
         function normalizeStreetName(name) {
-            return name.toLowerCase().replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз)\s*/g, '').trim();
+            return name.toLowerCase()
+                .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '')
+                .replace(/[()]/g, '')
+                .trim();
+        }
+
+        function filterStreets(query) {
+            const lowerQuery = query.toLowerCase();
+            return uniqueStreets.filter(s => {
+                const cleanFull = normalizeStreetName(s);
+                if (cleanFull.startsWith(lowerQuery)) return true;
+                const parts = s.split('(').map(p => normalizeStreetName(p));
+                return parts.some(part => part.startsWith(lowerQuery));
+            });
         }
 
         const streetInput = document.getElementById('street-input');
@@ -283,11 +295,11 @@
         const resultCard = document.getElementById('result-card');
 
         streetInput.addEventListener('input', (e) => {
-            const val = normalizeStreetName(e.target.value);
+            const val = e.target.value.trim();
             selectedStreet = null; houseInput.disabled = true; houseInput.value = '';
             resultCard.style.display = 'none'; houseList.style.display = 'none';
             if (val.length < 1) { streetList.style.display = 'none'; return; }
-            const matches = uniqueStreets.filter(s => normalizeStreetName(s).startsWith(val));
+            const matches = filterStreets(val);
             renderAutocomplete(streetList, matches, val, selectStreet);
         });
 
