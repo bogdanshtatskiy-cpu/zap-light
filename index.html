@@ -31,10 +31,54 @@
             margin-top: 0 !important;
         }
 
+        /* --- ХЕДЕР (ОНОВЛЕНО ДЛЯ ЦЕНТРУВАННЯ) --- */
         .header {
             display: flex;
-            justify-content: space-between;
+            justify-content: space-between; /* Розкід кнопок по краях */
             align-items: center;
+            position: relative; /* Важливо для абсолютного центрування заголовка */
+            z-index: 20;
+            min-height: 44px; /* Фіксована висота для стабільності */
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px; /* Відступ між кнопкою "i" та погодою */
+            z-index: 21; /* Кнопки поверх тексту, якщо екран дуже вузький */
+        }
+
+        /* --- ЗАГОЛОВОК ПО ЦЕНТРУ --- */
+        .title-wrap {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%); /* Ідеальний центр */
+            text-align: center;
+            white-space: nowrap; /* Заборона переносу */
+            z-index: 10;
+        }
+
+        .app-title {
+            font-family: 'SF Pro Display', sans-serif;
+            font-weight: 900;
+            font-size: 20px; /* Трохи більше */
+            line-height: 1;
+            letter-spacing: 0.5px;
+        }
+
+        .app-subtitle {
+            font-size: 11px;
+            opacity: 0.6;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        /* --- ПІДКАЗКА --- */
+        .tooltip {
+            z-index: 100 !important; 
         }
 
         /* --- КНОПКИ --- */
@@ -79,18 +123,17 @@
 
         .find-icon { margin-right: 5px; font-size: 16px; }
 
-        /* --- БЕЙДЖІ ТА ІКОНКИ У СПИСКУ (Оновлено) --- */
+        /* --- БЕЙДЖІ ТА ІКОНКИ --- */
         .row-badge {
             min-width: 145px !important;
             justify-content: center !important;
             display: inline-flex !important;
-            align-items: center !important; /* Центрування по вертикалі */
+            align-items: center !important;
             text-align: center !important;
         }
 
-        /* Клас для маленької SVG іконки у списку */
         .list-icon {
-            width: 20px;  /* Фіксований розмір */
+            width: 20px;
             height: 20px;
             display: inline-block;
             margin-right: 8px;
@@ -128,12 +171,13 @@
                 Натисни сюди, щоб сховати або показати погоду 🌤️
                 <button class="tooltip-btn" onclick="hideTooltip()">Зрозуміло</button>
             </div>
-
-            <div class="title-wrap" style="margin-left: 10px;">
-                <div class="app-title" id="app-title">⚡ ГПВ</div>
-                <div class="app-subtitle" id="city-label">м. Запоріжжя</div>
-            </div>
         </div>
+
+        <div class="title-wrap">
+            <div class="app-title" id="app-title">⚡ ГПВ</div>
+            <div class="app-subtitle" id="city-label">м. Запоріжжя</div>
+        </div>
+
         <div class="lang-switch">
             <div class="lang-btn active" id="btn-uk" onclick="setLang('uk')">UA</div>
             <div class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</div>
@@ -534,9 +578,8 @@
                     const text = current ? T[lang].on : T[lang].off;
                     
                     // --- ГЕНЕРАЦІЯ SVG ДЛЯ СПИСКУ ---
-                    const uid = `row_${start}`; // Унікальний ID для кожного рядка, щоб градієнти не ламались
+                    const uid = `row_${start}`; 
                     let rawSvg = current ? SVG_BULB_ON : SVG_BULB_OFF;
-                    // Підміняємо ID всередині SVG, щоб вони були унікальні
                     rawSvg = rawSvg.replaceAll('id="', `id="${uid}_`).replaceAll('url(#', `url(#${uid}_`);
                     const iconHtml = `<div class="list-icon">${rawSvg}</div>`;
 
