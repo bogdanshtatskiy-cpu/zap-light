@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Пошук Черги</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #fbc02d; 
+            --bg: #e0f7fa;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.8);
+            --text: #1e3a8a;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #e0f7fa 0%, #bbdefb 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 25px;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            box-shadow: 0 10px 40px var(--shadow);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: 800;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.8);
+            font-size: 16px;
+            font-family: inherit;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(251, 192, 45, 0.2);
+        }
+
+        /* Custom Autocomplete List */
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            margin-top: 5px;
+        }
+
+        .autocomplete-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #f0f9ff;
+        }
+
+        .autocomplete-item strong {
+            color: var(--primary); /* Highlight matching part */
+        }
+
+        /* Result Card */
+        #result-card {
+            margin-top: 20px;
+            background: linear-gradient(135deg, #fff9c4 0%, #fff176 100%);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            display: none;
+            animation: popIn 0.3s ease;
+        }
+
+        #result-queue {
+            font-size: 48px;
+            font-weight: 900;
+            color: #f57f17;
+            display: block;
+            margin: 10px 0;
+        }
+
+        .loader {
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🔍 Знайти чергу</h1>
+        
+        <div id="loading-status" class="loader">Завантаження бази адрес...</div>
+
+        <div class="input-group">
+            <label>Вулиця / Проспект</label>
+            <input type="text" id="street-input" placeholder="Почніть вводити назву (напр. Соборний)" disabled autocomplete="off">
+            <div id="street-list" class="autocomplete-list"></div>
+        </div>
+
+        <div class="input-group">
+            <label>Номер будинку</label>
+            <div id="house-input-container">
+                <input type="text" id="house-input" placeholder="Оберіть спочатку вулицю" disabled autocomplete="off">
+            </div>
+            <div id="house-list" class="autocomplete-list"></div>
+        </div>
+
+        <div id="result-card">
+            Ваша черга:
+            <span id="result-queue">-</span>
+        </div>
+    </div>
+
+    <script>
+        // === CONFIGURATION ===
+        // List of all queue files to load. Add others when ready.
+        const QUEUE_FILES = [
+            "1.1.xlsx", "1.2.xlsx", 
+            "2.1.xlsx", "2.2.xlsx",
+            "3.1.xlsx", "3.2.xlsx",
+            "4.1.xlsx", "4.2.xlsx",
+            "5.1.xlsx", "5.2.xlsx",
+            "6.1.xlsx", "6.2.xlsx"
+        ];
+        const BASE_PATH = "./xls/"; // Path to xls folder relative to this file
+
+        // === STATE ===
+        let database = []; // Will hold { street: "Name", house: "12", queue: "1.1" } objects
+        let uniqueStreets = []; 
+        let selectedStreet = null;
+
+        // === INITIALIZATION ===
+        async function init() {
+            const statusEl = document.getElementById('loading-status');
+            const streetInput = document.getElementById('street-input');
+            
+            try {
+                // Load all files in parallel
+                const promises = QUEUE_FILES.map(file => loadQueueFile(file));
+                await Promise.all(promises);
+
+                // Process data for fast searching
+                processDatabase();
+
+                statusEl.innerText = `База завантажена! (${database.length} адрес)`;
+                statusEl.style.color = "green";
+                setTimeout(() => statusEl.style.display = 'none', 2000);
+                
+                streetInput.disabled = false;
+            } catch (e) {
+                console.error(e);
+                statusEl.innerText = "Помилка завантаження файлів. Перевірте консоль.";
+                statusEl.style.color = "red";
+            }
+        }
+
+        async function loadQueueFile(filename) {
+            try {
+                const response = await fetch(BASE_PATH + filename);
+                if (!response.ok) return; // Skip if file doesn't exist yet
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Convert to JSON array of arrays (Row 1 is headers)
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                const queueId = filename.replace('.xlsx', ''); // "1.1"
+                parseRows(jsonData, queueId);
+            } catch (e) {
+                console.warn(`Skipping ${filename}:`, e);
+            }
+        }
+
+        function parseRows(rows, queueId) {
+            // Assuming Row 0 is header: ["Вулиця", "Будинок"]
+            // Data starts from Row 1
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || row.length < 2) continue;
+
+                const rawStreet = String(row[0]).trim();
+                const rawHouses = String(row[1]).trim();
+
+                // Clean street name (remove prefixes for search, but keep full name for display)
+                const cleanStreetName = normalizeStreetName(rawStreet);
+
+                // Parse houses (handle ranges and separators)
+                const houseList = expandHouseRanges(rawHouses);
+
+                houseList.forEach(house => {
+                    database.push({
+                        fullStreet: rawStreet,
+                        cleanStreet: cleanStreetName,
+                        house: house,
+                        queue: queueId
+                    });
+                });
+            }
+        }
+
+        function processDatabase() {
+            // Extract unique streets and sort them
+            const streetSet = new Set(database.map(d => d.fullStreet));
+            uniqueStreets = Array.from(streetSet).sort((a, b) => a.localeCompare(b));
+        }
+
+        // === LOGIC: Expand Ranges (14-20 -> 14,16,18,20) ===
+        function expandHouseRanges(rawStr) {
+            // Split by | or , or /
+            const parts = rawStr.split(/[|,\/]/).map(s => s.trim()).filter(s => s);
+            let result = new Set();
+
+            parts.forEach(part => {
+                // Check for range like "14-20" or "9-15"
+                // Regex checks for Number-Number (ignoring letters for range logic mostly, but let's try basic)
+                const rangeMatch = part.match(/^(\d+)[-–—](\d+)$/);
+
+                if (rangeMatch) {
+                    const start = parseInt(rangeMatch[1]);
+                    const end = parseInt(rangeMatch[2]);
+                    
+                    if (!isNaN(start) && !isNaN(end) && end > start) {
+                        // Determine step (1 for mixed, 2 for odd/even consistency)
+                        // Heuristic: if start and end are both even or both odd, step is 2.
+                        const step = (start % 2 === end % 2) ? 2 : 1;
+                        
+                        for (let i = start; i <= end; i += step) {
+                            result.add(i.toString());
+                        }
+                    } else {
+                        result.add(part); // Fallback
+                    }
+                } else {
+                    result.add(part);
+                }
+            });
+
+            return Array.from(result);
+        }
+
+        // === LOGIC: Remove prefixes for search ===
+        function normalizeStreetName(name) {
+            // Remove vul., pr., etc. and lowercase
+            return name.toLowerCase()
+                .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз)\s*/g, '')
+                .trim();
+        }
+
+        // === UI INTERACTION ===
+        const streetInput = document.getElementById('street-input');
+        const streetList = document.getElementById('street-list');
+        const houseInput = document.getElementById('house-input');
+        const houseList = document.getElementById('house-list');
+        const resultCard = document.getElementById('result-card');
+        const resultQueue = document.getElementById('result-queue');
+
+        // 1. Street Search
+        streetInput.addEventListener('input', (e) => {
+            const val = normalizeStreetName(e.target.value);
+            selectedStreet = null;
+            houseInput.disabled = true;
+            houseInput.value = '';
+            resultCard.style.display = 'none';
+            houseList.style.display = 'none';
+
+            if (val.length < 1) {
+                streetList.style.display = 'none';
+                return;
+            }
+
+            // Filter streets
+            const matches = uniqueStreets.filter(s => normalizeStreetName(s).startsWith(val));
+            renderAutocomplete(streetList, matches, val, selectStreet);
+        });
+
+        function renderAutocomplete(container, matches, query, callback) {
+            container.innerHTML = '';
+            if (matches.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            // Limit to 50 results for performance
+            matches.slice(0, 50).forEach(match => {
+                const div = document.createElement('div');
+                div.className = 'autocomplete-item';
+                // Highlight match logic could be added here
+                div.innerText = match;
+                div.onclick = () => callback(match);
+                container.appendChild(div);
+            });
+            container.style.display = 'block';
+        }
+
+        function selectStreet(name) {
+            streetInput.value = name;
+            selectedStreet = name;
+            streetList.style.display = 'none';
+            
+            // Unlock house input
+            houseInput.disabled = false;
+            houseInput.focus();
+            houseInput.placeholder = "Введіть номер будинку";
+        }
+
+        // 2. House Search
+        houseInput.addEventListener('focus', () => {
+            if(selectedStreet) showHouseOptions('');
+        });
+
+        houseInput.addEventListener('input', (e) => {
+            showHouseOptions(e.target.value);
+        });
+
+        function showHouseOptions(val) {
+            if (!selectedStreet) return;
+
+            // Get houses for this street from DB
+            const housesOnStreet = database
+                .filter(d => d.fullStreet === selectedStreet)
+                .map(d => d.house);
+            
+            // Remove duplicates and sort alphanumeric (natural sort)
+            const uniqueHouses = [...new Set(housesOnStreet)].sort(naturalSort);
+
+            // Filter by input
+            const matches = uniqueHouses.filter(h => h.toLowerCase().startsWith(val.toLowerCase()));
+            
+            renderAutocomplete(houseList, matches, val, selectHouse);
+        }
+
+        function selectHouse(house) {
+            houseInput.value = house;
+            houseList.style.display = 'none';
+            
+            // Find Queue
+            const entry = database.find(d => d.fullStreet === selectedStreet && d.house === house);
+            
+            if (entry) {
+                resultQueue.innerText = entry.queue;
+                resultCard.style.display = 'block';
+            }
+        }
+
+        // Natural sort comparator (so 2, 10, 1A sorts correctly)
+        function naturalSort(a, b) {
+            return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+        }
+
+        // Close dropdowns on click outside
+        document.addEventListener('click', function(e) {
+            if (e.target !== streetInput) streetList.style.display = 'none';
+            if (e.target !== houseInput) houseList.style.display = 'none';
+        });
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
