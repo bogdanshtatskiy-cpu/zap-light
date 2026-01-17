@@ -15,6 +15,7 @@
             --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
             --text: #2c3e50;
             --primary: #fbc02d;
+            --success: #4caf50; /* Зелений для "Не відключається" */
             --bg-gradient: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
         }
 
@@ -57,12 +58,7 @@
             transition: all 0.3s ease;
         }
 
-        .header-row { 
-            display: flex; 
-            align-items: center; 
-            margin-bottom: 20px; 
-        }
-        
+        .header-row { display: flex; align-items: center; margin-bottom: 20px; }
         .back-btn {
             text-decoration: none; margin-right: 15px; display: flex;
             align-items: center; justify-content: center; width: 40px; height: 40px;
@@ -75,17 +71,11 @@
 
         h1 { margin: 0; font-family: 'SF Pro Display', sans-serif; font-size: 22px; font-weight: 800; }
 
-        .input-group { 
-            margin-bottom: 15px; 
-            position: relative; 
-        }
-        
+        .input-group { margin-bottom: 15px; position: relative; }
         label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 14px; opacity: 0.8; padding-left: 5px; }
         
         input {
-            width: 100%; 
-            padding: 14px; 
-            border-radius: 16px;
+            width: 100%; padding: 14px; border-radius: 16px;
             border: 1px solid var(--glass-border);
             background: rgba(255,255,255,0.3);
             font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 600;
@@ -117,8 +107,7 @@
             margin-top: 20px;
             background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
             border: 1px solid var(--glass-border);
-            padding: 20px;
-            border-radius: 20px; text-align: center;
+            padding: 20px; border-radius: 20px; text-align: center;
             display: none; animation: popIn 0.4s ease;
         }
         #result-queue {
@@ -128,18 +117,44 @@
             display: block; line-height: 1; margin-top: 5px;
             filter: drop-shadow(0 4px 10px rgba(24bc2d, 0.3));
         }
-        
-        .footer-contact {
-            margin-top: 20px;
-            text-align: center;
+        /* Стиль для "Не відключається" */
+        .queue-green {
+            background: linear-gradient(45deg, #4caf50, #8bc34a) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            font-size: 32px !important; /* Трохи менший шрифт, щоб влізло */
+            filter: drop-shadow(0 4px 10px rgba(76, 175, 80, 0.3)) !important;
+        }
+
+        /* --- ПРИМІТКИ (Info Notes) --- */
+        .info-notes {
+            margin-top: 25px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            padding-top: 15px;
+        }
+        body.dark-mode .info-notes { border-top-color: rgba(255,255,255,0.1); }
+
+        .note-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px;
             font-size: 13px;
-            opacity: 0.7;
+            line-height: 1.4;
+            color: var(--text);
+            opacity: 0.8;
+        }
+        .note-icon {
+            margin-right: 8px;
+            font-size: 16px;
+            min-width: 20px;
+        }
+
+        .footer-contact {
+            margin-top: 20px; text-align: center; font-size: 13px; opacity: 0.7;
         }
         .footer-contact a {
-            color: var(--text);
-            text-decoration: none;
-            border-bottom: 1px dashed rgba(0,0,0,0.3);
-            padding-bottom: 2px;
+            color: var(--text); text-decoration: none;
+            border-bottom: 1px dashed rgba(0,0,0,0.3); padding-bottom: 2px;
             transition: all 0.2s;
         }
         body.dark-mode .footer-contact a { border-bottom-color: rgba(255,255,255,0.3); }
@@ -147,9 +162,6 @@
 
         .loader { text-align: center; font-size: 14px; opacity: 0.7; margin-top: 10px; }
         @keyframes popIn { 0% { transform: scale(0.8) translateY(10px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
     </style>
 </head>
 <body>
@@ -181,8 +193,19 @@
         </div>
 
         <div id="result-card">
-            <div style="text-transform: uppercase; opacity: 0.6; font-size: 12px; letter-spacing: 1px;">Ваша черга</div>
+            <div style="text-transform: uppercase; opacity: 0.6; font-size: 12px; letter-spacing: 1px;">Результат</div>
             <span id="result-queue">-</span>
+        </div>
+
+        <div class="info-notes">
+            <div class="note-item">
+                <span class="note-icon">⚡</span>
+                <span>Якщо вашої адреси немає у списку — ймовірно, графіки відключень до неї <b>не застосовуються</b>.</span>
+            </div>
+            <div class="note-item">
+                <span class="note-icon">⚠️</span>
+                <span>Дані надані обленерго та можуть бути неточними або застарілими.</span>
+            </div>
         </div>
 
         <div class="footer-contact">
@@ -278,28 +301,13 @@
             return Array.from(result);
         }
 
-        // --- НОВА ФУНКЦІЯ ФІЛЬТРАЦІЇ (ПОСЛОВНИЙ ПОШУК) ---
         function filterStreets(query) {
             const lowerQuery = query.toLowerCase();
             return uniqueStreets.filter(s => {
-                // Прибираємо префікси для чистого пошуку
-                const cleanName = s.toLowerCase()
-                    .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '');
-                
-                // Розбиваємо назву на слова, ігноруючи дужки
-                // "Олени Теліги (Менжинського)" -> ["олени", "теліги", "менжинського"]
+                const cleanName = s.toLowerCase().replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '');
                 const keywords = cleanName.replace(/[()]/g, ' ').split(/\s+/).filter(w => w);
-
-                // Перевіряємо, чи починається ХОЧА Б ОДНЕ слово з запиту
                 return keywords.some(k => k.startsWith(lowerQuery));
             });
-        }
-
-        function normalizeStreetName(name) {
-            return name.toLowerCase()
-                .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '')
-                .replace(/[()]/g, '')
-                .trim();
         }
 
         const streetInput = document.getElementById('street-input');
@@ -307,20 +315,17 @@
         const streetList = document.getElementById('street-list');
         const houseList = document.getElementById('house-list');
         const resultCard = document.getElementById('result-card');
+        const resultQueueEl = document.getElementById('result-queue');
 
         streetInput.addEventListener('input', (e) => {
             const val = e.target.value.trim();
             selectedStreet = null; 
             houseInput.disabled = true; 
             houseInput.value = '';
-            // Скидаємо текст, якщо почали міняти вулицю
             houseInput.placeholder = "Спочатку оберіть вулицю"; 
-            
             resultCard.style.display = 'none'; 
             houseList.style.display = 'none';
-            
             if (val.length < 1) { streetList.style.display = 'none'; return; }
-            
             const matches = filterStreets(val);
             renderAutocomplete(streetList, matches, val, selectStreet);
         });
@@ -342,18 +347,46 @@
             streetInput.value = name; 
             selectedStreet = name; 
             streetList.style.display = 'none';
-            
             houseInput.disabled = false; 
             houseInput.value = ''; 
-            // ЗМІНЮЄМО НАПИС
             houseInput.placeholder = "Тепер оберіть номер будинку"; 
             houseInput.focus(); 
-            
             showHouseOptions('');
         }
 
         houseInput.addEventListener('focus', () => { if(selectedStreet) showHouseOptions(houseInput.value); });
-        houseInput.addEventListener('input', (e) => { showHouseOptions(e.target.value); });
+        
+        // Обробка вводу будинку + перевірка на Enter або зміну
+        houseInput.addEventListener('input', (e) => { 
+            const val = e.target.value;
+            showHouseOptions(val);
+            checkIfHouseExists(val);
+        });
+
+        function checkIfHouseExists(val) {
+            if (!selectedStreet) return;
+            
+            // Якщо поле пусте, ховаємо результат
+            if(val.trim() === "") {
+                resultCard.style.display = 'none';
+                return;
+            }
+
+            // Шукаємо точний збіг у базі
+            const entry = database.find(d => d.fullStreet === selectedStreet && d.house.toLowerCase() === val.toLowerCase());
+            
+            if (entry) {
+                // Знайшли
+                resultQueueEl.innerText = entry.queue;
+                resultQueueEl.classList.remove('queue-green');
+                resultCard.style.display = 'block';
+            } else {
+                // Не знайшли -> "Не відключається"
+                resultQueueEl.innerText = "Не відключається";
+                resultQueueEl.classList.add('queue-green');
+                resultCard.style.display = 'block';
+            }
+        }
 
         function showHouseOptions(val) {
             if (!selectedStreet) return;
@@ -364,12 +397,9 @@
         }
 
         function selectHouse(house) {
-            houseInput.value = house; houseList.style.display = 'none';
-            const entry = database.find(d => d.fullStreet === selectedStreet && d.house === house);
-            if (entry) {
-                document.getElementById('result-queue').innerText = entry.queue;
-                resultCard.style.display = 'block';
-            }
+            houseInput.value = house; 
+            houseList.style.display = 'none';
+            checkIfHouseExists(house); // Викликаємо перевірку після вибору
         }
 
         document.addEventListener('click', (e) => {
