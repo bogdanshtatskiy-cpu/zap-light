@@ -6,240 +6,144 @@
     <title>Пошук Черги</title>
     
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
         :root {
-            /* Кольорова гама основного додатку */
             --glass-bg: rgba(255, 255, 255, 0.65);
             --glass-border: rgba(255, 255, 255, 0.8);
             --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
             --text: #2c3e50;
-            --primary: #fbc02d; /* Жовтий акцент */
-            --accent: #29b6f6;  /* Блакитний акцент */
-            --danger: #ef5350;
+            --primary: #fbc02d;
+            --bg-gradient: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        }
+
+        /* Темна тема (вмикається через JS) */
+        body.dark-mode {
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text: #f1f5f9;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         }
 
         body {
-            margin: 0;
-            padding: 20px;
+            margin: 0; padding: 20px;
             font-family: 'Nunito', sans-serif;
-            /* Фон як в основному додатку (зимовий градієнт) */
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            background: var(--bg-gradient);
             min-height: 100vh;
-            box-sizing: border-box;
             color: var(--text);
-            overflow-x: hidden;
+            transition: background 0.5s;
         }
 
-        /* Анімація снігу (копія з index.html) */
         #snow-container {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 0;
-            overflow: hidden;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 0; overflow: hidden;
         }
         .snowflake {
-            position: absolute;
-            top: -10px;
-            background: white;
-            border-radius: 50%;
-            opacity: 0.8;
-            animation: fall linear infinite;
+            position: absolute; top: -10px; background: white;
+            border-radius: 50%; opacity: 0.8; animation: fall linear infinite;
         }
-        @keyframes fall {
-            to { transform: translateY(105vh); }
-        }
+        @keyframes fall { to { transform: translateY(105vh); } }
 
-        /* --- ЗАГАЛЬНИЙ КОНТЕЙНЕР (Glass Panel) --- */
         .glass-panel {
-            position: relative;
-            z-index: 10;
+            position: relative; z-index: 10;
             background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
             box-shadow: var(--glass-shadow);
             border-radius: 24px;
             padding: 25px;
-            max-width: 500px;
-            margin: 0 auto;
-            transition: transform 0.3s ease;
+            max-width: 500px; margin: 0 auto;
+            transition: all 0.3s ease;
         }
 
-        /* Хедер з кнопкою назад */
+        /* --- КРАСИВА КНОПКА НАЗАД --- */
         .header-row {
-            display: flex;
-            align-items: center;
-            margin-bottom: 25px;
+            display: flex; align-items: center; margin-bottom: 25px;
         }
-
         .back-btn {
             text-decoration: none;
-            font-size: 20px;
             margin-right: 15px;
-            width: 40px;
-            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255,255,255,0.5);
-            border-radius: 50%;
-            border: 1px solid white;
+            width: 44px; height: 44px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.4);
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            font-size: 20px;
             transition: all 0.2s;
         }
-        .back-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.8); }
+        .back-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.6); }
+        
+        body.dark-mode .back-btn {
+            background: rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.1);
+        }
 
         h1 {
-            margin: 0;
-            font-family: 'SF Pro Display', sans-serif;
-            font-size: 24px;
-            font-weight: 800;
-            background: linear-gradient(45deg, #1e3a8a, #29b6f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            margin: 0; font-family: 'SF Pro Display', sans-serif;
+            font-size: 22px; font-weight: 800;
         }
 
-        /* --- ПОЛЯ ВВОДУ (Input Styling) --- */
-        .input-group {
-            margin-bottom: 20px;
-            position: relative;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 700;
-            font-size: 14px;
-            padding-left: 10px;
-            opacity: 0.8;
-        }
-
+        /* INPUTS */
+        .input-group { margin-bottom: 20px; position: relative; }
+        label { display: block; margin-bottom: 8px; font-weight: 700; font-size: 14px; opacity: 0.8; }
+        
         input {
-            width: 100%;
-            padding: 16px;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.6);
-            background: rgba(255,255,255,0.4);
-            font-family: 'Nunito', sans-serif;
-            font-size: 16px;
-            font-weight: 600;
-            color: #1e3a8a;
-            box-sizing: border-box;
-            outline: none;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            width: 100%; padding: 16px; border-radius: 18px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255,255,255,0.3);
+            font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 600;
+            color: var(--text); box-sizing: border-box; outline: none;
+            transition: all 0.3s;
         }
-
+        body.dark-mode input { background: rgba(0,0,0,0.2); }
+        
         input:focus {
-            background: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.8);
             border-color: var(--primary);
             box-shadow: 0 4px 15px rgba(251, 192, 45, 0.15);
-            transform: translateY(-1px);
         }
+        body.dark-mode input:focus { background: rgba(0,0,0,0.4); }
 
-        input::placeholder {
-            color: #78909c;
-            font-weight: 400;
-        }
-
-        /* --- ВИПАДАЮЧИЙ СПИСОК (Autocomplete) --- */
+        /* LIST */
         .autocomplete-list {
-            position: absolute;
-            top: 105%;
-            left: 0;
-            right: 0;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            max-height: 250px;
-            overflow-y: auto;
-            z-index: 100;
+            position: absolute; top: 105%; left: 0; right: 0;
+            background: var(--glass-bg); backdrop-filter: blur(15px);
+            border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-height: 250px; overflow-y: auto; z-index: 100;
+            padding: 5px; border: 1px solid var(--glass-border);
             display: none;
-            padding: 5px;
-            border: 1px solid white;
         }
-
         .autocomplete-item {
-            padding: 12px 15px;
-            cursor: pointer;
-            border-radius: 10px;
-            margin-bottom: 2px;
-            font-size: 15px;
-            color: #455a64;
-            transition: background 0.1s;
+            padding: 12px 15px; cursor: pointer; border-radius: 10px;
+            margin-bottom: 2px; font-size: 15px; color: var(--text);
         }
-
         .autocomplete-item:hover {
-            background-color: #e3f2fd;
-            color: #0277bd;
+            background-color: rgba(251, 192, 45, 0.2); /* Yellow tint */
             font-weight: 700;
         }
 
-        .autocomplete-item strong {
-            color: #0277bd;
-        }
-
-        /* --- КАРТКА РЕЗУЛЬТАТУ --- */
+        /* RESULT */
         #result-card {
             margin-top: 30px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 100%);
-            border: 2px solid white;
-            padding: 25px;
-            border-radius: 20px;
-            text-align: center;
-            display: none;
-            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 25px rgba(251, 192, 45, 0.15);
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border: 1px solid var(--glass-border);
+            padding: 25px; border-radius: 20px; text-align: center;
+            display: none; animation: popIn 0.4s ease;
         }
-
-        .res-label {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.6;
-            margin-bottom: 5px;
-        }
-
         #result-queue {
-            font-family: 'SF Pro Display', sans-serif;
-            font-size: 56px;
-            font-weight: 900;
+            font-family: 'SF Pro Display', sans-serif; font-size: 56px; font-weight: 900;
             background: linear-gradient(45deg, #fbc02d, #f57f17);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            display: block;
-            line-height: 1;
-            margin-top: 10px;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: block; line-height: 1; margin-top: 10px;
             filter: drop-shadow(0 4px 10px rgba(24bc2d, 0.3));
         }
-
-        .loader {
-            text-align: center;
-            font-size: 14px;
-            color: #607d8b;
-            margin-top: 10px;
-            font-weight: 600;
-        }
-
-        .disabled {
-            opacity: 0.6;
-            pointer-events: none;
-            filter: grayscale(1);
-        }
-
-        @keyframes popIn {
-            0% { transform: scale(0.8) translateY(20px); opacity: 0; }
-            100% { transform: scale(1) translateY(0); opacity: 1; }
-        }
-
-        /* Скроллбар для списку */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
+        
+        .loader { text-align: center; font-size: 14px; opacity: 0.7; margin-top: 10px; }
+        @keyframes popIn { 0% { transform: scale(0.8) translateY(10px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -248,32 +152,42 @@
 
     <div class="glass-panel">
         <div class="header-row">
-            <a href="index.html" class="back-btn">🔙</a>
-            <h1>Пошук черги</h1>
+            <a href="index.html" class="back-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 19L8 12L15 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </a>
+            <h1 id="title-text">Пошук черги</h1>
         </div>
         
-        <div id="loading-status" class="loader">🔄 Завантаження бази адрес...</div>
+        <div id="loading-status" class="loader">🔄 Завантаження...</div>
 
         <div class="input-group">
-            <label>Вулиця / Проспект</label>
+            <label>Вулиця</label>
             <input type="text" id="street-input" placeholder="Почніть вводити назву..." disabled autocomplete="off">
             <div id="street-list" class="autocomplete-list"></div>
         </div>
 
         <div class="input-group">
-            <label>Номер будинку</label>
+            <label>Будинок</label>
             <input type="text" id="house-input" placeholder="Спочатку оберіть вулицю" disabled autocomplete="off">
             <div id="house-list" class="autocomplete-list"></div>
         </div>
 
         <div id="result-card">
-            <div class="res-label">Ваша черга</div>
+            <div style="text-transform: uppercase; opacity: 0.6; font-size: 12px; letter-spacing: 1px;">Ваша черга</div>
             <span id="result-queue">-</span>
         </div>
     </div>
 
     <script>
-        // === СНІГ (З основного файлу) ===
+        // Check theme from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+
+        // Snow animation
         function createSnow() {
             const container = document.getElementById('snow-container');
             const count = 20; 
@@ -281,8 +195,7 @@
                 const flake = document.createElement('div');
                 flake.className = 'snowflake';
                 const size = Math.random() * 5 + 3; 
-                flake.style.width = size + 'px';
-                flake.style.height = size + 'px';
+                flake.style.width = size + 'px'; flake.style.height = size + 'px';
                 flake.style.left = Math.random() * 100 + 'vw';
                 flake.style.animationDuration = Math.random() * 5 + 10 + 's';
                 flake.style.animationDelay = Math.random() * 5 + 's';
@@ -291,40 +204,23 @@
         }
         createSnow();
 
-        // === ЛОГІКА ПОШУКУ (Excel) ===
-        const QUEUE_FILES = [
-            "1.1.xlsx", "1.2.xlsx", 
-            "2.1.xlsx", "2.2.xlsx",
-            "3.1.xlsx", "3.2.xlsx",
-            "4.1.xlsx", "4.2.xlsx",
-            "5.1.xlsx", "5.2.xlsx",
-            "6.1.xlsx", "6.2.xlsx"
-        ];
+        // Logic
+        const QUEUE_FILES = ["1.1.xlsx", "1.2.xlsx", "2.1.xlsx", "2.2.xlsx", "3.1.xlsx", "3.2.xlsx", "4.1.xlsx", "4.2.xlsx", "5.1.xlsx", "5.2.xlsx", "6.1.xlsx", "6.2.xlsx"];
         const BASE_PATH = "./xls/"; 
-
-        let database = []; 
-        let uniqueStreets = []; 
-        let selectedStreet = null;
+        let database = [], uniqueStreets = [], selectedStreet = null;
 
         async function init() {
             const statusEl = document.getElementById('loading-status');
             const streetInput = document.getElementById('street-input');
-            
             try {
-                // Вантажимо всі файли паралельно
                 const promises = QUEUE_FILES.map(file => loadQueueFile(file));
                 await Promise.all(promises);
-
                 processDatabase();
-
-                statusEl.innerText = ""; // Приховуємо текст завантаження
                 statusEl.style.display = 'none';
-                
                 streetInput.disabled = false;
-                streetInput.placeholder = "Наприклад: Соборний, Перемоги...";
             } catch (e) {
                 console.error(e);
-                statusEl.innerText = "❌ Помилка завантаження бази.";
+                statusEl.innerText = "❌ Помилка бази";
                 statusEl.style.color = "#ef5350";
             }
         }
@@ -333,37 +229,23 @@
             try {
                 const response = await fetch(BASE_PATH + filename);
                 if (!response.ok) return; 
-                
                 const arrayBuffer = await response.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                const queueId = filename.replace('.xlsx', '');
-                parseRows(jsonData, queueId);
-            } catch (e) {
-                console.warn(`Skipping ${filename}:`, e);
-            }
+                parseRows(jsonData, filename.replace('.xlsx', ''));
+            } catch (e) { console.warn(`Skip ${filename}`); }
         }
 
         function parseRows(rows, queueId) {
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row || row.length < 2) continue;
-
                 const rawStreet = String(row[0]).trim();
-                const rawHouses = String(row[1]).trim();
                 const cleanStreetName = normalizeStreetName(rawStreet);
-                const houseList = expandHouseRanges(rawHouses);
-
-                houseList.forEach(house => {
-                    database.push({
-                        fullStreet: rawStreet,
-                        cleanStreet: cleanStreetName,
-                        house: house,
-                        queue: queueId
-                    });
+                const houses = expandHouseRanges(String(row[1]).trim());
+                houses.forEach(house => {
+                    database.push({ fullStreet: rawStreet, cleanStreet: cleanStreetName, house: house, queue: queueId });
                 });
             }
         }
@@ -376,7 +258,6 @@
         function expandHouseRanges(rawStr) {
             const parts = rawStr.split(/[|,\/]/).map(s => s.trim()).filter(s => s);
             let result = new Set();
-
             parts.forEach(part => {
                 const rangeMatch = part.match(/^(\d+)[-–—](\d+)$/);
                 if (rangeMatch) {
@@ -384,64 +265,38 @@
                     const end = parseInt(rangeMatch[2]);
                     if (!isNaN(start) && !isNaN(end) && end > start) {
                         const step = (start % 2 === end % 2) ? 2 : 1;
-                        for (let i = start; i <= end; i += step) {
-                            result.add(i.toString());
-                        }
-                    } else {
-                        result.add(part);
-                    }
-                } else {
-                    result.add(part);
-                }
+                        for (let i = start; i <= end; i += step) result.add(i.toString());
+                    } else result.add(part);
+                } else result.add(part);
             });
             return Array.from(result);
         }
 
         function normalizeStreetName(name) {
-            return name.toLowerCase()
-                .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз)\s*/g, '')
-                .trim();
+            return name.toLowerCase().replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз)\s*/g, '').trim();
         }
 
-        // === UI ВЗАЄМОДІЯ ===
         const streetInput = document.getElementById('street-input');
-        const streetList = document.getElementById('street-list');
         const houseInput = document.getElementById('house-input');
+        const streetList = document.getElementById('street-list');
         const houseList = document.getElementById('house-list');
         const resultCard = document.getElementById('result-card');
-        const resultQueue = document.getElementById('result-queue');
 
         streetInput.addEventListener('input', (e) => {
             const val = normalizeStreetName(e.target.value);
-            selectedStreet = null;
-            houseInput.disabled = true;
-            houseInput.value = '';
-            houseInput.placeholder = "Спочатку оберіть вулицю";
-            resultCard.style.display = 'none';
-            houseList.style.display = 'none';
-
-            if (val.length < 1) {
-                streetList.style.display = 'none';
-                return;
-            }
-
+            selectedStreet = null; houseInput.disabled = true; houseInput.value = '';
+            resultCard.style.display = 'none'; houseList.style.display = 'none';
+            if (val.length < 1) { streetList.style.display = 'none'; return; }
             const matches = uniqueStreets.filter(s => normalizeStreetName(s).startsWith(val));
             renderAutocomplete(streetList, matches, val, selectStreet);
         });
 
         function renderAutocomplete(container, matches, query, callback) {
             container.innerHTML = '';
-            if (matches.length === 0) {
-                container.style.display = 'none';
-                return;
-            }
-
+            if (matches.length === 0) { container.style.display = 'none'; return; }
             matches.slice(0, 50).forEach(match => {
                 const div = document.createElement('div');
                 div.className = 'autocomplete-item';
-                // Підсвічуємо збіг
-                const regex = new RegExp(`(${query})`, 'gi');
-                // Простий варіант без складного regex для збереження регістру
                 div.innerText = match; 
                 div.onclick = () => callback(match);
                 container.appendChild(div);
@@ -450,57 +305,31 @@
         }
 
         function selectStreet(name) {
-            streetInput.value = name;
-            selectedStreet = name;
-            streetList.style.display = 'none';
-            
-            houseInput.disabled = false;
-            houseInput.value = '';
-            houseInput.placeholder = "Введіть номер...";
-            houseInput.focus();
-            
-            // Одразу показуємо всі будинки для цієї вулиці (опціонально)
-            showHouseOptions('');
+            streetInput.value = name; selectedStreet = name; streetList.style.display = 'none';
+            houseInput.disabled = false; houseInput.value = ''; houseInput.focus(); showHouseOptions('');
         }
 
-        houseInput.addEventListener('focus', () => {
-            if(selectedStreet) showHouseOptions(houseInput.value);
-        });
-
-        houseInput.addEventListener('input', (e) => {
-            showHouseOptions(e.target.value);
-        });
+        houseInput.addEventListener('focus', () => { if(selectedStreet) showHouseOptions(houseInput.value); });
+        houseInput.addEventListener('input', (e) => { showHouseOptions(e.target.value); });
 
         function showHouseOptions(val) {
             if (!selectedStreet) return;
-
-            const housesOnStreet = database
-                .filter(d => d.fullStreet === selectedStreet)
-                .map(d => d.house);
-            
-            const uniqueHouses = [...new Set(housesOnStreet)].sort(naturalSort);
+            const housesOnStreet = database.filter(d => d.fullStreet === selectedStreet).map(d => d.house);
+            const uniqueHouses = [...new Set(housesOnStreet)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
             const matches = uniqueHouses.filter(h => h.toLowerCase().startsWith(val.toLowerCase()));
-            
             renderAutocomplete(houseList, matches, val, selectHouse);
         }
 
         function selectHouse(house) {
-            houseInput.value = house;
-            houseList.style.display = 'none';
-            
+            houseInput.value = house; houseList.style.display = 'none';
             const entry = database.find(d => d.fullStreet === selectedStreet && d.house === house);
-            
             if (entry) {
-                resultQueue.innerText = entry.queue;
+                document.getElementById('result-queue').innerText = entry.queue;
                 resultCard.style.display = 'block';
             }
         }
 
-        function naturalSort(a, b) {
-            return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-        }
-
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', (e) => {
             if (e.target !== streetInput) streetList.style.display = 'none';
             if (e.target !== houseInput) houseList.style.display = 'none';
         });
