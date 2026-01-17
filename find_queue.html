@@ -52,7 +52,7 @@
             border: 1px solid var(--glass-border);
             box-shadow: var(--glass-shadow);
             border-radius: 24px;
-            padding: 20px; /* СИМЕТРІЯ: 20px */
+            padding: 20px;
             max-width: 500px; margin: 0 auto;
             transition: all 0.3s ease;
         }
@@ -60,7 +60,7 @@
         .header-row { 
             display: flex; 
             align-items: center; 
-            margin-bottom: 20px; /* СИМЕТРІЯ: 20px */
+            margin-bottom: 20px; 
         }
         
         .back-btn {
@@ -76,7 +76,7 @@
         h1 { margin: 0; font-family: 'SF Pro Display', sans-serif; font-size: 22px; font-weight: 800; }
 
         .input-group { 
-            margin-bottom: 15px; /* СИМЕТРІЯ: трохи менше між полями */
+            margin-bottom: 15px; 
             position: relative; 
         }
         
@@ -84,7 +84,7 @@
         
         input {
             width: 100%; 
-            padding: 14px; /* СИМЕТРІЯ: компактніше */
+            padding: 14px; 
             border-radius: 16px;
             border: 1px solid var(--glass-border);
             background: rgba(255,255,255,0.3);
@@ -114,10 +114,10 @@
         .autocomplete-item:hover { background-color: rgba(251, 192, 45, 0.2); font-weight: 700; }
 
         #result-card {
-            margin-top: 20px; /* СИМЕТРІЯ: 20px */
+            margin-top: 20px;
             background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
             border: 1px solid var(--glass-border);
-            padding: 20px; /* СИМЕТРІЯ: 20px */
+            padding: 20px;
             border-radius: 20px; text-align: center;
             display: none; animation: popIn 0.4s ease;
         }
@@ -130,7 +130,7 @@
         }
         
         .footer-contact {
-            margin-top: 20px; /* СИМЕТРІЯ: 20px */
+            margin-top: 20px;
             text-align: center;
             font-size: 13px;
             opacity: 0.7;
@@ -278,21 +278,28 @@
             return Array.from(result);
         }
 
-        function normalizeStreetName(name) {
-            return name.toLowerCase()
-                .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '')
-                .replace(/[()]/g, '') 
-                .trim();
-        }
-
+        // --- НОВА ФУНКЦІЯ ФІЛЬТРАЦІЇ (ПОСЛОВНИЙ ПОШУК) ---
         function filterStreets(query) {
             const lowerQuery = query.toLowerCase();
             return uniqueStreets.filter(s => {
-                const cleanFull = normalizeStreetName(s);
-                if (cleanFull.startsWith(lowerQuery)) return true;
-                const parts = s.split('(').map(p => normalizeStreetName(p));
-                return parts.some(part => part.startsWith(lowerQuery));
+                // Прибираємо префікси для чистого пошуку
+                const cleanName = s.toLowerCase()
+                    .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '');
+                
+                // Розбиваємо назву на слова, ігноруючи дужки
+                // "Олени Теліги (Менжинського)" -> ["олени", "теліги", "менжинського"]
+                const keywords = cleanName.replace(/[()]/g, ' ').split(/\s+/).filter(w => w);
+
+                // Перевіряємо, чи починається ХОЧА Б ОДНЕ слово з запиту
+                return keywords.some(k => k.startsWith(lowerQuery));
             });
+        }
+
+        function normalizeStreetName(name) {
+            return name.toLowerCase()
+                .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '')
+                .replace(/[()]/g, '')
+                .trim();
         }
 
         const streetInput = document.getElementById('street-input');
@@ -303,9 +310,17 @@
 
         streetInput.addEventListener('input', (e) => {
             const val = e.target.value.trim();
-            selectedStreet = null; houseInput.disabled = true; houseInput.value = '';
-            resultCard.style.display = 'none'; houseList.style.display = 'none';
+            selectedStreet = null; 
+            houseInput.disabled = true; 
+            houseInput.value = '';
+            // Скидаємо текст, якщо почали міняти вулицю
+            houseInput.placeholder = "Спочатку оберіть вулицю"; 
+            
+            resultCard.style.display = 'none'; 
+            houseList.style.display = 'none';
+            
             if (val.length < 1) { streetList.style.display = 'none'; return; }
+            
             const matches = filterStreets(val);
             renderAutocomplete(streetList, matches, val, selectStreet);
         });
@@ -324,8 +339,17 @@
         }
 
         function selectStreet(name) {
-            streetInput.value = name; selectedStreet = name; streetList.style.display = 'none';
-            houseInput.disabled = false; houseInput.value = ''; houseInput.focus(); showHouseOptions('');
+            streetInput.value = name; 
+            selectedStreet = name; 
+            streetList.style.display = 'none';
+            
+            houseInput.disabled = false; 
+            houseInput.value = ''; 
+            // ЗМІНЮЄМО НАПИС
+            houseInput.placeholder = "Тепер оберіть номер будинку"; 
+            houseInput.focus(); 
+            
+            showHouseOptions('');
         }
 
         houseInput.addEventListener('focus', () => { if(selectedStreet) showHouseOptions(houseInput.value); });
