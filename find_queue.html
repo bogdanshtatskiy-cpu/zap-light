@@ -32,6 +32,7 @@
             min-height: 100vh;
             color: var(--text);
             transition: background 0.5s;
+            box-sizing: border-box;
         }
 
         #snow-container {
@@ -51,17 +52,22 @@
             border: 1px solid var(--glass-border);
             box-shadow: var(--glass-shadow);
             border-radius: 24px;
-            padding: 25px;
+            padding: 20px; /* СИМЕТРІЯ: 20px */
             max-width: 500px; margin: 0 auto;
             transition: all 0.3s ease;
         }
 
-        .header-row { display: flex; align-items: center; margin-bottom: 25px; }
+        .header-row { 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 20px; /* СИМЕТРІЯ: 20px */
+        }
+        
         .back-btn {
             text-decoration: none; margin-right: 15px; display: flex;
-            align-items: center; justify-content: center; width: 44px; height: 44px;
-            border-radius: 14px; background: rgba(255,255,255,0.4);
-            border: 1px solid var(--glass-border); color: var(--text); font-size: 20px;
+            align-items: center; justify-content: center; width: 40px; height: 40px;
+            border-radius: 12px; background: rgba(255,255,255,0.4);
+            border: 1px solid var(--glass-border); color: var(--text); font-size: 18px;
             transition: all 0.2s;
         }
         .back-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.6); }
@@ -69,11 +75,17 @@
 
         h1 { margin: 0; font-family: 'SF Pro Display', sans-serif; font-size: 22px; font-weight: 800; }
 
-        .input-group { margin-bottom: 20px; position: relative; }
-        label { display: block; margin-bottom: 8px; font-weight: 700; font-size: 14px; opacity: 0.8; }
+        .input-group { 
+            margin-bottom: 15px; /* СИМЕТРІЯ: трохи менше між полями */
+            position: relative; 
+        }
+        
+        label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 14px; opacity: 0.8; padding-left: 5px; }
         
         input {
-            width: 100%; padding: 16px; border-radius: 18px;
+            width: 100%; 
+            padding: 14px; /* СИМЕТРІЯ: компактніше */
+            border-radius: 16px;
             border: 1px solid var(--glass-border);
             background: rgba(255,255,255,0.3);
             font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 600;
@@ -102,26 +114,26 @@
         .autocomplete-item:hover { background-color: rgba(251, 192, 45, 0.2); font-weight: 700; }
 
         #result-card {
-            margin-top: 30px;
+            margin-top: 20px; /* СИМЕТРІЯ: 20px */
             background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
             border: 1px solid var(--glass-border);
-            padding: 25px; border-radius: 20px; text-align: center;
+            padding: 20px; /* СИМЕТРІЯ: 20px */
+            border-radius: 20px; text-align: center;
             display: none; animation: popIn 0.4s ease;
         }
         #result-queue {
             font-family: 'SF Pro Display', sans-serif; font-size: 56px; font-weight: 900;
             background: linear-gradient(45deg, #fbc02d, #f57f17);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            display: block; line-height: 1; margin-top: 10px;
+            display: block; line-height: 1; margin-top: 5px;
             filter: drop-shadow(0 4px 10px rgba(24bc2d, 0.3));
         }
         
-        /* СТИЛІ ДЛЯ КНОПКИ ЗВОРОТНОГО ЗВ'ЯЗКУ */
         .footer-contact {
-            margin-top: 30px;
+            margin-top: 20px; /* СИМЕТРІЯ: 20px */
             text-align: center;
             font-size: 13px;
-            opacity: 0.8;
+            opacity: 0.7;
         }
         .footer-contact a {
             color: var(--text);
@@ -131,12 +143,7 @@
             transition: all 0.2s;
         }
         body.dark-mode .footer-contact a { border-bottom-color: rgba(255,255,255,0.3); }
-        
-        .footer-contact a:hover {
-            color: var(--primary);
-            border-bottom-style: solid;
-            opacity: 1;
-        }
+        .footer-contact a:hover { color: var(--primary); border-bottom-style: solid; opacity: 1; }
 
         .loader { text-align: center; font-size: 14px; opacity: 0.7; margin-top: 10px; }
         @keyframes popIn { 0% { transform: scale(0.8) translateY(10px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
@@ -152,14 +159,14 @@
     <div class="glass-panel">
         <div class="header-row">
             <a href="index.html" class="back-btn">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M15 19L8 12L15 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </a>
             <h1 id="title-text">Пошук черги</h1>
         </div>
         
-        <div id="loading-status" class="loader">🔄 Завантаження...</div>
+        <div id="loading-status" class="loader">🔄 Завантаження бази...</div>
 
         <div class="input-group">
             <label>Вулиця</label>
@@ -274,7 +281,7 @@
         function normalizeStreetName(name) {
             return name.toLowerCase()
                 .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '')
-                .replace(/[()]/g, '')
+                .replace(/[()]/g, '') 
                 .trim();
         }
 
