@@ -14,34 +14,69 @@
     <script src="weather.js"></script>
 
     <style>
-        /* --- СТИЛИ ДЛЯ КНОПКИ ДОНАТА --- */
+        /* --- ГЛОБАЛЬНІ ЗМІННІ ТА СКИДАННЯ --- */
+        :root {
+            --gap-size: 12px; /* Єдиний розмір відступу для всього */
+        }
+
+        body {
+            /* Трохи менші відступи по краях для мобільних */
+            padding: 16px; 
+        }
+
+        /* --- ЗАГАЛЬНИЙ КЛАС ДЛЯ ВІДСТУПІВ МІЖ БЛОКАМИ --- */
+        .header, 
+        .donate-wrap, 
+        .weather-widget, 
+        .date-wrap, 
+        .queue-grid, 
+        .find-queue-wrapper, 
+        .hero, 
+        .bar-wrap, 
+        .stats,
+        .list-card {
+            margin-bottom: var(--gap-size) !important;
+            margin-top: 0 !important;
+        }
+
+        /* --- ХЕДЕР --- */
+        .header {
+            /* Прибираємо зайві margin, якщо вони були в style.css */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* --- КНОПКА ДОНАТА (Виправлено) --- */
         .donate-wrap {
             text-align: center;
-            margin-bottom: 15px;
-            margin-top: -10px;
             position: relative;
             z-index: 5;
+            /* Прибрали margin-top: -10px, тепер все рівно */
         }
         .donate-btn {
-            display: inline-flex;
+            display: flex; /* Flex для ідеального центрування тексту і іконки */
+            justify-content: center;
             align-items: center;
+            width: 100%; /* На всю ширину, як інші блоки */
+            box-sizing: border-box;
             gap: 8px;
             background: var(--glass-bg, rgba(255, 255, 255, 0.65));
             border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8));
-            padding: 8px 20px;
+            padding: 12px; /* Трохи компактніше */
             border-radius: 20px;
             text-decoration: none;
             color: var(--text, #1e3a8a);
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 800;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
             transition: transform 0.2s, box-shadow 0.2s;
         }
         .donate-btn:active {
-            transform: scale(0.95);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transform: scale(0.98);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         body.dark-mode .donate-btn {
             background: rgba(30, 41, 59, 0.6);
@@ -49,129 +84,48 @@
             color: #f1f5f9;
         }
 
-        /* --- НОВЫЕ СТИЛИ ДЛЯ ПЕРСОНАЖА (POWER SPIRIT) --- */
-        .bulb-icon-wrap {
-            overflow: visible; 
-            padding: 10px 0;
-            height: auto;
-            min-height: 260px; /* Место для левитации */
+        /* --- КНОПКА ПОШУКУ (Симетрична до доната) --- */
+        .find-queue-wrapper {
+            position: relative;
+            z-index: 5;
+        }
+
+        .find-queue-btn {
             display: flex;
-            justify-content: center;
             align-items: center;
-        }
-        
-        #power-spirit {
+            justify-content: center;
             width: 100%;
-            max-width: 280px;
-            height: auto;
-            overflow: visible;
+            padding: 12px; /* Такий самий паддінг як у доната */
+            box-sizing: border-box;
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 15px;
+            border-radius: 20px;
+            color: var(--text, #1e3a8a);
+            
+            background: var(--glass-bg, rgba(255, 255, 255, 0.65));
+            border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8));
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            transition: transform 0.2s, background 0.3s, border-color 0.3s, color 0.3s;
         }
 
-        /* Базовые переходы для всех элементов */
-        #body-shape, #sunglasses-group, #candle-group, #eyes-open, #eyes-sad, #shadow {
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        .find-queue-btn:active {
+            transform: scale(0.98);
         }
 
-        /* === РЕЖИМ СВЕТ ЕСТЬ (BOSS MODE) === */
-        
-        /* Тело: Желтое, круглое, левитирует */
-        .mode-on #body-shape {
-            fill: url(#gradOn);
-            transform: translateY(-25px); /* Поднимается выше */
-            filter: url(#glow);
-        }
-        
-        /* Тень: Уменьшается, становится прозрачнее и МЯГЧЕ */
-        .mode-on #shadow {
-            opacity: 0.5;
-            transform: scale(0.7) translateY(25px);
-            fill: #ffc107;
+        .find-icon {
+            margin-right: 8px;
+            font-size: 16px;
         }
 
-        /* Очки: Падают сверху на глаза */
-        .mode-on #sunglasses-group {
-            opacity: 1;
-            transform: translateY(0);
+        body.dark-mode .find-queue-btn {
+            background: rgba(30, 41, 59, 0.6);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        /* Спрятанные очки (улетают вверх) */
-        #sunglasses-group { 
-            opacity: 0; 
-            transform: translateY(-120px) rotate(-15deg); 
-        }
-
-        /* Свеча: Прячется вниз */
-        .mode-on #candle-group {
-            opacity: 0;
-            transform: translateY(60px) scale(0.4);
-        }
-
-        /* Глаза: Открытые (спрятаны за очками, но активны) */
-        .mode-on #eyes-open { opacity: 1; }
-        .mode-on #eyes-sad { opacity: 0; }
-
-        /* Анимация левитации */
-        .mode-on #main-group {
-            animation: levitate 3s ease-in-out infinite;
-        }
-
-
-        /* === РЕЖИМ СВЕТА НЕТ (MEDIEVAL MODE) === */
-
-        /* Тело: Синее, сплюснутое снизу (сидит) */
-        .mode-off #body-shape {
-            fill: url(#gradOff);
-            transform: translateY(15px) scaleY(0.95); /* Садится на пол */
-            filter: none;
-        }
-
-        /* Тень: Темная, широкая и МЯГКАЯ */
-        .mode-off #shadow {
-            opacity: 0.7;
-            transform: scale(1.1) translateY(15px);
-            fill: #000;
-        }
-
-        /* Свеча: Появляется */
-        .mode-off #candle-group {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-        /* Спрятанная свеча */
-        #candle-group { opacity: 0; }
-
-        /* Глаза: Грустные */
-        .mode-off #eyes-open { opacity: 0; }
-        .mode-off #eyes-sad { opacity: 1; }
-
-        /* Анимация огня */
-        .mode-off #flame {
-            animation: flicker 0.1s ease-in-out infinite alternate;
-            transform-origin: center bottom;
-        }
-        
-        /* Дрожание от холода */
-        .mode-off #main-group {
-            animation: coldShiver 2s ease-in-out infinite;
-        }
-
-
-        /* --- KEYFRAMES --- */
-        @keyframes levitate {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-18px); }
-        }
-
-        @keyframes flicker {
-            0% { transform: scale(1) rotate(-2deg); opacity: 0.85; }
-            100% { transform: scale(1.15) rotate(2deg); opacity: 1; }
-        }
-
-        @keyframes coldShiver {
-            0%, 100% { transform: rotate(0deg) translateX(0); }
-            25% { transform: rotate(1deg) translateX(1px); }
-            75% { transform: rotate(-1deg) translateX(-1px); }
-        }
-
     </style>
 </head>
 <body>
@@ -202,7 +156,7 @@
 
     <div class="donate-wrap">
         <a href="https://mobile-app.pumb.ua/YCLM" target="_blank" class="donate-btn">
-            ☕ <span id="donate-text">Підтримати</span>
+            <span>☕</span> <span id="donate-text">Підтримати</span>
         </a>
     </div>
 
@@ -229,61 +183,16 @@
     
     <div class="queue-grid" id="queues"></div>
 
+    <div class="find-queue-wrapper">
+        <a href="#" onclick="goToSearch(event)" class="find-queue-btn">
+            <span class="find-icon">🔍</span>
+            <span id="find-label">Дізнатися свою чергу</span>
+        </a>
+    </div>
+
     <div class="hero glass-panel" id="hero" style="display:none">
-        
         <div class="bulb-icon-wrap" id="bulb-wrap">
-            <svg id="power-spirit" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <linearGradient id="gradOn" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#FFA000;stop-opacity:1" />
-                    </linearGradient>
-                    <linearGradient id="gradOff" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#546E7A;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#263238;stop-opacity:1" />
-                    </linearGradient>
-                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
-                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="8" result="blur"/>
-                    </filter>
-                </defs>
-
-                <ellipse id="shadow" cx="200" cy="360" rx="90" ry="18" fill="#000" opacity="0.4" filter="url(#softShadow)"/>
-
-                <g id="main-group">
-                    <circle id="body-shape" cx="200" cy="200" r="100" fill="url(#gradOff)" />
-
-                    <g id="eyes-open" fill="#3E2723" opacity="0">
-                        <circle cx="165" cy="185" r="18" /> <circle cx="235" cy="185" r="18" />
-                        <path d="M170,225 Q200,250 230,225" fill="none" stroke="#3E2723" stroke-width="8" stroke-linecap="round" />
-                    </g>
-
-                    <g id="eyes-sad" fill="none" stroke="#CFD8DC" stroke-width="8" stroke-linecap="round" opacity="1">
-                        <path d="M155,175 L185,205 M185,175 L155,205" />
-                        <path d="M215,175 L245,205 M245,175 L215,205" />
-                        <path d="M170,240 L230,240" />
-                    </g>
-
-                    <g id="sunglasses-group">
-                        <path fill="#212121" d="M115,155 H285 V185 H260 V205 H230 V185 H170 V205 H140 V185 H115 Z" />
-                        <rect x="125" y="160" width="35" height="6" fill="white" opacity="0.3"/>
-                        <rect x="240" y="160" width="35" height="6" fill="white" opacity="0.3"/>
-                    </g>
-
-                    <g id="candle-group">
-                        <circle cx="160" cy="260" r="16" fill="#37474F" />
-                        <circle cx="240" cy="260" r="16" fill="#37474F" />
-                        
-                        <rect x="185" y="235" width="30" height="55" fill="#F5F5F5" rx="3" />
-                        <path id="flame" d="M200,235 Q185,220 200,195 Q215,220 200,235 Z" fill="#FF5722">
-                            <animate attributeName="fill" values="#FF5722;#FFC107;#FF9800" dur="0.4s" repeatCount="indefinite" />
-                        </path>
-                    </g>
-                </g>
-            </svg>
+            <div id="bulb-svg-container"></div>
         </div>
         
         <div class="status-main" id="status">...</div>
@@ -332,6 +241,37 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
+        // --- ВЕКТОРНІ ЛАМПОЧКИ (SVG) ---
+        const SVG_BULB_ON = `
+        <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="gradOn" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ffeb3b;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#ffc107;stop-opacity:1" />
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+                    <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+            </defs>
+            <path fill="url(#gradOn)" filter="url(#glow)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,220c-24.3,0-44-19.7-44-44s19.7-44,44-44s44,19.7,44,44S280.3,220,256,220z"/>
+            <path fill="#e0e0e0" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/>
+            <path fill="#bdbdbd" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/>
+        </svg>`;
+
+        const SVG_BULB_OFF = `
+        <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="gradOff" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#90a4ae;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#607d8b;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <path fill="url(#gradOff)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,150c-10,0-18,8-18,18s8,18,18,18s18-8,18-18S266,150,256,150z"/>
+            <path fill="#78909c" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/>
+            <path fill="#546e7a" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/>
+        </svg>`;
+
         function createSnow() {
             const container = document.getElementById('snow-container');
             const count = 25; 
@@ -349,7 +289,6 @@
         }
 
         const UA_MONTHS = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
-        const RU_MONTHS = ["ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
         
         let DATA = [];
         let generatedAt = "";
@@ -371,7 +310,8 @@
                 tom: "завтра", at: "о",
                 modal_title: "Інформація", dev: "Розробник", cl: "Історія змін",
                 tip: "Натисни сюди, щоб сховати або показати погоду 🌤️", tip_btn: "Зрозуміло",
-                support: "Підтримати"
+                support: "Підтримати",
+                find_q: "Дізнатися свою чергу"
             },
             ru: { 
                 title: "⚡ ГПО", city: "г. Запорожье",
@@ -383,9 +323,16 @@
                 tom: "завтра", at: "в",
                 modal_title: "Информация", dev: "Разработчик", cl: "История изменений",
                 tip: "Нажми сюда, чтобы скрыть или показать погоду 🌤️", tip_btn: "Понял",
-                support: "Поддержать"
+                support: "Поддержать",
+                find_q: "Узнать свою очередь"
             }
         };
+
+        function goToSearch(e) {
+            e.preventDefault();
+            const isDark = document.body.classList.contains('dark-mode');
+            window.location.href = 'find_queue.html' + (isDark ? '?theme=dark' : '');
+        }
 
         async function init() {
             createSnow();
@@ -399,7 +346,6 @@
             document.getElementById('loader').innerText = T[lang].load;
 
             try {
-                // ВИКОРИСТОВУЄМО RAW ПОСИЛАННЯ
                 const res = await fetch('https://raw.githubusercontent.com/bogdanshtatskiy-cpu/zap-light/main/schedule.json?v=' + Date.now());
                 if (!res.ok) throw new Error("Failed to fetch");
                 
@@ -451,7 +397,6 @@
             }
         }
 
-        // --- ЛОГІКА ТУЛТІПА ---
         function checkTooltip() {
             if (!localStorage.getItem('weatherTooltipSeen')) {
                 const tooltip = document.getElementById('weather-tooltip');
@@ -468,7 +413,6 @@
             localStorage.setItem('weatherTooltipSeen', 'true');
         }
 
-        // --- НОВА ФУНКЦІЯ ВІДОБРАЖЕННЯ ДАТ (12.01) ---
         function renderDates(activeIdx) {
             const container = document.getElementById('dates');
             container.innerHTML = '';
@@ -550,6 +494,8 @@
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
             
+            document.getElementById('find-label').innerText = T[l].find_q;
+
             const donateText = document.getElementById('donate-text');
             if (donateText && T[l].support) {
                 donateText.innerText = T[l].support;
@@ -710,18 +656,17 @@
             const timeStr = `${pad(h)}:${pad(m)}:${pad(s)}`;
 
             const body = document.body;
-            
-            // --- ЛОГІКА ПЕРСОНАЖА ---
-            const powerSpirit = document.getElementById('power-spirit');
+            const iconContainer = document.getElementById('bulb-svg-container');
+            const bulbWrap = document.getElementById('bulb-wrap');
             const st = document.getElementById('status');
             const tm = document.getElementById('timer');
 
             if (isLight) {
                 body.classList.remove('dark-mode');
-                
-                // Вмикаємо режим BOSS
-                powerSpirit.classList.add('mode-on');
-                powerSpirit.classList.remove('mode-off');
+                if (iconContainer.innerHTML !== SVG_BULB_ON) {
+                    iconContainer.innerHTML = SVG_BULB_ON;
+                    bulbWrap.classList.add('bulb-on-glow'); 
+                }
                 
                 if (st.innerText !== T[lang].on) st.innerText = T[lang].on;
                 st.style.color = 'var(--text)';
@@ -730,10 +675,10 @@
                 updateQuote('on');
             } else {
                 body.classList.add('dark-mode');
-                
-                // Вмикаємо режим MEDIEVAL
-                powerSpirit.classList.add('mode-off');
-                powerSpirit.classList.remove('mode-on');
+                if (iconContainer.innerHTML !== SVG_BULB_OFF) {
+                    iconContainer.innerHTML = SVG_BULB_OFF;
+                    bulbWrap.classList.remove('bulb-on-glow');
+                }
                 
                 if (st.innerText !== T[lang].off) st.innerText = T[lang].off;
                 st.style.color = 'var(--off)';
