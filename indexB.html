@@ -14,93 +14,47 @@
     <script src="weather.js"></script>
 
     <style>
-        /* --- ГЛОБАЛЬНІ ЗМІННІ ТА СКИДАННЯ --- */
+        /* --- ГЛОБАЛЬНІ ЗМІННІ ТА ВІДСТУПИ --- */
         :root {
-            --gap-size: 12px; /* Єдиний розмір відступу для всього */
+            --gap-size: 12px;
         }
 
         body {
-            /* Трохи менші відступи по краях для мобільних */
             padding: 16px; 
         }
 
-        /* --- ЗАГАЛЬНИЙ КЛАС ДЛЯ ВІДСТУПІВ МІЖ БЛОКАМИ --- */
-        .header, 
-        .donate-wrap, 
-        .weather-widget, 
-        .date-wrap, 
-        .queue-grid, 
-        .find-queue-wrapper, 
-        .hero, 
-        .bar-wrap, 
-        .stats,
-        .list-card {
+        /* Симетричні відступи */
+        .header, .donate-wrap, .weather-widget, .date-wrap, 
+        .queue-grid, .find-queue-wrapper, .hero, 
+        .bar-wrap, .stats, .list-card {
             margin-bottom: var(--gap-size) !important;
             margin-top: 0 !important;
         }
 
-        /* --- ХЕДЕР --- */
         .header {
-            /* Прибираємо зайві margin, якщо вони були в style.css */
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        /* --- КНОПКА ДОНАТА (Виправлено) --- */
-        .donate-wrap {
-            text-align: center;
-            position: relative;
-            z-index: 5;
-            /* Прибрали margin-top: -10px, тепер все рівно */
-        }
-        .donate-btn {
-            display: flex; /* Flex для ідеального центрування тексту і іконки */
-            justify-content: center;
-            align-items: center;
-            width: 100%; /* На всю ширину, як інші блоки */
-            box-sizing: border-box;
-            gap: 8px;
-            background: var(--glass-bg, rgba(255, 255, 255, 0.65));
-            border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8));
-            padding: 12px; /* Трохи компактніше */
-            border-radius: 20px;
-            text-decoration: none;
-            color: var(--text, #1e3a8a);
-            font-size: 15px;
-            font-weight: 800;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .donate-btn:active {
-            transform: scale(0.98);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        body.dark-mode .donate-btn {
-            background: rgba(30, 41, 59, 0.6);
-            border-color: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
-        }
-
-        /* --- КНОПКА ПОШУКУ (Симетрична до доната) --- */
-        .find-queue-wrapper {
+        /* --- КНОПКИ --- */
+        .donate-wrap, .find-queue-wrapper {
             position: relative;
             z-index: 5;
         }
 
-        .find-queue-btn {
+        .donate-btn, .find-queue-btn {
             display: flex;
             align-items: center;
             justify-content: center;
             width: 100%;
-            padding: 12px; /* Такий самий паддінг як у доната */
             box-sizing: border-box;
-            text-decoration: none;
-            font-weight: 800;
-            font-size: 15px;
+            gap: 8px;
+            padding: 12px;
             border-radius: 20px;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 800;
             color: var(--text, #1e3a8a);
             
             background: var(--glass-bg, rgba(255, 255, 255, 0.65));
@@ -111,21 +65,53 @@
             transition: transform 0.2s, background 0.3s, border-color 0.3s, color 0.3s;
         }
 
-        .find-queue-btn:active {
+        .donate-btn:active, .find-queue-btn:active {
             transform: scale(0.98);
         }
 
-        .find-icon {
-            margin-right: 8px;
-            font-size: 16px;
-        }
-
+        body.dark-mode .donate-btn, 
         body.dark-mode .find-queue-btn {
             background: rgba(30, 41, 59, 0.6);
             border-color: rgba(255, 255, 255, 0.1);
             color: #f1f5f9;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+
+        .find-icon { margin-right: 5px; font-size: 16px; }
+
+        /* --- БЕЙДЖІ ТА ІКОНКИ У СПИСКУ (Оновлено) --- */
+        .row-badge {
+            min-width: 145px !important;
+            justify-content: center !important;
+            display: inline-flex !important;
+            align-items: center !important; /* Центрування по вертикалі */
+            text-align: center !important;
+        }
+
+        /* Клас для маленької SVG іконки у списку */
+        .list-icon {
+            width: 20px;  /* Фіксований розмір */
+            height: 20px;
+            display: inline-block;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+        .list-icon svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* --- ТАЙМЕР ТА ЦИТАТИ --- */
+        .timer {
+            margin-bottom: 4px !important;
+        }
+        .quote-box {
+            margin-top: 0 !important;
+            padding-top: 4px !important;
+        }
+        
     </style>
 </head>
 <body>
@@ -546,11 +532,17 @@
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
                     const badgeClass = current ? 'badge-on' : 'badge-off';
                     const text = current ? T[lang].on : T[lang].off;
-                    const icon = current ? '💡' : '🕯️';
                     
+                    // --- ГЕНЕРАЦІЯ SVG ДЛЯ СПИСКУ ---
+                    const uid = `row_${start}`; // Унікальний ID для кожного рядка, щоб градієнти не ламались
+                    let rawSvg = current ? SVG_BULB_ON : SVG_BULB_OFF;
+                    // Підміняємо ID всередині SVG, щоб вони були унікальні
+                    rawSvg = rawSvg.replaceAll('id="', `id="${uid}_`).replaceAll('url(#', `url(#${uid}_`);
+                    const iconHtml = `<div class="list-icon">${rawSvg}</div>`;
+
                     row.innerHTML = `
                         <div class="row-time">${timeRange}</div>
-                        <div class="row-badge ${badgeClass}">${icon} ${text}</div>
+                        <div class="row-badge ${badgeClass}">${iconHtml} ${text}</div>
                     `;
                     listFrag.appendChild(row);
 
