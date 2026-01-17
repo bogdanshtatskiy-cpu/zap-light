@@ -4,49 +4,105 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Пошук Черги</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
         :root {
-            --primary: #fbc02d; 
-            --bg: #e0f7fa;
+            /* Кольорова гама основного додатку */
             --glass-bg: rgba(255, 255, 255, 0.65);
             --glass-border: rgba(255, 255, 255, 0.8);
-            --text: #1e3a8a;
-            --shadow: rgba(0, 0, 0, 0.1);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            --text: #2c3e50;
+            --primary: #fbc02d; /* Жовтий акцент */
+            --accent: #29b6f6;  /* Блакитний акцент */
+            --danger: #ef5350;
         }
 
         body {
-            font-family: 'Nunito', sans-serif;
-            background: linear-gradient(135deg, #e0f7fa 0%, #bbdefb 100%);
             margin: 0;
             padding: 20px;
+            font-family: 'Nunito', sans-serif;
+            /* Фон як в основному додатку (зимовий градієнт) */
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
             min-height: 100vh;
+            box-sizing: border-box;
             color: var(--text);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            overflow-x: hidden;
         }
 
-        .container {
-            width: 100%;
-            max-width: 500px;
+        /* Анімація снігу (копія з index.html) */
+        #snow-container {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .snowflake {
+            position: absolute;
+            top: -10px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: fall linear infinite;
+        }
+        @keyframes fall {
+            to { transform: translateY(105vh); }
+        }
+
+        /* --- ЗАГАЛЬНИЙ КОНТЕЙНЕР (Glass Panel) --- */
+        .glass-panel {
+            position: relative;
+            z-index: 10;
             background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
             border-radius: 24px;
             padding: 25px;
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            box-shadow: 0 10px 40px var(--shadow);
+            max-width: 500px;
+            margin: 0 auto;
+            transition: transform 0.3s ease;
         }
+
+        /* Хедер з кнопкою назад */
+        .header-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .back-btn {
+            text-decoration: none;
+            font-size: 20px;
+            margin-right: 15px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            border: 1px solid white;
+            transition: all 0.2s;
+        }
+        .back-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.8); }
 
         h1 {
-            text-align: center;
-            margin-bottom: 25px;
+            margin: 0;
+            font-family: 'SF Pro Display', sans-serif;
+            font-size: 24px;
             font-weight: 800;
+            background: linear-gradient(45deg, #1e3a8a, #29b6f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
+        /* --- ПОЛЯ ВВОДУ (Input Styling) --- */
         .input-group {
             margin-bottom: 20px;
             position: relative;
@@ -57,124 +113,185 @@
             margin-bottom: 8px;
             font-weight: 700;
             font-size: 14px;
-            margin-left: 5px;
+            padding-left: 10px;
+            opacity: 0.8;
         }
 
-        input, select {
+        input {
             width: 100%;
-            padding: 14px;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.5);
-            background: rgba(255,255,255,0.8);
+            padding: 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.4);
+            font-family: 'Nunito', sans-serif;
             font-size: 16px;
-            font-family: inherit;
+            font-weight: 600;
+            color: #1e3a8a;
             box-sizing: border-box;
             outline: none;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
         }
 
         input:focus {
+            background: rgba(255,255,255,0.9);
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(251, 192, 45, 0.2);
+            box-shadow: 0 4px 15px rgba(251, 192, 45, 0.15);
+            transform: translateY(-1px);
         }
 
-        /* Custom Autocomplete List */
+        input::placeholder {
+            color: #78909c;
+            font-weight: 400;
+        }
+
+        /* --- ВИПАДАЮЧИЙ СПИСОК (Autocomplete) --- */
         .autocomplete-list {
             position: absolute;
-            top: 100%;
+            top: 105%;
             left: 0;
             right: 0;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-            max-height: 200px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-height: 250px;
             overflow-y: auto;
             z-index: 100;
             display: none;
-            margin-top: 5px;
+            padding: 5px;
+            border: 1px solid white;
         }
 
         .autocomplete-item {
             padding: 12px 15px;
             cursor: pointer;
-            border-bottom: 1px solid #eee;
+            border-radius: 10px;
+            margin-bottom: 2px;
+            font-size: 15px;
+            color: #455a64;
+            transition: background 0.1s;
         }
 
         .autocomplete-item:hover {
-            background-color: #f0f9ff;
+            background-color: #e3f2fd;
+            color: #0277bd;
+            font-weight: 700;
         }
 
         .autocomplete-item strong {
-            color: var(--primary); /* Highlight matching part */
+            color: #0277bd;
         }
 
-        /* Result Card */
+        /* --- КАРТКА РЕЗУЛЬТАТУ --- */
         #result-card {
-            margin-top: 20px;
-            background: linear-gradient(135deg, #fff9c4 0%, #fff176 100%);
-            padding: 20px;
-            border-radius: 16px;
+            margin-top: 30px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 100%);
+            border: 2px solid white;
+            padding: 25px;
+            border-radius: 20px;
             text-align: center;
             display: none;
-            animation: popIn 0.3s ease;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 25px rgba(251, 192, 45, 0.15);
+        }
+
+        .res-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.6;
+            margin-bottom: 5px;
         }
 
         #result-queue {
-            font-size: 48px;
+            font-family: 'SF Pro Display', sans-serif;
+            font-size: 56px;
             font-weight: 900;
-            color: #f57f17;
+            background: linear-gradient(45deg, #fbc02d, #f57f17);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             display: block;
-            margin: 10px 0;
+            line-height: 1;
+            margin-top: 10px;
+            filter: drop-shadow(0 4px 10px rgba(24bc2d, 0.3));
         }
 
         .loader {
             text-align: center;
             font-size: 14px;
-            color: #666;
-            margin-bottom: 20px;
+            color: #607d8b;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        .disabled {
+            opacity: 0.6;
+            pointer-events: none;
+            filter: grayscale(1);
         }
 
         @keyframes popIn {
-            0% { transform: scale(0.9); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+            0% { transform: scale(0.8) translateY(20px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
         }
-        
-        .disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
+
+        /* Скроллбар для списку */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>🔍 Знайти чергу</h1>
+    <div id="snow-container"></div>
+
+    <div class="glass-panel">
+        <div class="header-row">
+            <a href="index.html" class="back-btn">🔙</a>
+            <h1>Пошук черги</h1>
+        </div>
         
-        <div id="loading-status" class="loader">Завантаження бази адрес...</div>
+        <div id="loading-status" class="loader">🔄 Завантаження бази адрес...</div>
 
         <div class="input-group">
             <label>Вулиця / Проспект</label>
-            <input type="text" id="street-input" placeholder="Почніть вводити назву (напр. Соборний)" disabled autocomplete="off">
+            <input type="text" id="street-input" placeholder="Почніть вводити назву..." disabled autocomplete="off">
             <div id="street-list" class="autocomplete-list"></div>
         </div>
 
         <div class="input-group">
             <label>Номер будинку</label>
-            <div id="house-input-container">
-                <input type="text" id="house-input" placeholder="Оберіть спочатку вулицю" disabled autocomplete="off">
-            </div>
+            <input type="text" id="house-input" placeholder="Спочатку оберіть вулицю" disabled autocomplete="off">
             <div id="house-list" class="autocomplete-list"></div>
         </div>
 
         <div id="result-card">
-            Ваша черга:
+            <div class="res-label">Ваша черга</div>
             <span id="result-queue">-</span>
         </div>
     </div>
 
     <script>
-        // === CONFIGURATION ===
-        // List of all queue files to load. Add others when ready.
+        // === СНІГ (З основного файлу) ===
+        function createSnow() {
+            const container = document.getElementById('snow-container');
+            const count = 20; 
+            for (let i = 0; i < count; i++) {
+                const flake = document.createElement('div');
+                flake.className = 'snowflake';
+                const size = Math.random() * 5 + 3; 
+                flake.style.width = size + 'px';
+                flake.style.height = size + 'px';
+                flake.style.left = Math.random() * 100 + 'vw';
+                flake.style.animationDuration = Math.random() * 5 + 10 + 's';
+                flake.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(flake);
+            }
+        }
+        createSnow();
+
+        // === ЛОГІКА ПОШУКУ (Excel) ===
         const QUEUE_FILES = [
             "1.1.xlsx", "1.2.xlsx", 
             "2.1.xlsx", "2.2.xlsx",
@@ -183,52 +300,47 @@
             "5.1.xlsx", "5.2.xlsx",
             "6.1.xlsx", "6.2.xlsx"
         ];
-        const BASE_PATH = "./xls/"; // Path to xls folder relative to this file
+        const BASE_PATH = "./xls/"; 
 
-        // === STATE ===
-        let database = []; // Will hold { street: "Name", house: "12", queue: "1.1" } objects
+        let database = []; 
         let uniqueStreets = []; 
         let selectedStreet = null;
 
-        // === INITIALIZATION ===
         async function init() {
             const statusEl = document.getElementById('loading-status');
             const streetInput = document.getElementById('street-input');
             
             try {
-                // Load all files in parallel
+                // Вантажимо всі файли паралельно
                 const promises = QUEUE_FILES.map(file => loadQueueFile(file));
                 await Promise.all(promises);
 
-                // Process data for fast searching
                 processDatabase();
 
-                statusEl.innerText = `База завантажена! (${database.length} адрес)`;
-                statusEl.style.color = "green";
-                setTimeout(() => statusEl.style.display = 'none', 2000);
+                statusEl.innerText = ""; // Приховуємо текст завантаження
+                statusEl.style.display = 'none';
                 
                 streetInput.disabled = false;
+                streetInput.placeholder = "Наприклад: Соборний, Перемоги...";
             } catch (e) {
                 console.error(e);
-                statusEl.innerText = "Помилка завантаження файлів. Перевірте консоль.";
-                statusEl.style.color = "red";
+                statusEl.innerText = "❌ Помилка завантаження бази.";
+                statusEl.style.color = "#ef5350";
             }
         }
 
         async function loadQueueFile(filename) {
             try {
                 const response = await fetch(BASE_PATH + filename);
-                if (!response.ok) return; // Skip if file doesn't exist yet
+                if (!response.ok) return; 
                 
                 const arrayBuffer = await response.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 
-                // Convert to JSON array of arrays (Row 1 is headers)
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                
-                const queueId = filename.replace('.xlsx', ''); // "1.1"
+                const queueId = filename.replace('.xlsx', '');
                 parseRows(jsonData, queueId);
             } catch (e) {
                 console.warn(`Skipping ${filename}:`, e);
@@ -236,19 +348,13 @@
         }
 
         function parseRows(rows, queueId) {
-            // Assuming Row 0 is header: ["Вулиця", "Будинок"]
-            // Data starts from Row 1
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row || row.length < 2) continue;
 
                 const rawStreet = String(row[0]).trim();
                 const rawHouses = String(row[1]).trim();
-
-                // Clean street name (remove prefixes for search, but keep full name for display)
                 const cleanStreetName = normalizeStreetName(rawStreet);
-
-                // Parse houses (handle ranges and separators)
                 const houseList = expandHouseRanges(rawHouses);
 
                 houseList.forEach(house => {
@@ -263,54 +369,41 @@
         }
 
         function processDatabase() {
-            // Extract unique streets and sort them
             const streetSet = new Set(database.map(d => d.fullStreet));
             uniqueStreets = Array.from(streetSet).sort((a, b) => a.localeCompare(b));
         }
 
-        // === LOGIC: Expand Ranges (14-20 -> 14,16,18,20) ===
         function expandHouseRanges(rawStr) {
-            // Split by | or , or /
             const parts = rawStr.split(/[|,\/]/).map(s => s.trim()).filter(s => s);
             let result = new Set();
 
             parts.forEach(part => {
-                // Check for range like "14-20" or "9-15"
-                // Regex checks for Number-Number (ignoring letters for range logic mostly, but let's try basic)
                 const rangeMatch = part.match(/^(\d+)[-–—](\d+)$/);
-
                 if (rangeMatch) {
                     const start = parseInt(rangeMatch[1]);
                     const end = parseInt(rangeMatch[2]);
-                    
                     if (!isNaN(start) && !isNaN(end) && end > start) {
-                        // Determine step (1 for mixed, 2 for odd/even consistency)
-                        // Heuristic: if start and end are both even or both odd, step is 2.
                         const step = (start % 2 === end % 2) ? 2 : 1;
-                        
                         for (let i = start; i <= end; i += step) {
                             result.add(i.toString());
                         }
                     } else {
-                        result.add(part); // Fallback
+                        result.add(part);
                     }
                 } else {
                     result.add(part);
                 }
             });
-
             return Array.from(result);
         }
 
-        // === LOGIC: Remove prefixes for search ===
         function normalizeStreetName(name) {
-            // Remove vul., pr., etc. and lowercase
             return name.toLowerCase()
                 .replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз)\s*/g, '')
                 .trim();
         }
 
-        // === UI INTERACTION ===
+        // === UI ВЗАЄМОДІЯ ===
         const streetInput = document.getElementById('street-input');
         const streetList = document.getElementById('street-list');
         const houseInput = document.getElementById('house-input');
@@ -318,12 +411,12 @@
         const resultCard = document.getElementById('result-card');
         const resultQueue = document.getElementById('result-queue');
 
-        // 1. Street Search
         streetInput.addEventListener('input', (e) => {
             const val = normalizeStreetName(e.target.value);
             selectedStreet = null;
             houseInput.disabled = true;
             houseInput.value = '';
+            houseInput.placeholder = "Спочатку оберіть вулицю";
             resultCard.style.display = 'none';
             houseList.style.display = 'none';
 
@@ -332,7 +425,6 @@
                 return;
             }
 
-            // Filter streets
             const matches = uniqueStreets.filter(s => normalizeStreetName(s).startsWith(val));
             renderAutocomplete(streetList, matches, val, selectStreet);
         });
@@ -344,12 +436,13 @@
                 return;
             }
 
-            // Limit to 50 results for performance
             matches.slice(0, 50).forEach(match => {
                 const div = document.createElement('div');
                 div.className = 'autocomplete-item';
-                // Highlight match logic could be added here
-                div.innerText = match;
+                // Підсвічуємо збіг
+                const regex = new RegExp(`(${query})`, 'gi');
+                // Простий варіант без складного regex для збереження регістру
+                div.innerText = match; 
                 div.onclick = () => callback(match);
                 container.appendChild(div);
             });
@@ -361,15 +454,17 @@
             selectedStreet = name;
             streetList.style.display = 'none';
             
-            // Unlock house input
             houseInput.disabled = false;
+            houseInput.value = '';
+            houseInput.placeholder = "Введіть номер...";
             houseInput.focus();
-            houseInput.placeholder = "Введіть номер будинку";
+            
+            // Одразу показуємо всі будинки для цієї вулиці (опціонально)
+            showHouseOptions('');
         }
 
-        // 2. House Search
         houseInput.addEventListener('focus', () => {
-            if(selectedStreet) showHouseOptions('');
+            if(selectedStreet) showHouseOptions(houseInput.value);
         });
 
         houseInput.addEventListener('input', (e) => {
@@ -379,15 +474,11 @@
         function showHouseOptions(val) {
             if (!selectedStreet) return;
 
-            // Get houses for this street from DB
             const housesOnStreet = database
                 .filter(d => d.fullStreet === selectedStreet)
                 .map(d => d.house);
             
-            // Remove duplicates and sort alphanumeric (natural sort)
             const uniqueHouses = [...new Set(housesOnStreet)].sort(naturalSort);
-
-            // Filter by input
             const matches = uniqueHouses.filter(h => h.toLowerCase().startsWith(val.toLowerCase()));
             
             renderAutocomplete(houseList, matches, val, selectHouse);
@@ -397,7 +488,6 @@
             houseInput.value = house;
             houseList.style.display = 'none';
             
-            // Find Queue
             const entry = database.find(d => d.fullStreet === selectedStreet && d.house === house);
             
             if (entry) {
@@ -406,20 +496,16 @@
             }
         }
 
-        // Natural sort comparator (so 2, 10, 1A sorts correctly)
         function naturalSort(a, b) {
             return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
         }
 
-        // Close dropdowns on click outside
         document.addEventListener('click', function(e) {
             if (e.target !== streetInput) streetList.style.display = 'none';
             if (e.target !== houseInput) houseList.style.display = 'none';
         });
 
-        // Start
         init();
-
     </script>
 </body>
 </html>
