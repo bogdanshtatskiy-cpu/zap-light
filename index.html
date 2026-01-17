@@ -14,88 +14,104 @@
     <script src="weather.js"></script>
 
     <style>
-        .donate-wrap {
-            text-align: center;
-            margin-bottom: 15px; /* Отступ до погоды */
-            margin-top: -10px;   /* Чуть ближе к шапке */
-            position: relative;
-            z-index: 5;
+        /* --- ГЛОБАЛЬНІ ЗМІННІ ТА ВІДСТУПИ --- */
+        :root {
+            --gap-size: 12px;
         }
-        .donate-btn {
-            display: inline-flex;
+
+        body {
+            padding: 16px; 
+        }
+
+        /* Симетричні відступи */
+        .header, .donate-wrap, .weather-widget, .date-wrap, 
+        .queue-grid, .find-queue-wrapper, .hero, 
+        .bar-wrap, .stats, .list-card {
+            margin-bottom: var(--gap-size) !important;
+            margin-top: 0 !important;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
-            background: var(--glass-bg, rgba(255, 255, 255, 0.65)); /* Фолбек если переменная не подгрузится */
-            border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8));
-            padding: 8px 20px;
-            border-radius: 20px;
-            text-decoration: none;
-            color: var(--text, #1e3a8a);
-            font-size: 14px;
-            font-weight: 800;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .donate-btn:active {
-            transform: scale(0.95);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        /* В темной теме */
-        body.dark-mode .donate-btn {
-            background: rgba(30, 41, 59, 0.6);
-            border-color: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
         }
 
-        /* --- СТИЛІ ДЛЯ КНОПКИ ПОШУКУ ЧЕРГИ --- */
-        .find-queue-wrapper {
-            margin: 25px 0; /* ЗБІЛЬШИВ ВІДСТУП ДЛЯ РІВНОМІРНОСТІ */
+        /* --- КНОПКИ --- */
+        .donate-wrap, .find-queue-wrapper {
             position: relative;
             z-index: 5;
         }
 
-        .find-queue-btn {
+        .donate-btn, .find-queue-btn {
             display: flex;
             align-items: center;
             justify-content: center;
             width: 100%;
-            padding: 14px;
             box-sizing: border-box;
-            text-decoration: none;
-            font-weight: 800;
-            font-size: 16px;
+            gap: 8px;
+            padding: 12px;
             border-radius: 20px;
-            color: var(--text, #1e3a8a); /* Колір тексту */
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text, #1e3a8a);
             
-            /* Скляний ефект */
             background: var(--glass-bg, rgba(255, 255, 255, 0.65));
             border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8));
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
             transition: transform 0.2s, background 0.3s, border-color 0.3s, color 0.3s;
         }
 
-        .find-queue-btn:active {
+        .donate-btn:active, .find-queue-btn:active {
             transform: scale(0.98);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
-        /* Іконка лупи */
-        .find-icon {
-            margin-right: 10px;
-            font-size: 18px;
-        }
-
-        /* --- ТЕМНА ТЕМА ДЛЯ КНОПКИ ПОШУКУ --- */
+        body.dark-mode .donate-btn, 
         body.dark-mode .find-queue-btn {
             background: rgba(30, 41, 59, 0.6);
             border-color: rgba(255, 255, 255, 0.1);
             color: #f1f5f9;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+
+        .find-icon { margin-right: 5px; font-size: 16px; }
+
+        /* --- БЕЙДЖІ ТА ІКОНКИ У СПИСКУ (Оновлено) --- */
+        .row-badge {
+            min-width: 145px !important;
+            justify-content: center !important;
+            display: inline-flex !important;
+            align-items: center !important; /* Центрування по вертикалі */
+            text-align: center !important;
+        }
+
+        /* Клас для маленької SVG іконки у списку */
+        .list-icon {
+            width: 20px;  /* Фіксований розмір */
+            height: 20px;
+            display: inline-block;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+        .list-icon svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* --- ТАЙМЕР ТА ЦИТАТИ --- */
+        .timer {
+            margin-bottom: 4px !important;
+        }
+        .quote-box {
+            margin-top: 0 !important;
+            padding-top: 4px !important;
+        }
+        
     </style>
 </head>
 <body>
@@ -126,7 +142,7 @@
 
     <div class="donate-wrap">
         <a href="https://mobile-app.pumb.ua/YCLM" target="_blank" class="donate-btn">
-            ☕ <span id="donate-text">Підтримати</span>
+            <span>☕</span> <span id="donate-text">Підтримати</span>
         </a>
     </div>
 
@@ -298,10 +314,8 @@
             }
         };
 
-        // --- ЛОГІКА ПЕРЕХОДУ НА СТОРІНКУ ПОШУКУ ---
         function goToSearch(e) {
             e.preventDefault();
-            // Перевіряємо, чи темна тема (клас на body)
             const isDark = document.body.classList.contains('dark-mode');
             window.location.href = 'find_queue.html' + (isDark ? '?theme=dark' : '');
         }
@@ -318,7 +332,6 @@
             document.getElementById('loader').innerText = T[lang].load;
 
             try {
-                // ВИКОРИСТОВУЄМО RAW ПОСИЛАННЯ
                 const res = await fetch('https://raw.githubusercontent.com/bogdanshtatskiy-cpu/zap-light/main/schedule.json?v=' + Date.now());
                 if (!res.ok) throw new Error("Failed to fetch");
                 
@@ -370,7 +383,6 @@
             }
         }
 
-        // --- ЛОГІКА ТУЛТІПА ---
         function checkTooltip() {
             if (!localStorage.getItem('weatherTooltipSeen')) {
                 const tooltip = document.getElementById('weather-tooltip');
@@ -387,7 +399,6 @@
             localStorage.setItem('weatherTooltipSeen', 'true');
         }
 
-        // --- НОВА ФУНКЦІЯ ВІДОБРАЖЕННЯ ДАТ (12.01) ---
         function renderDates(activeIdx) {
             const container = document.getElementById('dates');
             container.innerHTML = '';
@@ -396,7 +407,6 @@
                 const btn = document.createElement('div');
                 btn.className = `date-tab ${idx === activeIdx ? 'active' : ''}`;
                 
-                // Перетворення "12 СІЧНЯ" -> "12.01"
                 let label = item.date;
                 const parts = item.date.split(' ');
                 
@@ -432,7 +442,6 @@
 
         function selectDate(idx) {
             viewSchedule = DATA[idx]; 
-            // Тут ми передаємо оригінальну дату (напр. "12 СІЧНЯ") для погоди
             if (typeof renderWeatherForDate === "function") {
                 renderWeatherForDate(viewSchedule.date);
             }
@@ -471,10 +480,8 @@
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
             
-            // Текст кнопки пошуку
             document.getElementById('find-label').innerText = T[l].find_q;
 
-            // Текст кнопки доната
             const donateText = document.getElementById('donate-text');
             if (donateText && T[l].support) {
                 donateText.innerText = T[l].support;
@@ -485,7 +492,6 @@
                 tooltip.innerHTML = `${T[l].tip} <button class="tooltip-btn" onclick="hideTooltip()">${T[l].tip_btn}</button>`;
             }
             
-            // Оновлюємо погоду без прив'язки до тексту кнопки
             if (typeof updateWeatherLang === "function") {
                 if (viewSchedule) renderWeatherForDate(viewSchedule.date);
             }
@@ -526,11 +532,17 @@
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
                     const badgeClass = current ? 'badge-on' : 'badge-off';
                     const text = current ? T[lang].on : T[lang].off;
-                    const icon = current ? '💡' : '🕯️';
                     
+                    // --- ГЕНЕРАЦІЯ SVG ДЛЯ СПИСКУ ---
+                    const uid = `row_${start}`; // Унікальний ID для кожного рядка, щоб градієнти не ламались
+                    let rawSvg = current ? SVG_BULB_ON : SVG_BULB_OFF;
+                    // Підміняємо ID всередині SVG, щоб вони були унікальні
+                    rawSvg = rawSvg.replaceAll('id="', `id="${uid}_`).replaceAll('url(#', `url(#${uid}_`);
+                    const iconHtml = `<div class="list-icon">${rawSvg}</div>`;
+
                     row.innerHTML = `
                         <div class="row-time">${timeRange}</div>
-                        <div class="row-badge ${badgeClass}">${icon} ${text}</div>
+                        <div class="row-badge ${badgeClass}">${iconHtml} ${text}</div>
                     `;
                     listFrag.appendChild(row);
 
