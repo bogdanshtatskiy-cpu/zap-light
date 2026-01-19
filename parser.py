@@ -135,14 +135,17 @@ def parse_channel(url):
     message_wraps = soup.find_all('div', class_='tgme_widget_message')
     
     if not message_wraps:
-        # Фоллбэк для старых версий прокси
         return []
 
     found_schedules = []
     
-    # Регулярки
+    # Регулярка для времени
     time_pattern = re.compile(r"(?:з\s*)?(\d{1,2}[:.;]\d{2})\s*(?:[-–—−]|до|по)\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
-    queue_pattern = re.compile(r"^\s*(?:Черга\s*)?(\d\.\d)\s*[:)]?\s*(.*)", re.IGNORECASE)
+    
+    # 🔥 НОВАЯ ЛОГИКА: Регулярка для поиска ГРУППЫ очередей в начале строки
+    # Ищет паттерны вида "1.1", "1.1 / 1.2", "Черга 1.1, 1.2"
+    # ((?:\d\.\d\s*(?:[\/,+&]|і|та)?\s*)+) — захватывает "1.1 / 1.2"
+    queue_line_pattern = re.compile(r"^\s*(?:Черга\s*|▪️\s*)?((?:\d\.\d\s*(?:[\/,+&]|і|та)?\s*)+)(?:\s*[:)])?\s*(.*)", re.IGNORECASE)
 
     for msg in message_wraps:
         # 1. Достаем текст
@@ -153,23 +156,21 @@ def parse_channel(url):
         if not any(k in text.upper() for k in KEYWORDS):
             continue
 
-        # 2. Достаем дату публикации поста (для фикса "ЗАВТРА")
+        # 2. Достаем дату публикации поста
         post_date = get_kiev_time()
         time_tag = msg.find('time')
         if time_tag and 'datetime' in time_tag.attrs:
             post_date = parse_post_date(time_tag['datetime'])
 
-        # Определяем дату графика на основе даты поста
+        # Определяем дату графика
         final_date_key = determine_date_from_text(text, post_date)
         if not final_date_key:
             continue
 
         # Формируем метку времени обновления
-        # Берем время из поста, если есть "(оновлено 10:00)", иначе время поста
         updated_at_val = post_date.strftime("%d.%m %H:%M")
         time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", text, re.IGNORECASE)
         if time_upd_match:
-            # Если есть явное время обновления, берем дату поста + это время
             updated_at_val = f"{post_date.strftime('%d.%m')} {time_upd_match.group(1)}"
 
         # Парсинг очередей
@@ -177,29 +178,38 @@ def parse_channel(url):
         queues_found = {}
 
         for line in lines:
-            q_match = queue_pattern.search(line)
-            if q_match:
-                q_id = q_match.group(1)
-                content = q_match.group(2).lower()
+            # Ищем начало строки с очередями (одну или несколько через /)
+            match = queue_line_pattern.search(line)
+            if match:
+                queues_part = match.group(1) # Часть с очередями (напр. "1.1 / 1.2")
+                content = match.group(2).lower() # Остальная часть строки (напр. "00:00-02:00...")
+
+                # Извлекаем все ID очередей из первой части (1.1, 1.2 и т.д.)
+                found_ids = re.findall(r"\d\.\d", queues_part)
                 
-                if any(phrase.lower() in content for phrase in NO_OUTAGE_PHRASES):
-                    queues_found[q_id] = [] 
-                    continue
+                # Проверка на "без отключений"
+                is_no_outage = any(phrase.lower() in content for phrase in NO_OUTAGE_PHRASES)
 
                 intervals = []
-                time_matches = list(time_pattern.finditer(content))
-                for tm in time_matches:
-                    start, end = tm.groups()
-                    start = start.replace('.', ':').replace(';', ':')
-                    end = end.replace('.', ':').replace(';', ':')
-                    if len(start) == 4: start = "0" + start
-                    if len(end) == 4: end = "0" + end
-                    intervals.append({"start": start, "end": end})
+                if not is_no_outage:
+                    time_matches = list(time_pattern.finditer(content))
+                    for tm in time_matches:
+                        start, end = tm.groups()
+                        start = start.replace('.', ':').replace(';', ':')
+                        end = end.replace('.', ':').replace(';', ':')
+                        if len(start) == 4: start = "0" + start
+                        if len(end) == 4: end = "0" + end
+                        intervals.append({"start": start, "end": end})
                 
-                if intervals:
-                    queues_found[q_id] = intervals
-                elif not intervals and len(content) < 30:
-                     queues_found[q_id] = []
+                # Присваиваем найденные интервалы ВСЕМ найденным очередям в этой строке
+                for q_id in found_ids:
+                    if is_no_outage:
+                        queues_found[q_id] = []
+                    elif intervals:
+                        queues_found[q_id] = intervals
+                    elif not intervals and len(content) < 30:
+                         # Если интервалов нет и текст короткий, возможно это пустой слот
+                         queues_found[q_id] = []
 
         if queues_found:
             # Удаляем дубликаты интервалов
@@ -241,11 +251,8 @@ def merge_schedules(old_data, new_data):
     for sch in old_data:
         merged[sch['date']] = sch
     
-    # 2. Накладываем новое (приоритет у последних каналов в списке CHANNELS)
-    # Важно: если new_data содержит график на 15-е, он перезапишет старый
+    # 2. Накладываем новое
     for sch in new_data:
-        # Простая защита: если в новом графике пусто (0 очередей), а в старом было, не затираем
-        # (Хотя логика парсера обычно не возвращает пустые объекты, но на всякий случай)
         if sch['queues'] or sch['date'] not in merged:
             merged[sch['date']] = sch
             
@@ -283,7 +290,7 @@ def main():
             return datetime.now()
 
     final_list.sort(key=date_sorter)
-    # Оставляем только 5 актуальных дней, чтобы не копить мусор
+    # Оставляем только 5 актуальных дней
     final_list = final_list[-5:]
 
     output_json = {
