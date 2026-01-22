@@ -15,7 +15,7 @@
             --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
             --text: #2c3e50;
             --primary: #fbc02d;
-            --success: #4caf50; /* Зелений для "Не відключається" */
+            --success: #4caf50;
             --bg-gradient: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
         }
 
@@ -122,11 +122,10 @@
             background: linear-gradient(45deg, #4caf50, #8bc34a) !important;
             -webkit-background-clip: text !important;
             -webkit-text-fill-color: transparent !important;
-            font-size: 32px !important; /* Трохи менший шрифт, щоб влізло */
+            font-size: 32px !important;
             filter: drop-shadow(0 4px 10px rgba(76, 175, 80, 0.3)) !important;
         }
 
-        /* --- ПРИМІТКИ (Info Notes) --- */
         .info-notes {
             margin-top: 25px;
             border-top: 1px solid rgba(0,0,0,0.1);
@@ -235,6 +234,7 @@
         }
         createSnow();
 
+        // Імена файлів, що мають лежати у папці /xls/
         const QUEUE_FILES = ["1.1.xlsx", "1.2.xlsx", "2.1.xlsx", "2.2.xlsx", "3.1.xlsx", "3.2.xlsx", "4.1.xlsx", "4.2.xlsx", "5.1.xlsx", "5.2.xlsx", "6.1.xlsx", "6.2.xlsx"];
         const BASE_PATH = "./xls/"; 
         let database = [], uniqueStreets = [], selectedStreet = null;
@@ -268,11 +268,21 @@
         }
 
         function parseRows(rows, queueId) {
-            for (let i = 1; i < rows.length; i++) {
+            // ВИПРАВЛЕНО: починаємо з i = 0, щоб читати найперший рядок
+            for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row || row.length < 2) continue;
+                
                 const rawStreet = String(row[0]).trim();
-                const houses = expandHouseRanges(String(row[1]).trim());
+                const rawHouses = String(row[1]).trim();
+
+                // Перевірка, чи не є цей рядок заголовком таблиці (якщо такий все ж є)
+                // Якщо в першій колонці слово "Вулиця", а в другій "Будинок" — пропускаємо
+                if (rawStreet.toLowerCase().includes('вулиця') && rawHouses.toLowerCase().includes('будинок')) {
+                    continue;
+                }
+
+                const houses = expandHouseRanges(rawHouses);
                 houses.forEach(house => {
                     database.push({ fullStreet: rawStreet, house: house, queue: queueId });
                 });
@@ -304,8 +314,10 @@
         function filterStreets(query) {
             const lowerQuery = query.toLowerCase();
             return uniqueStreets.filter(s => {
+                // Очищаємо назву від "вул.", "пров." для кращого пошуку
                 const cleanName = s.toLowerCase().replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '');
                 const keywords = cleanName.replace(/[()]/g, ' ').split(/\s+/).filter(w => w);
+                // Перевіряємо, чи починається хоча б одне слово з запиту
                 return keywords.some(k => k.startsWith(lowerQuery));
             });
         }
@@ -356,7 +368,6 @@
 
         houseInput.addEventListener('focus', () => { if(selectedStreet) showHouseOptions(houseInput.value); });
         
-        // Обробка вводу будинку + перевірка на Enter або зміну
         houseInput.addEventListener('input', (e) => { 
             const val = e.target.value;
             showHouseOptions(val);
@@ -366,22 +377,18 @@
         function checkIfHouseExists(val) {
             if (!selectedStreet) return;
             
-            // Якщо поле пусте, ховаємо результат
             if(val.trim() === "") {
                 resultCard.style.display = 'none';
                 return;
             }
 
-            // Шукаємо точний збіг у базі
             const entry = database.find(d => d.fullStreet === selectedStreet && d.house.toLowerCase() === val.toLowerCase());
             
             if (entry) {
-                // Знайшли
                 resultQueueEl.innerText = entry.queue;
                 resultQueueEl.classList.remove('queue-green');
                 resultCard.style.display = 'block';
             } else {
-                // Не знайшли -> "Не відключається"
                 resultQueueEl.innerText = "Не відключається";
                 resultQueueEl.classList.add('queue-green');
                 resultCard.style.display = 'block';
@@ -399,7 +406,7 @@
         function selectHouse(house) {
             houseInput.value = house; 
             houseList.style.display = 'none';
-            checkIfHouseExists(house); // Викликаємо перевірку після вибору
+            checkIfHouseExists(house); 
         }
 
         document.addEventListener('click', (e) => {
