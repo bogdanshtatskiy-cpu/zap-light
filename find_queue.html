@@ -58,16 +58,31 @@
             transition: all 0.3s ease;
         }
 
-        .header-row { display: flex; align-items: center; margin-bottom: 20px; }
-        .back-btn {
-            text-decoration: none; margin-right: 15px; display: flex;
-            align-items: center; justify-content: center; width: 40px; height: 40px;
-            border-radius: 12px; background: rgba(255,255,255,0.4);
-            border: 1px solid var(--glass-border); color: var(--text); font-size: 18px;
-            transition: all 0.2s;
+        /* Заголовок і кнопки */
+        .header-row { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; /* Розподіл кнопок по краях */
+            margin-bottom: 20px; 
         }
-        .back-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.6); }
-        body.dark-mode .back-btn { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.1); }
+        
+        .header-left { display: flex; align-items: center; }
+
+        .icon-btn {
+            text-decoration: none; 
+            display: flex;
+            align-items: center; justify-content: center; 
+            width: 40px; height: 40px;
+            border-radius: 12px; background: rgba(255,255,255,0.4);
+            border: 1px solid var(--glass-border); 
+            color: var(--text); font-size: 18px;
+            transition: all 0.2s;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .icon-btn:last-child { margin-right: 0; }
+        .icon-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.6); }
+        body.dark-mode .icon-btn { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.1); }
 
         h1 { margin: 0; font-family: 'SF Pro Display', sans-serif; font-size: 22px; font-weight: 800; }
 
@@ -117,7 +132,6 @@
             display: block; line-height: 1; margin-top: 5px;
             filter: drop-shadow(0 4px 10px rgba(24bc2d, 0.3));
         }
-        /* Стиль для "Не відключається" */
         .queue-green {
             background: linear-gradient(45deg, #4caf50, #8bc34a) !important;
             -webkit-background-clip: text !important;
@@ -169,12 +183,19 @@
 
     <div class="glass-panel">
         <div class="header-row">
-            <a href="index.html" class="back-btn">
+            <div class="header-left">
+                <a href="index.html" class="icon-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 19L8 12L15 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+                <h1 id="title-text">Пошук черги</h1>
+            </div>
+            <button id="clear-btn" class="icon-btn" title="Очистити все">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15 19L8 12L15 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M19 6L6 19M6 6L19 19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-            </a>
-            <h1 id="title-text">Пошук черги</h1>
+            </button>
         </div>
         
         <div id="loading-status" class="loader">🔄 Завантаження бази...</div>
@@ -234,7 +255,6 @@
         }
         createSnow();
 
-        // Імена файлів, що мають лежати у папці /xls/
         const QUEUE_FILES = ["1.1.xlsx", "1.2.xlsx", "2.1.xlsx", "2.2.xlsx", "3.1.xlsx", "3.2.xlsx", "4.1.xlsx", "4.2.xlsx", "5.1.xlsx", "5.2.xlsx", "6.1.xlsx", "6.2.xlsx"];
         const BASE_PATH = "./xls/"; 
         let database = [], uniqueStreets = [], selectedStreet = null;
@@ -268,7 +288,6 @@
         }
 
         function parseRows(rows, queueId) {
-            // ВИПРАВЛЕНО: починаємо з i = 0, щоб читати найперший рядок
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row || row.length < 2) continue;
@@ -276,8 +295,6 @@
                 const rawStreet = String(row[0]).trim();
                 const rawHouses = String(row[1]).trim();
 
-                // Перевірка, чи не є цей рядок заголовком таблиці (якщо такий все ж є)
-                // Якщо в першій колонці слово "Вулиця", а в другій "Будинок" — пропускаємо
                 if (rawStreet.toLowerCase().includes('вулиця') && rawHouses.toLowerCase().includes('будинок')) {
                     continue;
                 }
@@ -311,14 +328,12 @@
             return Array.from(result);
         }
 
+        // --- НОВИЙ АЛГОРИТМ ПОШУКУ (Регістронезалежний) ---
         function filterStreets(query) {
             const lowerQuery = query.toLowerCase();
             return uniqueStreets.filter(s => {
-                // Очищаємо назву від "вул.", "пров." для кращого пошуку
-                const cleanName = s.toLowerCase().replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '');
-                const keywords = cleanName.replace(/[()]/g, ' ').split(/\s+/).filter(w => w);
-                // Перевіряємо, чи починається хоча б одне слово з запиту
-                return keywords.some(k => k.startsWith(lowerQuery));
+                // Перевіряємо, чи містить назва вулиці (в нижньому регістрі) введений текст
+                return s.toLowerCase().includes(lowerQuery);
             });
         }
 
@@ -328,6 +343,20 @@
         const houseList = document.getElementById('house-list');
         const resultCard = document.getElementById('result-card');
         const resultQueueEl = document.getElementById('result-queue');
+        const clearBtn = document.getElementById('clear-btn');
+
+        // --- ЛОГІКА ОЧИЩЕННЯ ---
+        clearBtn.addEventListener('click', () => {
+            streetInput.value = '';
+            houseInput.value = '';
+            houseInput.disabled = true;
+            houseInput.placeholder = "Спочатку оберіть вулицю";
+            selectedStreet = null;
+            resultCard.style.display = 'none';
+            streetList.style.display = 'none';
+            houseList.style.display = 'none';
+            streetInput.focus(); // Ставимо фокус назад на поле вулиці
+        });
 
         streetInput.addEventListener('input', (e) => {
             const val = e.target.value.trim();
@@ -410,7 +439,7 @@
         }
 
         document.addEventListener('click', (e) => {
-            if (e.target !== streetInput) streetList.style.display = 'none';
+            if (e.target !== streetInput && e.target !== clearBtn) streetList.style.display = 'none';
             if (e.target !== houseInput) houseList.style.display = 'none';
         });
 
