@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
+        /* --- ГЛОБАЛЬНІ ЗМІННІ (ЯК В INDEX.HTML) --- */
         :root {
             --glass-bg: rgba(255, 255, 255, 0.65);
             --glass-border: rgba(255, 255, 255, 0.8);
@@ -17,6 +18,7 @@
             --primary: #fbc02d;
             --success: #4caf50;
             --bg-gradient: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            --gap-size: 12px;
         }
 
         body.dark-mode {
@@ -27,7 +29,7 @@
         }
 
         body {
-            margin: 0; padding: 20px;
+            margin: 0; padding: 16px; /* Як в index.html */
             font-family: 'Nunito', sans-serif;
             background: var(--bg-gradient);
             min-height: 100vh;
@@ -46,6 +48,7 @@
         }
         @keyframes fall { to { transform: translateY(105vh); } }
 
+        /* --- СКЛЯНА ПАНЕЛЬ --- */
         .glass-panel {
             position: relative; z-index: 10;
             background: var(--glass-bg);
@@ -56,36 +59,70 @@
             padding: 20px;
             max-width: 500px; margin: 0 auto;
             transition: all 0.3s ease;
+            margin-bottom: var(--gap-size);
         }
 
-        /* Заголовок і кнопки */
-        .header-row { 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; /* Розподіл кнопок по краях */
-            margin-bottom: 20px; 
+        /* --- ХЕДЕР --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--gap-size);
+            position: relative;
+            z-index: 20;
+            min-height: 44px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- КНОПКИ (Стиль index.html) --- */
+        .icon-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px; height: 40px;
+            background: var(--glass-bg);
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            text-decoration: none;
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s, background 0.2s;
+            cursor: pointer;
         }
         
-        .header-left { display: flex; align-items: center; }
-
-        .icon-btn {
-            text-decoration: none; 
-            display: flex;
-            align-items: center; justify-content: center; 
-            width: 40px; height: 40px;
-            border-radius: 12px; background: rgba(255,255,255,0.4);
-            border: 1px solid var(--glass-border); 
-            color: var(--text); font-size: 18px;
-            transition: all 0.2s;
-            cursor: pointer;
-            margin-right: 10px;
+        .icon-btn:active {
+            transform: scale(0.92);
         }
-        .icon-btn:last-child { margin-right: 0; }
-        .icon-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.6); }
-        body.dark-mode .icon-btn { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.1); }
 
-        h1 { margin: 0; font-family: 'SF Pro Display', sans-serif; font-size: 22px; font-weight: 800; }
+        body.dark-mode .icon-btn {
+            background: rgba(30, 41, 59, 0.6);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
 
+        /* Заголовок по центру */
+        .title-wrap {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            white-space: nowrap;
+            pointer-events: none; /* Щоб не перекривав кліки */
+        }
+
+        .app-title {
+            font-family: 'SF Pro Display', sans-serif;
+            font-weight: 800;
+            font-size: 18px;
+            letter-spacing: 0.5px;
+        }
+
+        /* --- ФОРМА ПОШУКУ --- */
         .input-group { margin-bottom: 15px; position: relative; }
         label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 14px; opacity: 0.8; padding-left: 5px; }
         
@@ -118,6 +155,7 @@
         }
         .autocomplete-item:hover { background-color: rgba(251, 192, 45, 0.2); font-weight: 700; }
 
+        /* --- РЕЗУЛЬТАТ --- */
         #result-card {
             margin-top: 20px;
             background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
@@ -140,6 +178,7 @@
             filter: drop-shadow(0 4px 10px rgba(76, 175, 80, 0.3)) !important;
         }
 
+        /* --- ПРИМІТКИ --- */
         .info-notes {
             margin-top: 25px;
             border-top: 1px solid rgba(0,0,0,0.1);
@@ -181,22 +220,27 @@
 
     <div id="snow-container"></div>
 
-    <div class="glass-panel">
-        <div class="header-row">
-            <div class="header-left">
-                <a href="index.html" class="icon-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15 19L8 12L15 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </a>
-                <h1 id="title-text">Пошук черги</h1>
-            </div>
-            <button id="clear-btn" class="icon-btn" title="Очистити все">
+    <div class="header">
+        <div class="header-left">
+            <a href="index.html" class="icon-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M19 6L6 19M6 6L19 19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M15 19L8 12L15 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-            </button>
+            </a>
         </div>
+
+        <div class="title-wrap">
+            <div class="app-title">Пошук Черги</div>
+        </div>
+
+        <div id="clear-btn" class="icon-btn" title="Очистити все">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="glass-panel">
         
         <div id="loading-status" class="loader">🔄 Завантаження бази...</div>
 
@@ -236,6 +280,7 @@
     </div>
 
     <script>
+        // Перевірка теми з URL
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('theme') === 'dark') document.body.classList.add('dark-mode');
 
@@ -328,12 +373,12 @@
             return Array.from(result);
         }
 
-        // --- НОВИЙ АЛГОРИТМ ПОШУКУ (Регістронезалежний) ---
         function filterStreets(query) {
             const lowerQuery = query.toLowerCase();
             return uniqueStreets.filter(s => {
-                // Перевіряємо, чи містить назва вулиці (в нижньому регістрі) введений текст
-                return s.toLowerCase().includes(lowerQuery);
+                const cleanName = s.toLowerCase().replace(/^(вул\.|пров\.|проїзд|шосе|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '');
+                const keywords = cleanName.replace(/[()]/g, ' ').split(/\s+/).filter(w => w);
+                return keywords.some(k => k.startsWith(lowerQuery));
             });
         }
 
@@ -345,7 +390,6 @@
         const resultQueueEl = document.getElementById('result-queue');
         const clearBtn = document.getElementById('clear-btn');
 
-        // --- ЛОГІКА ОЧИЩЕННЯ ---
         clearBtn.addEventListener('click', () => {
             streetInput.value = '';
             houseInput.value = '';
@@ -355,7 +399,7 @@
             resultCard.style.display = 'none';
             streetList.style.display = 'none';
             houseList.style.display = 'none';
-            streetInput.focus(); // Ставимо фокус назад на поле вулиці
+            streetInput.focus(); 
         });
 
         streetInput.addEventListener('input', (e) => {
