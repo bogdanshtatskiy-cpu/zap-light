@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Power Schedule iOS 26</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-highlight: rgba(255, 255, 255, 0.2);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.6);
+            --accent-red: #ff3b30;
+            --accent-red-glow: rgba(255, 59, 48, 0.4);
+            --accent-blue: #0a84ff;
+            --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            /* Жидкий абстрактный фон */
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(10, 132, 255, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(255, 59, 48, 0.1) 0%, transparent 40%);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        /* Контейнер приложения */
+        .app-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px 16px;
+            padding-bottom: 50px;
+        }
+
+        /* Заголовок и статус */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 24px;
+            padding: 0 4px;
+        }
+
+        h1 {
+            font-size: 34px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin: 0;
+            background: linear-gradient(180deg, #fff, rgba(255,255,255,0.7));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .update-time {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-align: right;
+        }
+
+        /* Переключатель дат (Scrollable Tabs) */
+        .date-tabs-wrapper {
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 10px;
+            margin: 0 -16px 20px -16px; /* Выход за границы padding */
+            padding: 0 16px 10px 16px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+        }
+        .date-tabs-wrapper::-webkit-scrollbar { display: none; }
+
+        .date-tab {
+            display: inline-block;
+            padding: 10px 18px;
+            margin-right: 12px;
+            border-radius: 20px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 600;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            cursor: pointer;
+        }
+
+        .date-tab.active {
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+            border-color: transparent;
+        }
+
+        /* Сетка очередей */
+        .queues-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .queue-card {
+            background: rgba(30, 30, 30, 0.4);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        .queue-card:active {
+            transform: scale(0.98);
+        }
+
+        .queue-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .queue-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .queue-status {
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #32d74b;
+            box-shadow: 0 0 10px rgba(50, 215, 75, 0.5);
+        }
+        .status-dot.off {
+            background-color: var(--accent-red);
+            box-shadow: 0 0 10px var(--accent-red-glow);
+        }
+
+        /* График (Timeline) */
+        .timeline-track {
+            position: relative;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            overflow: hidden; /* Обрезает края */
+            display: flex;
+        }
+
+        /* Маркеры часов */
+        .timeline-ruler {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            padding: 0 2px;
+            opacity: 0.3;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        /* Блок отключения */
+        .outage-block {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #ff453a, #ff3b30);
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.3);
+            border-left: 1px solid rgba(255,255,255,0.2);
+            border-right: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Индикатор текущего времени */
+        .current-time-line {
+            position: absolute;
+            top: -5px;
+            bottom: -5px;
+            width: 2px;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(255,255,255, 0.8);
+            z-index: 10;
+            border-radius: 2px;
+            pointer-events: none;
+            transition: left 60s linear; /* Плавное движение */
+        }
+
+        /* Анимация загрузки */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
+        /* Адаптация под очень маленькие экраны */
+        @media (max-width: 360px) {
+            h1 { font-size: 28px; }
+            .queue-title { font-size: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <h1>График</h1>
+        <div class="update-time" id="last-updated">Загрузка...</div>
+    </header>
+
+    <div class="date-tabs-wrapper" id="date-tabs">
+        </div>
+
+    <div class="queues-container" id="queues-list">
+        <div class="loading">Синхронизация данных...</div>
+    </div>
+</div>
+
+<script>
+    // Конфигурация
+    const JSON_URL = 'schedule.json';
+    
+    // Элементы DOM
+    const dateTabsContainer = document.getElementById('date-tabs');
+    const queuesContainer = document.getElementById('queues-list');
+    const lastUpdatedLabel = document.getElementById('last-updated');
+
+    // Состояние
+    let scheduleData = null;
+    let selectedDateIndex = 0;
+
+    // Инициализация
+    async function initApp() {
+        try {
+            const response = await fetch(JSON_URL);
+            if (!response.ok) throw new Error('Файл не найден');
+            
+            const data = await response.json();
+            scheduleData = data;
+            
+            lastUpdatedLabel.innerText = `Обновлено: ${data.generated_at}`;
+            
+            determineCurrentDay();
+            renderTabs();
+            renderQueues();
+
+            // Обновлять линию времени каждую минуту
+            setInterval(updateTimeLine, 60000);
+            
+        } catch (error) {
+            queuesContainer.innerHTML = `<div class="loading" style="color:var(--accent-red)">Ошибка загрузки: ${error.message}<br>Проверьте наличие schedule.json</div>`;
+        }
+    }
+
+    // Определение текущего дня для автовыбора
+    function determineCurrentDay() {
+        const today = new Date();
+        const months = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
+        
+        const day = today.getDate();
+        const monthName = months[today.getMonth()];
+        const todayString = `${day} ${monthName}`; // Например "23 СІЧНЯ"
+
+        // Ищем совпадение в JSON
+        const foundIndex = scheduleData.schedules.findIndex(s => s.date.toUpperCase().includes(todayString));
+        
+        if (foundIndex !== -1) {
+            selectedDateIndex = foundIndex;
+        } else {
+            // Если сегодня нет в графике, выбираем последний доступный день или первый
+            selectedDateIndex = 0; 
+        }
+    }
+
+    // Рендер табов с датами
+    function renderTabs() {
+        dateTabsContainer.innerHTML = '';
+        
+        scheduleData.schedules.forEach((day, index) => {
+            const tab = document.createElement('div');
+            tab.className = `date-tab ${index === selectedDateIndex ? 'active' : ''}`;
+            tab.innerText = day.date;
+            tab.onclick = () => {
+                selectedDateIndex = index;
+                renderTabs(); // Перерисовать табы (чтобы обновить класс active)
+                renderQueues(); // Перерисовать контент
+            };
+            dateTabsContainer.appendChild(tab);
+        });
+
+        // Прокрутка к активному табу
+        setTimeout(() => {
+            const activeTab = document.querySelector('.date-tab.active');
+            if(activeTab) {
+                activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+            }
+        }, 100);
+    }
+
+    // Парсинг времени "HH:MM" в проценты (0-100)
+    function timeToPercent(timeStr) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        // В сутках 1440 минут.
+        const totalMinutes = hours * 60 + minutes;
+        return (totalMinutes / 1440) * 100;
+    }
+
+    // Получение текущего времени в процентах
+    function getCurrentTimePercent() {
+        const now = new Date();
+        const totalMinutes = now.getHours() * 60 + now.getMinutes();
+        return (totalMinutes / 1440) * 100;
+    }
+
+    // Проверка, есть ли сейчас отключение в конкретной очереди
+    function isCurrentOutage(ranges) {
+        const nowPercent = getCurrentTimePercent();
+        return ranges.some(range => {
+            const start = timeToPercent(range.start);
+            const end = timeToPercent(range.end);
+            return nowPercent >= start && nowPercent < end;
+        });
+    }
+
+    // Рендер списка очередей
+    function renderQueues() {
+        const currentSchedule = scheduleData.schedules[selectedDateIndex];
+        const queues = currentSchedule.queues;
+        const nowPercent = getCurrentTimePercent();
+        
+        // Проверяем, выбран ли СЕГОДНЯШНИЙ день, чтобы показывать линию времени
+        const today = new Date();
+        const months = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
+        const todayString = `${today.getDate()} ${months[today.getMonth()]}`;
+        const isTodayDisplayed = currentSchedule.date.toUpperCase().includes(todayString);
+
+        queuesContainer.innerHTML = '';
+
+        // Сортировка ключей очередей (1.1, 1.2, 2.1 ...)
+        const sortedKeys = Object.keys(queues).sort();
+
+        sortedKeys.forEach(queueKey => {
+            const ranges = queues[queueKey];
+            const isOff = isTodayDisplayed && isCurrentOutage(ranges);
+            
+            let statusText = isTodayDisplayed 
+                ? (isOff ? '<span style="color:#ff3b30">Отключено</span>' : '<span style="color:#32d74b">Есть свет</span>')
+                : 'По графику';
+
+            const card = document.createElement('div');
+            card.className = 'queue-card';
+
+            // Генерация блоков отключений
+            let blocksHTML = '';
+            ranges.forEach(range => {
+                const left = timeToPercent(range.start);
+                const width = timeToPercent(range.end) - left;
+                // Небольшой хак: если ширина < 0 (переход через полночь), нужно обрабатывать отдельно, 
+                // но в примере 24:00, так что все ок.
+                blocksHTML += `<div class="outage-block" style="left: ${left}%; width: ${width}%;"></div>`;
+            });
+
+            // Линия текущего времени (только если сегодня)
+            let timeLineHTML = isTodayDisplayed 
+                ? `<div class="current-time-line" style="left: ${nowPercent}%"></div>` 
+                : '';
+
+            card.innerHTML = `
+                <div class="queue-header">
+                    <div class="queue-title">Очередь ${queueKey}</div>
+                    <div class="queue-status">
+                        ${statusText}
+                        <div class="status-dot ${isOff ? 'off' : ''}"></div>
+                    </div>
+                </div>
+                <div class="timeline-track">
+                    ${blocksHTML}
+                    ${timeLineHTML}
+                </div>
+                <div class="timeline-ruler">
+                    <span>00:00</span>
+                    <span>06:00</span>
+                    <span>12:00</span>
+                    <span>18:00</span>
+                    <span>24:00</span>
+                </div>
+            `;
+
+            queuesContainer.appendChild(card);
+        });
+    }
+
+    function updateTimeLine() {
+        // Просто перерисовываем, если открыт сегодняшний день
+        renderQueues();
+    }
+
+    // Запуск
+    initApp();
+
+</script>
+
+</body>
+</html>
