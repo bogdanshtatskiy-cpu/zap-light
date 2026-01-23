@@ -25,44 +25,43 @@
 
         /* Симетричні відступи */
         .header, .donate-wrap, .weather-widget, .date-wrap, 
-        .queue-grid, .find-queue-wrapper, .hero, 
+        .queue-grid, .action-buttons-grid, .hero, 
         .bar-wrap, .stats, .list-card {
             margin-bottom: var(--gap-size) !important;
             margin-top: 0 !important;
         }
 
-        /* --- ХЕДЕР (ОНОВЛЕНО ДЛЯ ЦЕНТРУВАННЯ) --- */
+        /* --- ХЕДЕР --- */
         .header {
             display: flex;
-            justify-content: space-between; /* Розкід кнопок по краях */
+            justify-content: space-between;
             align-items: center;
-            position: relative; /* Важливо для абсолютного центрування заголовка */
+            position: relative;
             z-index: 20;
-            min-height: 44px; /* Фіксована висота для стабільності */
+            min-height: 44px;
         }
 
         .header-left {
             display: flex;
             align-items: center;
-            gap: 10px; /* Відступ між кнопкою "i" та погодою */
-            z-index: 21; /* Кнопки поверх тексту, якщо екран дуже вузький */
+            gap: 10px;
+            z-index: 21;
         }
 
-        /* --- ЗАГОЛОВОК ПО ЦЕНТРУ --- */
         .title-wrap {
             position: absolute;
             left: 50%;
             top: 50%;
-            transform: translate(-50%, -50%); /* Ідеальний центр */
+            transform: translate(-50%, -50%);
             text-align: center;
-            white-space: nowrap; /* Заборона переносу */
+            white-space: nowrap;
             z-index: 10;
         }
 
         .app-title {
             font-family: 'SF Pro Display', sans-serif;
             font-weight: 900;
-            font-size: 20px; /* Трохи більше */
+            font-size: 20px;
             line-height: 1;
             letter-spacing: 0.5px;
         }
@@ -76,18 +75,24 @@
             margin-top: 2px;
         }
 
-        /* --- ПІДКАЗКА --- */
         .tooltip {
             z-index: 100 !important; 
         }
 
-        /* --- КНОПКИ --- */
-        .donate-wrap, .find-queue-wrapper {
+        /* --- КНОПКИ (УНІВЕРСАЛЬНИЙ СТИЛЬ) --- */
+        .donate-wrap, .action-buttons-grid {
             position: relative;
             z-index: 5;
         }
 
-        .donate-btn, .find-queue-btn {
+        /* Сітка для двох кнопок */
+        .action-buttons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Дві рівні колонки */
+            gap: 12px;
+        }
+
+        .glass-btn {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -97,7 +102,7 @@
             padding: 12px;
             border-radius: 20px;
             text-decoration: none;
-            font-size: 15px;
+            font-size: 14px; /* Трохи менший шрифт, щоб влізло */
             font-weight: 800;
             color: var(--text, #1e3a8a);
             
@@ -107,21 +112,22 @@
             -webkit-backdrop-filter: blur(10px);
             box-shadow: 0 2px 10px rgba(0,0,0,0.03);
             transition: transform 0.2s, background 0.3s, border-color 0.3s, color 0.3s;
+            text-align: center;
+            line-height: 1.2;
         }
 
-        .donate-btn:active, .find-queue-btn:active {
+        .glass-btn:active {
             transform: scale(0.98);
         }
 
-        body.dark-mode .donate-btn, 
-        body.dark-mode .find-queue-btn {
+        body.dark-mode .glass-btn {
             background: rgba(30, 41, 59, 0.6);
             border-color: rgba(255, 255, 255, 0.1);
             color: #f1f5f9;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        .find-icon { margin-right: 5px; font-size: 16px; }
+        .btn-icon { margin-right: 4px; font-size: 16px; }
 
         /* --- БЕЙДЖІ ТА ІКОНКИ --- */
         .row-badge {
@@ -146,14 +152,8 @@
             display: block;
         }
 
-        /* --- ТАЙМЕР ТА ЦИТАТИ --- */
-        .timer {
-            margin-bottom: 4px !important;
-        }
-        .quote-box {
-            margin-top: 0 !important;
-            padding-top: 4px !important;
-        }
+        .timer { margin-bottom: 4px !important; }
+        .quote-box { margin-top: 0 !important; padding-top: 4px !important; }
         
     </style>
 </head>
@@ -185,7 +185,7 @@
     </div>
 
     <div class="donate-wrap">
-        <a href="https://mobile-app.pumb.ua/YCLM" target="_blank" class="donate-btn">
+        <a href="https://mobile-app.pumb.ua/YCLM" target="_blank" class="glass-btn">
             <span>☕</span> <span id="donate-text">Підтримати</span>
         </a>
     </div>
@@ -213,10 +213,14 @@
     
     <div class="queue-grid" id="queues"></div>
 
-    <div class="find-queue-wrapper">
-        <a href="#" onclick="goToSearch(event)" class="find-queue-btn">
-            <span class="find-icon">🔍</span>
-            <span id="find-label">Дізнатися свою чергу</span>
+    <div class="action-buttons-grid">
+        <a href="#" onclick="goToSearch(event)" class="glass-btn">
+            <span class="btn-icon">🔍</span>
+            <span id="find-label">Знайти чергу</span>
+        </a>
+        <a href="#" onclick="goToAll(event)" class="glass-btn">
+            <span class="btn-icon">📊</span>
+            <span id="all-label">Всі черги</span>
         </a>
     </div>
 
@@ -341,7 +345,8 @@
                 modal_title: "Інформація", dev: "Розробник", cl: "Історія змін",
                 tip: "Натисни сюди, щоб сховати або показати погоду 🌤️", tip_btn: "Зрозуміло",
                 support: "Підтримати",
-                find_q: "Дізнатися свою чергу"
+                find_q: "Знайти чергу",
+                all_q: "Всі черги"
             },
             ru: { 
                 title: "⚡ ГПО", city: "г. Запорожье",
@@ -354,7 +359,8 @@
                 modal_title: "Информация", dev: "Разработчик", cl: "История изменений",
                 tip: "Нажми сюда, чтобы скрыть или показать погоду 🌤️", tip_btn: "Понял",
                 support: "Поддержать",
-                find_q: "Узнать свою очередь"
+                find_q: "Найти очередь",
+                all_q: "Все очереди"
             }
         };
 
@@ -362,6 +368,12 @@
             e.preventDefault();
             const isDark = document.body.classList.contains('dark-mode');
             window.location.href = 'find_queue.html' + (isDark ? '?theme=dark' : '');
+        }
+
+        function goToAll(e) {
+            e.preventDefault();
+            const isDark = document.body.classList.contains('dark-mode');
+            window.location.href = 'all.html' + (isDark ? '?theme=dark' : '');
         }
 
         async function init() {
@@ -525,6 +537,7 @@
             document.getElementById('cl-label').innerText = T[l].cl;
             
             document.getElementById('find-label').innerText = T[l].find_q;
+            document.getElementById('all-label').innerText = T[l].all_q;
 
             const donateText = document.getElementById('donate-text');
             if (donateText && T[l].support) {
