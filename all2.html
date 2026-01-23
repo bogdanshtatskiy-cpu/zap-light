@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Energy Matrix iOS 26</title>
+    <style>
+        :root {
+            --bg-dark: #000000;
+            --glass-panel: rgba(22, 22, 24, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-highlight: rgba(255, 255, 255, 0.05);
+            --text-main: #ffffff;
+            --text-muted: rgba(235, 235, 245, 0.6);
+            
+            --cell-on: rgba(48, 209, 88, 0.15); /* Зеленый свет */
+            --cell-off: rgba(255, 69, 58, 0.5); /* Красный свет */
+            --cell-off-glow: rgba(255, 69, 58, 0.3);
+            
+            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            /* Абстрактный глубокий фон */
+            background-image: 
+                radial-gradient(circle at 50% 0%, #1c1c1e 0%, transparent 60%),
+                radial-gradient(circle at 80% 90%, rgba(10, 132, 255, 0.1) 0%, transparent 50%);
+            color: var(--text-main);
+            font-family: var(--font-stack);
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-shell {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            padding-bottom: 60px;
+        }
+
+        /* HEADER */
+        header {
+            margin-bottom: 24px;
+            padding: 0 4px;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: 0.3px;
+        }
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        /* DATE PICKER (Segmented Control Style) */
+        .date-picker {
+            display: flex;
+            background: rgba(118, 118, 128, 0.24);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 2px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+        .date-option {
+            flex: 1;
+            text-align: center;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            border-radius: 10px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .date-option.active {
+            background: #636366; /* Fallback */
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+        }
+
+        /* MATRIX CONTAINER */
+        .matrix-panel {
+            background: var(--glass-panel);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border);
+            border-radius: 22px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* GRID LAYOUT */
+        .matrix-header {
+            display: grid;
+            grid-template-columns: 50px 1fr 60px; /* Имя | Сетка | Статы */
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            padding: 0 4px;
+        }
+
+        .time-labels {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 2px;
+        }
+
+        .queue-row {
+            display: grid;
+            grid-template-columns: 50px 1fr 60px;
+            gap: 10px;
+            align-items: center;
+            padding: 12px 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .queue-row:last-child { border-bottom: none; }
+
+        .q-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* VISUAL BAR */
+        .q-visual {
+            position: relative;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .hour-cell {
+            flex: 1;
+            height: 100%;
+            border-right: 1px solid rgba(0,0,0,0.2);
+        }
+        .hour-cell:last-child { border-right: none; }
+        
+        /* Стили для статусов ячейки */
+        .hour-cell.on { background-color: var(--cell-on); }
+        .hour-cell.off { 
+            background-color: var(--cell-off); 
+            box-shadow: 0 0 8px var(--cell-off-glow);
+            z-index: 1;
+        }
+
+        /* Total Hours Badge */
+        .q-stats {
+            text-align: right;
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+        }
+        .stat-bad { color: #ff453a; }
+        .stat-good { color: #32d74b; text-align: right; opacity: 0.5;}
+
+        /* CURRENT TIME LINE */
+        .time-cursor {
+            position: absolute;
+            top: 40px; /* Отступ от заголовка */
+            bottom: 20px;
+            width: 2px;
+            background: #0a84ff;
+            box-shadow: 0 0 8px #0a84ff;
+            z-index: 10;
+            pointer-events: none;
+            border-radius: 2px;
+            transition: left 60s linear;
+        }
+        .time-cursor::before {
+            content: 'Сейчас';
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            background: #0a84ff;
+            color: white;
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        /* LOADING */
+        .loader {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <header>
+        <h1>Энерго Матрица</h1>
+        <div class="subtitle" id="update-info">Синхронизация...</div>
+    </header>
+
+    <div class="date-picker" id="date-container">
+        </div>
+
+    <div class="matrix-panel" id="matrix-container">
+        <div class="loader">Загрузка данных...</div>
+    </div>
+</div>
+
+<script>
+    const JSON_URL = 'schedule.json';
+    
+    let scheduleData = null;
+    let selectedDateIndex = 0;
+
+    async function init() {
+        try {
+            const resp = await fetch(JSON_URL);
+            if (!resp.ok) throw new Error("File not found");
+            scheduleData = await resp.json();
+
+            document.getElementById('update-info').innerText = `Обновлено: ${scheduleData.generated_at}`;
+            
+            autoSelectDate();
+            renderDateTabs();
+            renderMatrix();
+            
+            // Обновляем линию времени раз в минуту
+            setInterval(renderMatrix, 60000); 
+
+        } catch (e) {
+            document.getElementById('matrix-container').innerHTML = 
+                `<div class="loader" style="color:#ff453a">${e.message}</div>`;
+        }
+    }
+
+    function autoSelectDate() {
+        const today = new Date();
+        const months = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
+        const dayStr = `${today.getDate()} ${months[today.getMonth()]}`;
+        
+        const idx = scheduleData.schedules.findIndex(s => s.date.toUpperCase().includes(dayStr));
+        if (idx !== -1) selectedDateIndex = idx;
+    }
+
+    function renderDateTabs() {
+        const container = document.getElementById('date-container');
+        container.innerHTML = '';
+        
+        scheduleData.schedules.forEach((sch, idx) => {
+            const btn = document.createElement('div');
+            btn.className = `date-option ${idx === selectedDateIndex ? 'active' : ''}`;
+            // Упрощаем дату для табов (убираем год если есть, оставляем коротко)
+            btn.innerText = sch.date;
+            btn.onclick = () => {
+                selectedDateIndex = idx;
+                renderDateTabs();
+                renderMatrix();
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    // Вспомогательная: Перевод "HH:MM" в минуты от начала дня
+    function getMinutes(timeStr) {
+        const [h, m] = timeStr.split(':').map(Number);
+        return h * 60 + m;
+    }
+
+    function renderMatrix() {
+        const container = document.getElementById('matrix-container');
+        const dayData = scheduleData.schedules[selectedDateIndex];
+        const queues = dayData.queues;
+        const sortedKeys = Object.keys(queues).sort();
+
+        // Проверяем, сегодня ли этот день, чтобы рисовать линию времени
+        const today = new Date();
+        const months = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
+        const isToday = dayData.date.toUpperCase().includes(`${today.getDate()} ${months[today.getMonth()]}`);
+
+        let html = `
+            <div class="matrix-header">
+                <div>Очер.</div>
+                <div class="time-labels">
+                    <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
+                </div>
+                <div style="text-align:right">Итог</div>
+            </div>
+        `;
+
+        // Линия времени (курсор)
+        if (isToday) {
+            const nowMinutes = today.getHours() * 60 + today.getMinutes();
+            // Смещаем линию с учетом отступов грида. 
+            // 50px (колонка 1) + 10px (gap). Ширина поля времени ~ вычисляется CSS. 
+            // Для простоты позиционируем внутри .q-visual, но так как он повторяется, 
+            // лучше наложить поверх всего контейнера.
+            
+            // Расчет позиции в процентах внутри центральной колонки
+            const percent = (nowMinutes / 1440) * 100;
+            
+            // Хак для позиционирования линии поверх грида
+            // Мы знаем, что первая колонка ~60px (50+10gap), последняя 60px.
+            // Используем CSS calc()
+            html += `<div class="time-cursor" style="left: calc(60px + (100% - 130px) * ${percent / 100})"></div>`;
+        }
+
+        sortedKeys.forEach(qKey => {
+            const ranges = queues[qKey];
+            
+            // 1. Создаем массив 24 часов
+            let hourCellsHTML = '';
+            let totalOffMinutes = 0;
+
+            // Чтобы построить точную сетку, пройдемся по каждому часу
+            for (let h = 0; h < 24; h++) {
+                const hourStart = h * 60;
+                const hourEnd = (h + 1) * 60;
+                
+                // Проверяем пересечение часа с диапазонами отключений
+                let isOff = false;
+                
+                // Простая логика: если час полностью или частично попадает в отключение
+                // Для более точной графики (получасов) можно делить на 48 ячеек, 
+                // но для наглядности 24 ячейки достаточно, если округлять.
+                
+                // Проверим, покрывает ли отключение значительную часть этого часа (>30 мин)
+                let minutesOffInThisHour = 0;
+
+                ranges.forEach(r => {
+                    const rStart = getMinutes(r.start);
+                    const rEnd = getMinutes(r.end) === 0 ? 1440 : getMinutes(r.end); // фикс для 24:00
+
+                    const start = Math.max(hourStart, rStart);
+                    const end = Math.min(hourEnd, rEnd);
+
+                    if (end > start) {
+                        minutesOffInThisHour += (end - start);
+                    }
+                });
+
+                totalOffMinutes += minutesOffInThisHour;
+
+                // Если в этом часе нет света больше 1 минуты - красим в красный
+                if (minutesOffInThisHour > 0) {
+                    // Если полчаса - можно добавить стиль полу-отключения, 
+                    // но для простоты красим как Off
+                    isOff = true; 
+                }
+
+                hourCellsHTML += `<div class="hour-cell ${isOff ? 'off' : 'on'}"></div>`;
+            }
+
+            // Форматируем общее время
+            const hoursOff = Math.floor(totalOffMinutes / 60);
+            const minsOff = totalOffMinutes % 60;
+            let timeLabel = '';
+            if (hoursOff > 0) timeLabel += `${hoursOff}ч `;
+            if (minsOff > 0) timeLabel += `${minsOff}м`;
+            if (totalOffMinutes === 0) timeLabel = '0ч';
+
+            const statClass = totalOffMinutes > 0 ? 'stat-bad' : 'stat-good';
+
+            html += `
+                <div class="queue-row">
+                    <div class="q-name">${qKey}</div>
+                    <div class="q-visual">
+                        ${hourCellsHTML}
+                    </div>
+                    <div class="q-stats ${statClass}">
+                        ${totalOffMinutes > 0 ? '-' : ''}${timeLabel}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    init();
+</script>
+
+</body>
+</html>
