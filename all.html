@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        /* --- ГЛОБАЛЬНІ ЗМІННІ (ЯК В INDEX.HTML) --- */
+        /* --- ГЛОБАЛЬНІ ЗМІННІ --- */
         :root {
             --glass-bg: rgba(255, 255, 255, 0.65);
             --glass-border: rgba(255, 255, 255, 0.8);
@@ -16,8 +16,9 @@
             --text: #2c3e50;
             --primary: #fbc02d;
             
-            --cell-on: rgba(48, 209, 88, 0.2); /* Зелений для графіка */
-            --cell-off: rgba(255, 69, 58, 0.7); /* Червоний для графіка */
+            /* ЯСКРАВІ КОЛЬОРИ ДЛЯ СВІТЛОЇ ТЕМИ */
+            --cell-on: #4caf50;  /* Насичений зелений */
+            --cell-off: #ff5252; /* Насичений червоний */
             
             --bg-gradient: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
             --gap-size: 12px;
@@ -27,6 +28,11 @@
             --glass-bg: rgba(30, 41, 59, 0.7);
             --glass-border: rgba(255, 255, 255, 0.1);
             --text: #f1f5f9;
+            
+            /* ЯСКРАВІ КОЛЬОРИ ДЛЯ ТЕМНОЇ ТЕМИ (Трохи світліші для контрасту) */
+            --cell-on: #66bb6a; 
+            --cell-off: #ff1744; 
+            
             --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         }
 
@@ -61,7 +67,6 @@
             min-height: 44px;
         }
 
-        /* Кнопка назад (Стиль icon-btn) */
         .icon-btn {
             display: flex;
             align-items: center;
@@ -82,7 +87,6 @@
             border-color: rgba(255, 255, 255, 0.1);
         }
 
-        /* Заголовок по центру */
         .title-wrap {
             position: absolute;
             left: 50%;
@@ -98,7 +102,6 @@
             font-size: 18px;
             letter-spacing: 0.5px;
         }
-        
         .update-info {
             font-size: 11px;
             opacity: 0.6;
@@ -138,7 +141,6 @@
             cursor: pointer;
             transition: all 0.2s;
             backdrop-filter: blur(10px);
-            
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -165,23 +167,42 @@
             opacity: 1 !important;
         }
 
+        /* АКТИВНА ДАТА - ЯК У ГОЛОВНОМУ ДОДАТКУ */
         .date-tab.active {
             background: #fbc02d;
             border-color: #fbc02d;
             color: #000;
             transform: scale(1.05);
         }
-        
         .date-tab.active .is-weekend {
             color: #d32f2f !important;
         }
-        
         body.dark-mode .date-tab.active {
             background: #fbc02d;
             color: #000;
         }
 
-        /* --- МАТРИЦЯ (ГРАФІК) --- */
+        /* --- ПЛАШКА "ОРИЕНТИРОВОЧНЫЙ ГРАФИК" --- */
+        .warning-box {
+            display: none;
+            background: rgba(255, 152, 0, 0.15);
+            border: 1px solid rgba(255, 152, 0, 0.3);
+            color: #ff9800;
+            padding: 10px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+            margin-bottom: var(--gap-size);
+        }
+        .warning-icon { font-size: 16px; }
+        body.dark-mode .warning-box { color: #ffb74d; border-color: rgba(255, 183, 77, 0.3); }
+
+        /* --- МАТРИЦЯ --- */
         .matrix-panel {
             background: var(--glass-bg);
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -215,7 +236,6 @@
             font-size: 10px;
         }
 
-        /* РЯДКИ */
         .queue-row {
             padding: 8px 0;
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -229,7 +249,7 @@
             color: var(--text);
         }
 
-        /* ВІЗУАЛІЗАЦІЯ */
+        /* ВІЗУАЛІЗАЦІЯ З НОВИМИ КОЛЬОРАМИ */
         .q-visual {
             position: relative;
             height: 22px;
@@ -250,7 +270,6 @@
         .hour-cell.on { background-color: var(--cell-on); }
         .hour-cell.off { background-color: var(--cell-off); }
 
-        /* СТАТИСТИКА */
         .q-stats {
             text-align: right;
             font-size: 13px;
@@ -260,13 +279,12 @@
             font-variant-numeric: tabular-nums;
         }
         
-        /* КУРСОР ЧАСУ */
         .time-cursor {
             position: absolute;
-            top: 32px; /* Під заголовком */
+            top: 32px; 
             bottom: 15px;
             width: 2px;
-            background: #2196f3; /* Синій */
+            background: #2196f3; 
             box-shadow: 0 0 8px #2196f3;
             z-index: 10;
             pointer-events: none;
@@ -309,16 +327,19 @@
         <div class="date-container" id="date-container"></div>
     </div>
 
+    <div class="warning-box" id="tentative-warning">
+        <span class="warning-icon">⚠️</span>
+        <span id="tentative-text">Це орієнтовний графік. Можливі зміни.</span>
+    </div>
+
     <div class="matrix-panel" id="matrix-container">
         <div class="loader">Синхронізація даних...</div>
     </div>
 
     <script>
-        // --- ТЕМА І СНІГ ---
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('theme') === 'dark') document.body.classList.add('dark-mode');
 
-        // Мова (з локального сховища або дефолтна)
         const lang = localStorage.getItem('lang') || 'uk';
 
         function createSnow() {
@@ -337,15 +358,20 @@
         }
         createSnow();
 
-        // --- ЛОГІКА ---
         const JSON_URL = 'https://raw.githubusercontent.com/bogdanshtatskiy-cpu/zap-light/main/schedule.json';
         let scheduleData = null;
         let selectedDateIndex = 0;
+        let viewSchedule = null;
 
         const UA_MONTHS = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
         const WEEKDAYS = {
             uk: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
             ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+        };
+
+        const T = {
+            uk: { tentative: "Це орієнтовний графік. Можливі зміни." },
+            ru: { tentative: "Это ориентировочный график. Возможны изменения." }
         };
 
         async function init() {
@@ -359,7 +385,8 @@
                 
                 autoSelectDate();
                 renderDateTabs();
-                renderMatrix();
+                renderMatrix(); // Перший рендер
+                checkTentative(); // Перевірка орієнтовності
                 
                 setInterval(renderMatrix, 60000); 
 
@@ -371,8 +398,7 @@
 
         function autoSelectDate() {
             const today = new Date();
-            const months = UA_MONTHS; // Використовуємо наш масив місяців
-            // Формуємо рядок "27 СІЧНЯ"
+            const months = UA_MONTHS;
             const dayStr = `${today.getDate()} ${months[today.getMonth()]}`;
             
             const idx = scheduleData.schedules.findIndex(s => s.date.toUpperCase().includes(dayStr));
@@ -395,7 +421,6 @@
                 let dateLabel = sch.date;
                 let weekdayHtml = '';
 
-                // Парсимо дату "27 СІЧНЯ" -> 27.01 + День тижня
                 const parts = sch.date.trim().split(' ');
                 if (parts.length === 2) {
                     const day = parseInt(parts[0]);
@@ -406,7 +431,6 @@
                         const dayPadded = day.toString().padStart(2, '0');
                         dateLabel = `${dayPadded}.${monthNum}`;
 
-                        // Вираховуємо рік
                         let year = currentYear;
                         if (currentMonth === 11 && mIdx === 0) year++;
                         if (currentMonth === 0 && mIdx === 11) year--;
@@ -424,19 +448,43 @@
                 
                 btn.onclick = () => {
                     selectedDateIndex = idx;
-                    renderDateTabs(); // Перемальовуємо, щоб оновити клас active
+                    renderDateTabs();
                     renderMatrix();
+                    checkTentative();
                 };
                 container.appendChild(btn);
             });
 
-            // Авто-скролл до активної дати
             setTimeout(() => {
                 const activeBtn = container.children[selectedDateIndex];
                 if (activeBtn) {
                     activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                 }
             }, 100);
+        }
+
+        function checkTentative() {
+            viewSchedule = scheduleData.schedules[selectedDateIndex];
+            const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
+            const tomorrow = new Date(kievDate);
+            tomorrow.setDate(kievDate.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+
+            const parts = viewSchedule.date.split(' ');
+            const day = parseInt(parts[0]);
+            const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
+            let year = kievDate.getFullYear();
+            if (kievDate.getMonth() === 11 && mIdx === 0) year++;
+            
+            const scheduleDateObj = new Date(year, mIdx, day);
+            const warningBox = document.getElementById('tentative-warning');
+            
+            if (scheduleDateObj > tomorrow) {
+                warningBox.style.display = 'flex';
+                document.getElementById('tentative-text').innerText = T[lang].tentative;
+            } else {
+                warningBox.style.display = 'none';
+            }
         }
 
         function getMinutes(timeStr) {
@@ -475,7 +523,7 @@
             if (isToday) {
                 const nowMinutes = now.getHours() * 60 + now.getMinutes();
                 const percent = (nowMinutes / 1440) * 100;
-                // 43px (35px колонка + 8px gap) + ширина графіка (100% - 88px)
+                // 43px = ширина стовпця черги + gap
                 html += `<div class="time-cursor" style="left: calc(43px + (100% - 88px) * ${percent / 100})"></div>`;
             }
 
@@ -503,9 +551,8 @@
                 }
 
                 const statsText = formatTimeDuration(totalOffMinutes);
-                // "Світло є" = галочка
                 const displayStats = totalOffMinutes === 0 ? 
-                    '<span style="color:var(--success); font-weight:900;">✓</span>' : statsText;
+                    '<span style="color:var(--cell-on); font-weight:900;">✓</span>' : statsText;
 
                 html += `
                     <div class="matrix-layout queue-row">
