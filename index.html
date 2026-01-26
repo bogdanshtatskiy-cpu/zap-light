@@ -28,7 +28,6 @@
         .date-wrap {
             position: relative;
             z-index: 5;
-            /* Скрываем скроллбар, но оставляем функционал */
             mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
             -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
         }
@@ -37,35 +36,68 @@
             display: flex;
             gap: 8px;
             overflow-x: auto;
-            padding: 4px 16px; /* Отступы по бокам для маски */
+            padding: 4px 16px;
             scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
-            scrollbar-width: none; /* Firefox */
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
         }
-        .date-container::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+        .date-container::-webkit-scrollbar { display: none; }
 
         .date-tab {
-            flex: 0 0 auto; /* Не сжимать кнопки */
+            flex: 0 0 auto;
             min-width: 60px;
             text-align: center;
-            padding: 10px 14px;
+            padding: 8px 10px; /* Чуть меньше паддинг, чтобы влез день недели */
             border-radius: 16px;
             background: var(--glass-bg, rgba(255, 255, 255, 0.65));
             border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8));
             color: var(--text);
-            font-weight: 700;
-            font-size: 14px;
             cursor: pointer;
             transition: all 0.2s;
             backdrop-filter: blur(10px);
+            
+            /* Flex для вертикального расположения дня и даты */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
+        /* ДЕНЬ НЕДЕЛИ */
+        .weekday-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 700;
+            opacity: 0.7;
+            margin-bottom: 2px;
+            line-height: 1;
+        }
+        
+        /* ДАТА (27.01) */
+        .date-value {
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        /* Выходные дни - красный цвет */
+        .is-weekend {
+            color: #ff453a !important; /* Красный как в iOS */
+            opacity: 1 !important;
+        }
+
+        /* --- АКТИВНАЯ ДАТА (БЕЗ СВЕЧЕНИЯ) --- */
         .date-tab.active {
-            background: #fbc02d;
+            background: #fbc02d; /* Цвет очереди */
             border-color: #fbc02d;
-            color: #000;
-            box-shadow: 0 4px 12px rgba(251, 192, 45, 0.3);
+            color: #000; /* Текст черный */
+            box-shadow: none !important; /* УБРАНО СВЕЧЕНИЕ */
             transform: scale(1.05);
+        }
+        
+        /* В активном состоянии выходной тоже должен быть читаем, но можно оставить красным или сделать черным */
+        .date-tab.active .is-weekend {
+            color: #d32f2f !important; /* Темно-красный для контраста на желтом */
         }
         
         body.dark-mode .date-tab.active {
@@ -75,7 +107,7 @@
 
         /* --- ПЛАШКА "ОРИЕНТИРОВОЧНЫЙ ГРАФИК" --- */
         .warning-box {
-            display: none; /* Скрыто по умолчанию */
+            display: none;
             background: rgba(255, 152, 0, 0.15);
             border: 1px solid rgba(255, 152, 0, 0.3);
             color: #ff9800;
@@ -92,7 +124,7 @@
         .warning-icon { font-size: 16px; }
         body.dark-mode .warning-box { color: #ffb74d; border-color: rgba(255, 183, 77, 0.3); }
 
-        /* Остальные стили (Header, Buttons и т.д.) */
+        /* Остальные стили */
         .header { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 20; min-height: 44px; }
         .header-left { display: flex; align-items: center; gap: 10px; z-index: 21; }
         .title-wrap { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; z-index: 10; }
@@ -225,6 +257,10 @@
         }
 
         const UA_MONTHS = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
+        const WEEKDAYS = {
+            uk: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+            ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+        };
         
         let DATA = [];
         let generatedAt = "";
@@ -340,27 +376,50 @@
             const container = document.getElementById('dates');
             container.innerHTML = '';
             
+            const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
+            const currentMonth = kievDate.getMonth();
+            const currentYear = kievDate.getFullYear();
+
             DATA.forEach((item, idx) => {
                 const btn = document.createElement('div');
                 btn.className = `date-tab ${idx === activeIdx ? 'active' : ''}`;
                 
-                let label = item.date;
+                let dateLabel = item.date;
+                let weekdayHtml = '';
+                
                 const parts = item.date.split(' ');
                 if (parts.length === 2) {
-                    const day = parts[0].padStart(2, '0');
-                    const monthName = parts[1].toUpperCase();
-                    const monthIdx = UA_MONTHS.indexOf(monthName);
-                    if (monthIdx !== -1) {
-                        const monthNum = (monthIdx + 1).toString().padStart(2, '0');
-                        label = `${day}.${monthNum}`;
+                    const day = parseInt(parts[0]);
+                    const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
+                    
+                    if (mIdx !== -1) {
+                        // Формуємо коротку дату 27.01
+                        const monthNum = (mIdx + 1).toString().padStart(2, '0');
+                        const dayPadded = day.toString().padStart(2, '0');
+                        dateLabel = `${dayPadded}.${monthNum}`;
+
+                        // Вираховуємо рік для правильного дня тижня
+                        let year = currentYear;
+                        // Якщо зараз грудень, а місяць дати - січень, то це наступний рік
+                        if (currentMonth === 11 && mIdx === 0) year++;
+                        // Якщо зараз січень, а місяць дати - грудень, то це минулий рік (рідко, але буває)
+                        if (currentMonth === 0 && mIdx === 11) year--;
+
+                        const dateObj = new Date(year, mIdx, day);
+                        const dayOfWeek = dateObj.getDay(); // 0 = Нд
+                        const dayName = WEEKDAYS[lang][dayOfWeek];
+                        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                        
+                        weekdayHtml = `<div class="weekday-label ${isWeekend ? 'is-weekend' : ''}">${dayName}</div>`;
                     }
                 }
-                btn.innerText = label;
+
+                btn.innerHTML = `${weekdayHtml}<div class="date-value">${dateLabel}</div>`;
                 btn.onclick = () => { selectDate(idx); renderDates(idx); };
                 container.appendChild(btn);
             });
 
-            // АВТО-СКРОЛЛ ДО АКТИВНОЇ ДАТИ
+            // АВТО-СКРОЛЛ
             setTimeout(() => {
                 const activeBtn = container.children[activeIdx];
                 if (activeBtn) {
@@ -386,25 +445,21 @@
             viewSchedule = DATA[idx]; 
             if (typeof renderWeatherForDate === "function") renderWeatherForDate(viewSchedule.date);
             
-            // --- ЛОГІКА "ОРІЄНТОВНИЙ ГРАФІК" ---
             const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
-            // Створюємо дату "Завтра" (початок доби)
             const tomorrow = new Date(kievDate);
             tomorrow.setDate(kievDate.getDate() + 1);
             tomorrow.setHours(0, 0, 0, 0);
 
-            // Парсимо дату з графіку
             const parts = viewSchedule.date.split(' ');
             const day = parseInt(parts[0]);
             const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
-            // Припускаємо поточний рік (або наступний, якщо січень, а зараз грудень)
             let year = kievDate.getFullYear();
             if (kievDate.getMonth() === 11 && mIdx === 0) year++;
             
             const scheduleDateObj = new Date(year, mIdx, day);
 
-            // Якщо дата графіку > ніж "Завтра", показуємо попередження
             const warningBox = document.getElementById('tentative-warning');
+            // Якщо дата суворо більше завтрашнього дня
             if (scheduleDateObj > tomorrow) {
                 warningBox.style.display = 'flex';
                 document.getElementById('tentative-text').innerText = T[lang].tentative;
