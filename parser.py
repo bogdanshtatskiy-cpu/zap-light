@@ -84,23 +84,14 @@ def get_html(target_url):
     return None
 
 def parse_post_date(date_str):
-    """Парсит дату поста из HTML (обычно ISO формат)"""
     try:
-        # Пример: 2024-01-14T18:00:00+00:00
         dt = datetime.fromisoformat(date_str)
-        # Конвертируем в Киевское время (UTC+2 / UTC+3)
         return dt.astimezone(timezone(timedelta(hours=2)))
     except Exception:
         return get_kiev_time()
 
 def determine_date_from_text(text, post_date):
-    """
-    Определяет дату графика.
-    post_date - это datetime публикации сообщения (Киевское время)
-    """
     text_upper = text.upper()
-    
-    # 1. Поиск явной даты (15 СІЧНЯ)
     months_regex = "|".join(UA_MONTHS.keys())
     date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})\b", text_upper)
     if date_match:
@@ -108,7 +99,6 @@ def determine_date_from_text(text, post_date):
         month_name = date_match.group(2)
         return f"{day} {month_name}"
 
-    # 2. Относительные даты (СЧИТАЕМ ОТ ДАТЫ ПОСТА, А НЕ ОТ ТЕКУЩЕЙ)
     if "ЗАВТРА" in text_upper:
         target_date = post_date + timedelta(days=1)
         day = target_date.day
@@ -131,63 +121,43 @@ def parse_channel(url):
     page_title = soup.title.string.strip() if soup.title else "Channel"
     log(f"   🔎 Анализ: {page_title}")
     
-    # 🔥 Ищем блоки сообщений целиком, чтобы достать и ТЕКСТ, и ДАТУ
     message_wraps = soup.find_all('div', class_='tgme_widget_message')
-    
-    if not message_wraps:
-        return []
+    if not message_wraps: return []
 
     found_schedules = []
     
-    # Регулярка для времени
     time_pattern = re.compile(r"(?:з\s*)?(\d{1,2}[:.;]\d{2})\s*(?:[-–—−]|до|по)\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
-    
-    # 🔥 НОВАЯ ЛОГИКА: Регулярка для поиска ГРУППЫ очередей в начале строки
-    # Ищет паттерны вида "1.1", "1.1 / 1.2", "Черга 1.1, 1.2"
-    # ((?:\d\.\d\s*(?:[\/,+&]|і|та)?\s*)+) — захватывает "1.1 / 1.2"
     queue_line_pattern = re.compile(r"^\s*(?:Черга\s*|▪️\s*)?((?:\d\.\d\s*(?:[\/,+&]|і|та)?\s*)+)(?:\s*[:)])?\s*(.*)", re.IGNORECASE)
 
     for msg in message_wraps:
-        # 1. Достаем текст
         text_div = msg.find('div', class_='tgme_widget_message_text')
         if not text_div: continue
         text = text_div.get_text(separator="\n")
 
-        if not any(k in text.upper() for k in KEYWORDS):
-            continue
+        if not any(k in text.upper() for k in KEYWORDS): continue
 
-        # 2. Достаем дату публикации поста
         post_date = get_kiev_time()
         time_tag = msg.find('time')
         if time_tag and 'datetime' in time_tag.attrs:
             post_date = parse_post_date(time_tag['datetime'])
 
-        # Определяем дату графика
         final_date_key = determine_date_from_text(text, post_date)
-        if not final_date_key:
-            continue
+        if not final_date_key: continue
 
-        # Формируем метку времени обновления
         updated_at_val = post_date.strftime("%d.%m %H:%M")
         time_upd_match = re.search(r"\(оновлено.*(\d{2}:\d{2})\)", text, re.IGNORECASE)
         if time_upd_match:
             updated_at_val = f"{post_date.strftime('%d.%m')} {time_upd_match.group(1)}"
 
-        # Парсинг очередей
         lines = [line.strip().replace('\xa0', ' ') for line in text.split('\n') if line.strip()]
         queues_found = {}
 
         for line in lines:
-            # Ищем начало строки с очередями (одну или несколько через /)
             match = queue_line_pattern.search(line)
             if match:
-                queues_part = match.group(1) # Часть с очередями (напр. "1.1 / 1.2")
-                content = match.group(2).lower() # Остальная часть строки (напр. "00:00-02:00...")
-
-                # Извлекаем все ID очередей из первой части (1.1, 1.2 и т.д.)
+                queues_part = match.group(1)
+                content = match.group(2).lower()
                 found_ids = re.findall(r"\d\.\d", queues_part)
-                
-                # Проверка на "без отключений"
                 is_no_outage = any(phrase.lower() in content for phrase in NO_OUTAGE_PHRASES)
 
                 intervals = []
@@ -201,18 +171,12 @@ def parse_channel(url):
                         if len(end) == 4: end = "0" + end
                         intervals.append({"start": start, "end": end})
                 
-                # Присваиваем найденные интервалы ВСЕМ найденным очередям в этой строке
                 for q_id in found_ids:
-                    if is_no_outage:
-                        queues_found[q_id] = []
-                    elif intervals:
-                        queues_found[q_id] = intervals
-                    elif not intervals and len(content) < 30:
-                         # Если интервалов нет и текст короткий, возможно это пустой слот
-                         queues_found[q_id] = []
+                    if is_no_outage: queues_found[q_id] = []
+                    elif intervals: queues_found[q_id] = intervals
+                    elif not intervals and len(content) < 30: queues_found[q_id] = []
 
         if queues_found:
-            # Удаляем дубликаты интервалов
             for q_id in queues_found:
                 unique = []
                 seen = set()
@@ -240,23 +204,40 @@ def load_existing_schedules():
             with open('schedule.json', 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 return data.get("schedules", [])
-        except Exception:
-            return []
+        except Exception: return []
     return []
 
 def merge_schedules(old_data, new_data):
     merged = {}
-    
-    # 1. Загружаем старое
-    for sch in old_data:
-        merged[sch['date']] = sch
-    
-    # 2. Накладываем новое
+    for sch in old_data: merged[sch['date']] = sch
     for sch in new_data:
         if sch['queues'] or sch['date'] not in merged:
             merged[sch['date']] = sch
-            
     return list(merged.values())
+
+def clean_old_schedules(schedules):
+    """Видаляє графіки старіші за 2 дні"""
+    today = get_kiev_time().date()
+    cutoff_date = today - timedelta(days=2)
+    
+    cleaned = []
+    for item in schedules:
+        try:
+            parts = item['date'].split()
+            day = int(parts[0])
+            month_str = parts[1]
+            month = UA_MONTHS.get(month_str, 0)
+            now = get_kiev_time()
+            year = now.year
+            if now.month == 12 and month == 1: year += 1
+            elif now.month == 1 and month == 12: year -= 1
+            
+            item_date = datetime(year, month, day).date()
+            if item_date >= cutoff_date:
+                cleaned.append(item)
+        except:
+            cleaned.append(item)
+    return cleaned
 
 def main():
     old_schedules = load_existing_schedules()
@@ -266,14 +247,11 @@ def main():
     for url in CHANNELS:
         log(f"📡 {url}")
         res = parse_channel(url)
-        if res:
-            new_found.extend(res)
-        else:
-            log("   ⚠️ Пусто.")
+        if res: new_found.extend(res)
+        else: log("   ⚠️ Пусто.")
 
     final_list = merge_schedules(old_schedules, new_found)
 
-    # Сортировка по дате
     def date_sorter(item):
         try:
             parts = item['date'].split()
@@ -282,16 +260,18 @@ def main():
             month = UA_MONTHS.get(month_str, 0)
             now = datetime.now()
             year = now.year
-            # Обработка смены года
             if now.month == 12 and month == 1: year += 1
             elif now.month == 1 and month == 12: year -= 1
             return datetime(year, month, day)
-        except:
-            return datetime.now()
+        except: return datetime.now()
 
     final_list.sort(key=date_sorter)
-    # Оставляем только 5 актуальных дней
-    final_list = final_list[-5:]
+    
+    # 🔥 Очистка старых + лимит 30 дней вперед
+    final_list = clean_old_schedules(final_list)
+    
+    # Можно увеличить лимит, если загружаем месяц
+    final_list = final_list[-35:] 
 
     output_json = {
         "generated_at": get_kiev_time().strftime("%d.%m %H:%M"), 
@@ -302,7 +282,7 @@ def main():
         json.dump(output_json, f, ensure_ascii=False, indent=4)
         
     dates_in_file = [item['date'] for item in final_list]
-    log(f"💾 ИТОГ: {dates_in_file}")
+    log(f"💾 ИТОГ ({len(dates_in_file)} дн): {dates_in_file}")
 
 if __name__ == "__main__":
     main()
