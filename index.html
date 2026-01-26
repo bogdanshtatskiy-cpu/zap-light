@@ -14,147 +14,102 @@
     <script src="weather.js"></script>
 
     <style>
-        /* --- ГЛОБАЛЬНІ ЗМІННІ ТА ВІДСТУПИ --- */
-        :root {
-            --gap-size: 12px;
-        }
-
-        body {
-            padding: 16px; 
-        }
-
-        /* Симетричні відступи */
+        :root { --gap-size: 12px; }
+        body { padding: 16px; }
+        
         .header, .donate-wrap, .weather-widget, .date-wrap, 
         .queue-grid, .action-buttons-grid, .hero, 
-        .bar-wrap, .stats, .list-card {
+        .bar-wrap, .stats, .list-card, .warning-box {
             margin-bottom: var(--gap-size) !important;
             margin-top: 0 !important;
         }
 
-        /* --- ХЕДЕР --- */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-            z-index: 20;
-            min-height: 44px;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            z-index: 21;
-        }
-
-        .title-wrap {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            white-space: nowrap;
-            z-index: 10;
-        }
-
-        .app-title {
-            font-family: 'SF Pro Display', sans-serif;
-            font-weight: 900;
-            font-size: 20px;
-            line-height: 1;
-            letter-spacing: 0.5px;
-        }
-
-        .app-subtitle {
-            font-size: 11px;
-            opacity: 0.6;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-top: 2px;
-        }
-
-        .tooltip {
-            z-index: 100 !important; 
-        }
-
-        /* --- КНОПКИ (УНІВЕРСАЛЬНИЙ СТИЛЬ) --- */
-        .donate-wrap, .action-buttons-grid {
+        /* --- СТИЛИ ДЛЯ СКРОЛЛА ДАТ --- */
+        .date-wrap {
             position: relative;
             z-index: 5;
+            /* Скрываем скроллбар, но оставляем функционал */
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
         }
 
-        /* Сітка для двох кнопок */
-        .action-buttons-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* Дві рівні колонки */
-            gap: 12px;
-        }
-
-        .glass-btn {
+        .date-container {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            box-sizing: border-box;
             gap: 8px;
-            padding: 12px;
-            border-radius: 20px;
-            text-decoration: none;
-            font-size: 14px; /* Трохи менший шрифт, щоб влізло */
-            font-weight: 800;
-            color: var(--text, #1e3a8a);
-            
+            overflow-x: auto;
+            padding: 4px 16px; /* Отступы по бокам для маски */
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
+            scrollbar-width: none; /* Firefox */
+        }
+        .date-container::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+        .date-tab {
+            flex: 0 0 auto; /* Не сжимать кнопки */
+            min-width: 60px;
+            text-align: center;
+            padding: 10px 14px;
+            border-radius: 16px;
             background: var(--glass-bg, rgba(255, 255, 255, 0.65));
             border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8));
+            color: var(--text);
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-            transition: transform 0.2s, background 0.3s, border-color 0.3s, color 0.3s;
-            text-align: center;
-            line-height: 1.2;
         }
 
-        .glass-btn:active {
-            transform: scale(0.98);
-        }
-
-        body.dark-mode .glass-btn {
-            background: rgba(30, 41, 59, 0.6);
-            border-color: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .btn-icon { margin-right: 4px; font-size: 16px; }
-
-        /* --- БЕЙДЖІ ТА ІКОНКИ --- */
-        .row-badge {
-            min-width: 145px !important;
-            justify-content: center !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            text-align: center !important;
-        }
-
-        .list-icon {
-            width: 20px;
-            height: 20px;
-            display: inline-block;
-            margin-right: 8px;
-            flex-shrink: 0;
+        .date-tab.active {
+            background: #fbc02d;
+            border-color: #fbc02d;
+            color: #000;
+            box-shadow: 0 4px 12px rgba(251, 192, 45, 0.3);
+            transform: scale(1.05);
         }
         
-        .list-icon svg {
-            width: 100%;
-            height: 100%;
-            display: block;
+        body.dark-mode .date-tab.active {
+            background: #fbc02d;
+            color: #000;
         }
 
+        /* --- ПЛАШКА "ОРИЕНТИРОВОЧНЫЙ ГРАФИК" --- */
+        .warning-box {
+            display: none; /* Скрыто по умолчанию */
+            background: rgba(255, 152, 0, 0.15);
+            border: 1px solid rgba(255, 152, 0, 0.3);
+            color: #ff9800;
+            padding: 10px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+        }
+        .warning-icon { font-size: 16px; }
+        body.dark-mode .warning-box { color: #ffb74d; border-color: rgba(255, 183, 77, 0.3); }
+
+        /* Остальные стили (Header, Buttons и т.д.) */
+        .header { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 20; min-height: 44px; }
+        .header-left { display: flex; align-items: center; gap: 10px; z-index: 21; }
+        .title-wrap { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; z-index: 10; }
+        .app-title { font-family: 'SF Pro Display', sans-serif; font-weight: 900; font-size: 20px; line-height: 1; letter-spacing: 0.5px; }
+        .app-subtitle { font-size: 11px; opacity: 0.6; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .tooltip { z-index: 100 !important; }
+        .donate-wrap, .action-buttons-grid { position: relative; z-index: 5; }
+        .action-buttons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .glass-btn { display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; gap: 8px; padding: 12px; border-radius: 20px; text-decoration: none; font-size: 14px; font-weight: 800; color: var(--text, #1e3a8a); background: var(--glass-bg, rgba(255, 255, 255, 0.65)); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8)); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(0,0,0,0.03); transition: transform 0.2s, background 0.3s, border-color 0.3s, color 0.3s; text-align: center; line-height: 1.2; }
+        .glass-btn:active { transform: scale(0.98); }
+        body.dark-mode .glass-btn { background: rgba(30, 41, 59, 0.6); border-color: rgba(255, 255, 255, 0.1); color: #f1f5f9; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .btn-icon { margin-right: 4px; font-size: 16px; }
+        .row-badge { min-width: 145px !important; justify-content: center !important; display: inline-flex !important; align-items: center !important; text-align: center !important; }
+        .list-icon { width: 20px; height: 20px; display: inline-block; margin-right: 8px; flex-shrink: 0; }
+        .list-icon svg { width: 100%; height: 100%; display: block; }
         .timer { margin-bottom: 4px !important; }
         .quote-box { margin-top: 0 !important; padding-top: 4px !important; }
-        
     </style>
 </head>
 <body>
@@ -164,20 +119,16 @@
     <div class="header">
         <div class="header-left">
             <div class="info-btn" onclick="openInfo()">i</div>
-            <div class="weather-toggle-btn active" id="weather-toggle" onclick="toggleWeatherWidget()">
-                🌤️
-            </div>
+            <div class="weather-toggle-btn active" id="weather-toggle" onclick="toggleWeatherWidget()">🌤️</div>
             <div class="tooltip" id="weather-tooltip">
                 Натисни сюди, щоб сховати або показати погоду 🌤️
                 <button class="tooltip-btn" onclick="hideTooltip()">Зрозуміло</button>
             </div>
         </div>
-
         <div class="title-wrap">
             <div class="app-title" id="app-title">⚡ ГПВ</div>
             <div class="app-subtitle" id="city-label">м. Запоріжжя</div>
         </div>
-
         <div class="lang-switch">
             <div class="lang-btn active" id="btn-uk" onclick="setLang('uk')">UA</div>
             <div class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</div>
@@ -192,43 +143,35 @@
 
     <div id="weather-widget" class="weather-widget glass-panel">
         <div class="w-current">
-            <div class="w-main">
-                <span class="w-icon" id="w-icon"></span>
-                <span class="w-temp" id="w-temp"></span>
-            </div>
-            <div class="w-info">
-                <div class="w-desc" id="w-desc"></div>
-                <div class="w-feel" id="w-feel"></div>
-            </div>
+            <div class="w-main"><span class="w-icon" id="w-icon"></span><span class="w-temp" id="w-temp"></span></div>
+            <div class="w-info"><div class="w-desc" id="w-desc"></div><div class="w-feel" id="w-feel"></div></div>
         </div>
         <div class="w-hourly" id="w-hourly"></div>
-        <div class="w-advice">
-            <div class="w-advice-text" id="w-advice-text">...</div>
-        </div>
+        <div class="w-advice"><div class="w-advice-text" id="w-advice-text">...</div></div>
     </div>
 
     <div class="date-wrap">
         <div class="date-container" id="dates"></div>
     </div>
     
+    <div class="warning-box" id="tentative-warning">
+        <span class="warning-icon">⚠️</span>
+        <span id="tentative-text">Це орієнтовний графік. Можливі зміни.</span>
+    </div>
+    
     <div class="queue-grid" id="queues"></div>
 
     <div class="action-buttons-grid">
         <a href="#" onclick="goToSearch(event)" class="glass-btn">
-            <span class="btn-icon">🔍</span>
-            <span id="find-label">Знайти чергу</span>
+            <span class="btn-icon">🔍</span><span id="find-label">Знайти чергу</span>
         </a>
         <a href="#" onclick="goToAll(event)" class="glass-btn">
-            <span class="btn-icon">📊</span>
-            <span id="all-label">Всі черги</span>
+            <span class="btn-icon">📊</span><span id="all-label">Всі черги</span>
         </a>
     </div>
 
     <div class="hero glass-panel" id="hero" style="display:none">
-        <div class="bulb-icon-wrap" id="bulb-wrap">
-            <div id="bulb-svg-container"></div>
-        </div>
-        
+        <div class="bulb-icon-wrap" id="bulb-wrap"><div id="bulb-svg-container"></div></div>
         <div class="status-main" id="status">...</div>
         <div class="timer" id="timer">...</div>
         <div class="quote-box" id="quote"></div>
@@ -242,14 +185,8 @@
     </div>
 
     <div class="stats" id="stats" style="display:none">
-        <div class="stat-card">
-            <span class="stat-label" id="lbl-on">Світло є</span>
-            <div class="stat-val on" id="val-on">-</div>
-        </div>
-        <div class="stat-card">
-            <span class="stat-label" id="lbl-off">Світла нема</span>
-            <div class="stat-val off" id="val-off">-</div>
-        </div>
+        <div class="stat-card"><span class="stat-label" id="lbl-on">Світло є</span><div class="stat-val on" id="val-on">-</div></div>
+        <div class="stat-card"><span class="stat-label" id="lbl-off">Світла нема</span><div class="stat-val off" id="val-off">-</div></div>
     </div>
 
     <div class="list-card glass-panel" id="details-list" style="display:none"></div>
@@ -257,15 +194,8 @@
 
     <div id="info-modal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title" id="modal-title">Інформація</div>
-                <div class="close-btn" onclick="closeInfo()">×</div>
-            </div>
-            <div class="dev-info">
-                <div style="font-size:13px; opacity:0.6; margin-bottom:2px; text-transform:uppercase; letter-spacing:1px;" id="dev-label">Розробник</div>
-                <div class="dev-nick">DesOope</div>
-                <a href="https://t.me/desoope" target="_blank" class="dev-link">Telegram</a>
-            </div>
+            <div class="modal-header"><div class="modal-title" id="modal-title">Інформація</div><div class="close-btn" onclick="closeInfo()">×</div></div>
+            <div class="dev-info"><div style="font-size:13px; opacity:0.6; margin-bottom:2px; text-transform:uppercase; letter-spacing:1px;" id="dev-label">Розробник</div><div class="dev-nick">DesOope</div><a href="https://t.me/desoope" target="_blank" class="dev-link">Telegram</a></div>
             <div style="font-size:12px; font-weight:800; opacity:0.4; margin-bottom:10px; text-transform:uppercase; letter-spacing: 1px;" id="cl-label">Історія змін</div>
             <div class="changelog-list" id="changelog-container"></div>
         </div>
@@ -275,36 +205,8 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // --- ВЕКТОРНІ ЛАМПОЧКИ (SVG) ---
-        const SVG_BULB_ON = `
-        <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <linearGradient id="gradOn" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#ffeb3b;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#ffc107;stop-opacity:1" />
-                </linearGradient>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
-                    <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
-            </defs>
-            <path fill="url(#gradOn)" filter="url(#glow)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,220c-24.3,0-44-19.7-44-44s19.7-44,44-44s44,19.7,44,44S280.3,220,256,220z"/>
-            <path fill="#e0e0e0" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/>
-            <path fill="#bdbdbd" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/>
-        </svg>`;
-
-        const SVG_BULB_OFF = `
-        <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <linearGradient id="gradOff" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#90a4ae;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#607d8b;stop-opacity:1" />
-                </linearGradient>
-            </defs>
-            <path fill="url(#gradOff)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,150c-10,0-18,8-18,18s8,18,18,18s18-8,18-18S266,150,256,150z"/>
-            <path fill="#78909c" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/>
-            <path fill="#546e7a" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/>
-        </svg>`;
+        const SVG_BULB_ON = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gradOn" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#ffeb3b;stop-opacity:1"/><stop offset="100%" style="stop-color:#ffc107;stop-opacity:1"/></linearGradient><filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path fill="url(#gradOn)" filter="url(#glow)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,220c-24.3,0-44-19.7-44-44s19.7-44,44-44s44,19.7,44,44S280.3,220,256,220z"/><path fill="#e0e0e0" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/><path fill="#bdbdbd" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/></svg>`;
+        const SVG_BULB_OFF = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gradOff" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#90a4ae;stop-opacity:1"/><stop offset="100%" style="stop-color:#607d8b;stop-opacity:1"/></linearGradient></defs><path fill="url(#gradOff)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,150c-10,0-18,8-18,18s8,18,18,18s18-8,18-18S266,150,256,150z"/><path fill="#78909c" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/><path fill="#546e7a" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/></svg>`;
 
         function createSnow() {
             const container = document.getElementById('snow-container');
@@ -328,7 +230,6 @@
         let generatedAt = "";
         let todaySchedule = null;
         let viewSchedule = null;
-        
         let selectedQueue = localStorage.getItem('queue');
         let lang = localStorage.getItem('lang') || 'uk';
         let lastStatusType = null; 
@@ -344,9 +245,8 @@
                 tom: "завтра", at: "о",
                 modal_title: "Інформація", dev: "Розробник", cl: "Історія змін",
                 tip: "Натисни сюди, щоб сховати або показати погоду 🌤️", tip_btn: "Зрозуміло",
-                support: "Підтримати",
-                find_q: "Знайти чергу",
-                all_q: "Всі черги"
+                support: "Підтримати", find_q: "Знайти чергу", all_q: "Всі черги",
+                tentative: "Це орієнтовний графік. Можливі зміни."
             },
             ru: { 
                 title: "⚡ ГПО", city: "г. Запорожье",
@@ -358,39 +258,24 @@
                 tom: "завтра", at: "в",
                 modal_title: "Информация", dev: "Разработчик", cl: "История изменений",
                 tip: "Нажми сюда, чтобы скрыть или показать погоду 🌤️", tip_btn: "Понял",
-                support: "Поддержать",
-                find_q: "Найти очередь",
-                all_q: "Все очереди"
+                support: "Поддержать", find_q: "Найти очередь", all_q: "Все очереди",
+                tentative: "Это ориентировочный график. Возможны изменения."
             }
         };
 
-        function goToSearch(e) {
-            e.preventDefault();
-            const isDark = document.body.classList.contains('dark-mode');
-            window.location.href = 'find_queue.html' + (isDark ? '?theme=dark' : '');
-        }
-
-        function goToAll(e) {
-            e.preventDefault();
-            const isDark = document.body.classList.contains('dark-mode');
-            window.location.href = 'all.html' + (isDark ? '?theme=dark' : '');
-        }
+        function goToSearch(e) { e.preventDefault(); const isDark = document.body.classList.contains('dark-mode'); window.location.href = 'find_queue.html' + (isDark ? '?theme=dark' : ''); }
+        function goToAll(e) { e.preventDefault(); const isDark = document.body.classList.contains('dark-mode'); window.location.href = 'all.html' + (isDark ? '?theme=dark' : ''); }
 
         async function init() {
             createSnow();
             setLang(lang);
             checkTooltip(); 
-            
-            if (typeof initWeather === "function") {
-                await initWeather(); 
-            }
-
+            if (typeof initWeather === "function") await initWeather(); 
             document.getElementById('loader').innerText = T[lang].load;
 
             try {
                 const res = await fetch('https://raw.githubusercontent.com/bogdanshtatskiy-cpu/zap-light/main/schedule.json?v=' + Date.now());
                 if (!res.ok) throw new Error("Failed to fetch");
-                
                 const json = await res.json();
                 DATA = json.schedules;
                 generatedAt = json.generated_at || "";
@@ -403,6 +288,7 @@
                 document.getElementById('loader').style.display = 'none';
                 renderQueues();
                 
+                // Визначаємо сьогоднішній день
                 const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
                 const todayDay = kievDate.getDate();
                 const todayMonthIdx = kievDate.getMonth();
@@ -416,9 +302,9 @@
                     if (d === todayDay && mIdx === todayMonthIdx) todayIdx = idx;
                 });
 
-                const fallbackIdx = DATA.length - 1;
-                const activeIdx = todayIdx !== -1 ? todayIdx : fallbackIdx;
-
+                // Якщо сьогодні немає в списку, беремо останній доступний
+                const activeIdx = todayIdx !== -1 ? todayIdx : DATA.length - 1;
+                
                 todaySchedule = DATA[activeIdx]; 
                 
                 renderDates(activeIdx);
@@ -435,23 +321,18 @@
 
             } catch (e) {
                 console.error(e);
-                document.getElementById('loader').innerText = "Error loading data (Github Raw)";
+                document.getElementById('loader').innerText = "Error loading data";
             }
         }
 
         function checkTooltip() {
             if (!localStorage.getItem('weatherTooltipSeen')) {
-                const tooltip = document.getElementById('weather-tooltip');
-                tooltip.classList.add('show');
-                setTimeout(() => {
-                    if (!localStorage.getItem('weatherTooltipSeen')) hideTooltip();
-                }, 5000); 
+                document.getElementById('weather-tooltip').classList.add('show');
+                setTimeout(() => { if (!localStorage.getItem('weatherTooltipSeen')) hideTooltip(); }, 5000); 
             }
         }
-
         function hideTooltip() {
-            const tooltip = document.getElementById('weather-tooltip');
-            tooltip.classList.remove('show');
+            document.getElementById('weather-tooltip').classList.remove('show');
             localStorage.setItem('weatherTooltipSeen', 'true');
         }
 
@@ -465,22 +346,27 @@
                 
                 let label = item.date;
                 const parts = item.date.split(' ');
-                
                 if (parts.length === 2) {
                     const day = parts[0].padStart(2, '0');
                     const monthName = parts[1].toUpperCase();
                     const monthIdx = UA_MONTHS.indexOf(monthName);
-                    
                     if (monthIdx !== -1) {
                         const monthNum = (monthIdx + 1).toString().padStart(2, '0');
                         label = `${day}.${monthNum}`;
                     }
                 }
-
                 btn.innerText = label;
-                btn.onclick = () => requestAnimationFrame(() => { selectDate(idx); renderDates(idx); });
+                btn.onclick = () => { selectDate(idx); renderDates(idx); };
                 container.appendChild(btn);
             });
+
+            // АВТО-СКРОЛЛ ДО АКТИВНОЇ ДАТИ
+            setTimeout(() => {
+                const activeBtn = container.children[activeIdx];
+                if (activeBtn) {
+                    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            }, 100);
         }
 
         function renderQueues() {
@@ -498,9 +384,34 @@
 
         function selectDate(idx) {
             viewSchedule = DATA[idx]; 
-            if (typeof renderWeatherForDate === "function") {
-                renderWeatherForDate(viewSchedule.date);
+            if (typeof renderWeatherForDate === "function") renderWeatherForDate(viewSchedule.date);
+            
+            // --- ЛОГІКА "ОРІЄНТОВНИЙ ГРАФІК" ---
+            const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
+            // Створюємо дату "Завтра" (початок доби)
+            const tomorrow = new Date(kievDate);
+            tomorrow.setDate(kievDate.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+
+            // Парсимо дату з графіку
+            const parts = viewSchedule.date.split(' ');
+            const day = parseInt(parts[0]);
+            const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
+            // Припускаємо поточний рік (або наступний, якщо січень, а зараз грудень)
+            let year = kievDate.getFullYear();
+            if (kievDate.getMonth() === 11 && mIdx === 0) year++;
+            
+            const scheduleDateObj = new Date(year, mIdx, day);
+
+            // Якщо дата графіку > ніж "Завтра", показуємо попередження
+            const warningBox = document.getElementById('tentative-warning');
+            if (scheduleDateObj > tomorrow) {
+                warningBox.style.display = 'flex';
+                document.getElementById('tentative-text').innerText = T[lang].tentative;
+            } else {
+                warningBox.style.display = 'none';
             }
+
             if (selectedQueue) updateView();
         }
 
@@ -515,19 +426,15 @@
             document.getElementById('bar-wrap').style.display = 'block';
             document.getElementById('stats').style.display = 'grid';
             document.getElementById('details-list').style.display = 'block';
-            
             lastStatusType = null;
             tick();
             updateView();
         }
 
         function setLang(l) {
-            lang = l;
-            localStorage.setItem('lang', l);
-            
+            lang = l; localStorage.setItem('lang', l);
             document.getElementById('btn-uk').className = `lang-btn ${l==='uk'?'active':''}`;
             document.getElementById('btn-ru').className = `lang-btn ${l==='ru'?'active':''}`;
-            
             document.getElementById('app-title').innerText = T[l].title;
             document.getElementById('city-label').innerText = T[l].city;
             document.getElementById('lbl-on').innerText = T[l].lbl_on;
@@ -535,39 +442,29 @@
             document.getElementById('modal-title').innerText = T[l].modal_title;
             document.getElementById('dev-label').innerText = T[l].dev;
             document.getElementById('cl-label').innerText = T[l].cl;
-            
             document.getElementById('find-label').innerText = T[l].find_q;
             document.getElementById('all-label').innerText = T[l].all_q;
+            document.getElementById('tentative-text').innerText = T[l].tentative;
 
             const donateText = document.getElementById('donate-text');
-            if (donateText && T[l].support) {
-                donateText.innerText = T[l].support;
-            }
+            if (donateText) donateText.innerText = T[l].support;
 
             const tooltip = document.getElementById('weather-tooltip');
-            if (tooltip) {
-                tooltip.innerHTML = `${T[l].tip} <button class="tooltip-btn" onclick="hideTooltip()">${T[l].tip_btn}</button>`;
-            }
+            if (tooltip) tooltip.innerHTML = `${T[l].tip} <button class="tooltip-btn" onclick="hideTooltip()">${T[l].tip_btn}</button>`;
             
-            if (typeof updateWeatherLang === "function") {
-                if (viewSchedule) renderWeatherForDate(viewSchedule.date);
-            }
+            if (typeof updateWeatherLang === "function" && viewSchedule) renderWeatherForDate(viewSchedule.date);
 
             if(DATA.length) {
                 const idx = DATA.indexOf(viewSchedule);
                 renderDates(idx !== -1 ? idx : 0);
                 if (!selectedQueue) document.getElementById('status').innerText = T[l].choose;
-                else {
-                    updateView();
-                    tick();
-                }
+                else { updateView(); tick(); }
             }
             renderChangelog();
         }
 
         function updateView() {
             if (!viewSchedule || !selectedQueue) return;
-
             const listEl = document.getElementById('details-list');
             const listFrag = document.createDocumentFragment();
             const timeline = document.getElementById('visual');
@@ -589,28 +486,18 @@
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
                     const badgeClass = current ? 'badge-on' : 'badge-off';
                     const text = current ? T[lang].on : T[lang].off;
-                    
-                    // --- ГЕНЕРАЦІЯ SVG ДЛЯ СПИСКУ ---
                     const uid = `row_${start}`; 
                     let rawSvg = current ? SVG_BULB_ON : SVG_BULB_OFF;
                     rawSvg = rawSvg.replaceAll('id="', `id="${uid}_`).replaceAll('url(#', `url(#${uid}_`);
                     const iconHtml = `<div class="list-icon">${rawSvg}</div>`;
 
-                    row.innerHTML = `
-                        <div class="row-time">${timeRange}</div>
-                        <div class="row-badge ${badgeClass}">${iconHtml} ${text}</div>
-                    `;
+                    row.innerHTML = `<div class="row-time">${timeRange}</div><div class="row-badge ${badgeClass}">${iconHtml} ${text}</div>`;
                     listFrag.appendChild(row);
-
-                    current = map[i];
-                    start = i;
+                    current = map[i]; start = i;
                 }
             }
-
-            timeline.innerHTML = '';
-            timeline.appendChild(barFrag);
-            listEl.innerHTML = '';
-            listEl.appendChild(listFrag);
+            timeline.innerHTML = ''; timeline.appendChild(barFrag);
+            listEl.innerHTML = ''; listEl.appendChild(listFrag);
 
             let offCount = 0;
             for(let i=0; i<1440; i++) { if(map[i] === false) offCount++; }
@@ -637,7 +524,6 @@
 
         function tick() {
             if (!todaySchedule || !selectedQueue) return;
-
             const updateTimeStr = generatedAt || todaySchedule.updated_at;
             const updText = `${T[lang].upd} ${updateTimeStr}`;
             const updEl = document.getElementById('updated');
@@ -715,9 +601,7 @@
                     iconContainer.innerHTML = SVG_BULB_ON;
                     bulbWrap.classList.add('bulb-on-glow'); 
                 }
-                
-                if (st.innerText !== T[lang].on) st.innerText = T[lang].on;
-                st.style.color = 'var(--text)';
+                st.innerText = T[lang].on; st.style.color = 'var(--text)';
                 const newHtml = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml;
                 updateQuote('on');
@@ -727,9 +611,7 @@
                     iconContainer.innerHTML = SVG_BULB_OFF;
                     bulbWrap.classList.remove('bulb-on-glow');
                 }
-                
-                if (st.innerText !== T[lang].off) st.innerText = T[lang].off;
-                st.style.color = 'var(--off)';
+                st.innerText = T[lang].off; st.style.color = 'var(--off)';
                 const newHtml = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml;
                 updateQuote('off');
@@ -753,13 +635,11 @@
             modal.style.display = 'flex';
             setTimeout(() => modal.classList.add('show'), 10);
         }
-
         function closeInfo() {
             const modal = document.getElementById('info-modal');
             modal.classList.remove('show');
             setTimeout(() => modal.style.display = 'none', 300);
         }
-
         function renderChangelog() {
             if (typeof CHANGELOG_DATA === 'undefined') return;
             const container = document.getElementById('changelog-container');
@@ -769,26 +649,13 @@
                 item.className = 'cl-item';
                 const changesList = ver.changes[lang] || ver.changes['uk'];
                 const listHtml = changesList.map(c => `<li>${c}</li>`).join('');
-                item.innerHTML = `
-                    <div class="cl-ver">v${ver.version}</div>
-                    <span class="cl-date">${ver.date}</span>
-                    <div class="cl-desc"><ul>${listHtml}</ul></div>
-                `;
+                item.innerHTML = `<div class="cl-ver">v${ver.version}</div><span class="cl-date">${ver.date}</span><div class="cl-desc"><ul>${listHtml}</ul></div>`;
                 container.appendChild(item);
             });
         }
-
         function timeToMins(s) { const p=s.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); }
-        function minsToTime(m) { 
-            if(m===1440) return "24:00";
-            return `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`;
-        }
-        function fmtDur(m) {
-            const h = Math.floor(m/60), mn = m%60;
-            if(h>0 && mn>0) return `${h}${T[lang].h} ${mn}${T[lang].m}`;
-            if(h>0) return `${h} ${T[lang].h}`;
-            return `${mn} ${T[lang].m}`;
-        }
+        function minsToTime(m) { if(m===1440) return "24:00"; return `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`; }
+        function fmtDur(m) { const h = Math.floor(m/60), mn = m%60; if(h>0 && mn>0) return `${h}${T[lang].h} ${mn}${T[lang].m}`; if(h>0) return `${h} ${T[lang].h}`; return `${mn} ${T[lang].m}`; }
         function pad(n) { return n.toString().padStart(2,'0'); }
 
         init();
