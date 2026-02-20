@@ -151,7 +151,7 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-                const SVG_MAIN_ON = `
+        const SVG_MAIN_ON = `
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                     <linearGradient id="houseOn" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -456,7 +456,6 @@
                     const badgeClass = current ? 'badge-on' : 'badge-off';
                     const text = current ? T[lang].on : T[lang].off;
                     
-                    // Іконки повністю прибрані, залишено лише текст та час
                     row.innerHTML = `<div class="row-time">${timeRange}</div><div class="row-badge ${badgeClass}">${text}</div>`;
                     listFrag.appendChild(row);
                     current = map[i]; start = i;
