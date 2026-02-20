@@ -15,8 +15,11 @@
     <script src="weather.js"></script>
 </head>
 <body>
-    
-    <div id="particles-container"></div>
+    <script>
+        if (localStorage.getItem('isDarkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+    </script>
 
     <div class="header">
         <div class="header-left">
@@ -24,7 +27,7 @@
             <div class="info-btn" id="nav-info" onclick="openInfo()">i</div>
             <div class="weather-toggle-btn active" id="weather-toggle" onclick="toggleWeatherWidget()">🌤️</div>
         </div>
-        <div class="title-wrap">
+        <div class="title-wrap" id="title-wrap">
             <div class="app-title" id="app-title">⚡ ГПВ</div>
             <div class="app-subtitle" id="city-label">м. Запоріжжя</div>
         </div>
@@ -32,6 +35,10 @@
             <div class="lang-btn active" id="btn-uk" onclick="setLang('uk')">UA</div>
             <div class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</div>
         </div>
+    </div>
+
+    <div class="date-wrap" id="main-date-wrap">
+        <div class="date-container" id="dates"></div>
     </div>
 
     <div id="view-main" class="view-section active">
@@ -48,10 +55,6 @@
             </div>
             <div class="w-hourly" id="w-hourly"></div>
             <div class="w-advice"><div class="w-advice-text" id="w-advice-text">...</div></div>
-        </div>
-
-        <div class="date-wrap">
-            <div class="date-container" id="dates"></div>
         </div>
         
         <div class="warning-box" id="tentative-warning">
@@ -130,7 +133,7 @@
     </div>
 
     <div id="view-all" class="view-section">
-        <div class="matrix-panel" id="matrix-container">
+        <div class="glass-panel" id="matrix-container" style="padding: 15px;">
             <div class="loader">Формування матриці...</div>
         </div>
     </div>
@@ -150,23 +153,6 @@
 
         const SVG_BULB_ON = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gradOn" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#ffeb3b;stop-opacity:1"/><stop offset="100%" style="stop-color:#ffc107;stop-opacity:1"/></linearGradient><filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path fill="url(#gradOn)" filter="url(#glow)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,220c-24.3,0-44-19.7-44-44s19.7-44,44-44s44,19.7,44,44S280.3,220,256,220z"/><path fill="#e0e0e0" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/><path fill="#bdbdbd" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/></svg>`;
         const SVG_BULB_OFF = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gradOff" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#90a4ae;stop-opacity:1"/><stop offset="100%" style="stop-color:#607d8b;stop-opacity:1"/></linearGradient></defs><path fill="url(#gradOff)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,150c-10,0-18,8-18,18s8,18,18,18s18-8,18-18S266,150,256,150z"/><path fill="#78909c" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/><path fill="#546e7a" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/></svg>`;
-
-        function createParticles() {
-            const container = document.getElementById('particles-container');
-            container.innerHTML = '';
-            const count = 15; 
-            for (let i = 0; i < count; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                const size = Math.random() * 6 + 4; 
-                particle.style.width = size + 'px';
-                particle.style.height = size + 'px';
-                particle.style.left = Math.random() * 100 + 'vw';
-                particle.style.animationDuration = Math.random() * 8 + 10 + 's';
-                particle.style.animationDelay = Math.random() * 5 + 's';
-                container.appendChild(particle);
-            }
-        }
 
         const UA_MONTHS = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
         const WEEKDAYS = {
@@ -211,9 +197,7 @@
         };
 
         function showView(viewId) {
-            document.querySelectorAll('.view-section').forEach(el => {
-                el.classList.remove('active');
-            });
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             currentView = viewId;
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -221,29 +205,35 @@
             const btnBack = document.getElementById('nav-back');
             const btnInfo = document.getElementById('nav-info');
             const langSwitch = document.getElementById('lang-switch-container');
-            const title = document.getElementById('app-title');
+            const titleWrap = document.getElementById('title-wrap');
+            const weatherToggle = document.getElementById('weather-toggle');
+            const dateWrap = document.getElementById('main-date-wrap');
 
             if (viewId === 'view-main') {
                 btnBack.style.display = 'none';
                 btnInfo.style.display = 'flex';
                 langSwitch.style.display = 'flex';
-                title.innerText = T[lang].title;
+                titleWrap.style.display = 'block';
+                weatherToggle.style.display = 'flex';
+                dateWrap.style.display = 'block';
             } else {
                 btnBack.style.display = 'flex';
                 btnInfo.style.display = 'none';
                 langSwitch.style.display = 'none';
+                titleWrap.style.display = 'none'; // Скрываем названия и город
+                weatherToggle.style.display = 'none'; // Скрываем погоду
+
                 if (viewId === 'view-search') {
-                    title.innerText = T[lang].search_title;
+                    dateWrap.style.display = 'none'; // Скрываем даты в поиске
                     if(!isSearchLoaded) initSearchEngine();
                 } else if (viewId === 'view-all') {
-                    title.innerText = T[lang].matrix_title;
+                    dateWrap.style.display = 'block'; // Показываем даты в матрице
                     renderMatrix();
                 }
             }
         }
 
         async function init() {
-            createParticles();
             setLang(lang);
             if (typeof initWeather === "function") await initWeather(); 
             document.getElementById('loader').innerText = T[lang].load;
@@ -368,10 +358,7 @@
             document.getElementById('btn-uk').className = `lang-btn ${l==='uk'?'active':''}`;
             document.getElementById('btn-ru').className = `lang-btn ${l==='ru'?'active':''}`;
             
-            if(currentView === 'view-main') document.getElementById('app-title').innerText = T[l].title;
-            else if(currentView === 'view-search') document.getElementById('app-title').innerText = T[l].search_title;
-            else if(currentView === 'view-all') document.getElementById('app-title').innerText = T[l].matrix_title;
-
+            document.getElementById('app-title').innerText = T[l].title;
             document.getElementById('city-label').innerText = T[l].city;
             document.getElementById('lbl-on').innerText = T[l].lbl_on;
             document.getElementById('lbl-off').innerText = T[l].lbl_off;
@@ -383,7 +370,7 @@
             document.getElementById('tentative-text').innerText = T[l].tentative;
             document.getElementById('donate-text').innerText = T[l].support;
             
-            // Search View Translations
+            // Search View
             document.getElementById('lbl-street').innerText = T[l].street;
             document.getElementById('lbl-house').innerText = T[l].house;
             document.getElementById('lbl-res').innerText = T[l].res;
@@ -418,7 +405,6 @@
 
                     const row = document.createElement('div');
                     row.className = 'list-row';
-                    // Додаємо плавний вліт для кожного рядка списку
                     row.style.animationDelay = `${listFrag.children.length * 0.05}s`;
                     
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
@@ -511,14 +497,17 @@
             const st = document.getElementById('status');
             const tm = document.getElementById('timer');
 
+            // Фиксация темной/светлой темы в localStorage, чтобы не было "белой вспышки" при обновлении
             if (isLight) {
                 body.classList.remove('dark-mode');
+                localStorage.setItem('isDarkMode', 'false');
                 if (iconContainer.innerHTML !== SVG_BULB_ON) { iconContainer.innerHTML = SVG_BULB_ON; bulbWrap.classList.add('bulb-on-glow'); }
                 st.innerText = T[lang].on; st.style.color = 'var(--text)';
                 const newHtml = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('on');
             } else {
                 body.classList.add('dark-mode');
+                localStorage.setItem('isDarkMode', 'true');
                 if (iconContainer.innerHTML !== SVG_BULB_OFF) { iconContainer.innerHTML = SVG_BULB_OFF; bulbWrap.classList.remove('bulb-on-glow'); }
                 st.innerText = T[lang].off; st.style.color = 'var(--off)';
                 const newHtml = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`;
@@ -526,7 +515,7 @@
             }
         }
 
-        // ================= SPA: SEARCH ENGINE =================
+        // ================= SPA: ПОШУК =================
         let dbSearch = [], uniqueStreets = [], selectedStreet = null;
         async function initSearchEngine() {
             isSearchLoaded = true;
@@ -569,7 +558,13 @@
         sInput.addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase(); selectedStreet = null; hInput.disabled = true; hInput.value = ''; resCard.style.display = 'none'; hList.style.display = 'none';
             if (val.length < 1) { sList.style.display = 'none'; return; }
-            const matches = uniqueStreets.filter(s => s.toLowerCase().replace(/^(вул\.|пров\.|бул\.|пр\.|площа|майдан)\s*/g, '').split(/\s+/).some(k => k.startsWith(val))).slice(0, 50);
+            
+            // Фикс: игнорируем скобки для точного поиска, если улица написана как вул. Олени Теліги (Менжинського)
+            const matches = uniqueStreets.filter(s => {
+                const clean = s.toLowerCase().replace(/^(вул\.|пров\.|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '').replace(/[()]/g, ' ');
+                return clean.split(/\s+/).some(k => k.startsWith(val));
+            }).slice(0, 50);
+            
             sList.innerHTML = '';
             if(matches.length) { matches.forEach(m => { const d = document.createElement('div'); d.className='autocomplete-item'; d.innerText=m; d.onclick=() => { sInput.value = m; selectedStreet = m; sList.style.display='none'; hInput.disabled=false; hInput.focus(); }; sList.appendChild(d); }); sList.style.display = 'block'; }
             else sList.style.display = 'none';
@@ -593,7 +588,7 @@
             resCard.style.display = 'block';
         }
 
-        // ================= SPA: MATRIX (all.html logic) =================
+        // ================= SPA: МАТРИЦЯ =================
         function renderMatrix() {
             if(!viewSchedule) return;
             const container = document.getElementById('matrix-container');
@@ -602,9 +597,14 @@
             const isToday = (parseInt(viewSchedule.date.split(' ')[0]) === now.getDate());
 
             let html = `<div class="matrix-layout matrix-header"><div>Черга</div><div class="time-labels"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div style="text-align:right">${T[lang].total}</div></div>`;
+            
+            // Обертка для строк и курсора времени, чтобы он не вылезал за края
+            html += `<div class="matrix-rows-wrapper" style="position: relative;">`;
+            
             if (isToday) {
                 const percent = ((now.getHours() * 60 + now.getMinutes()) / 1440) * 100;
-                html += `<div class="time-cursor" style="left: calc(43px + (100% - 88px) * ${percent / 100})"></div>`;
+                // Математика отступа: 35px колонка "Черга" + 8px gap = 43px. Оставшееся пространство = 100% - 96px.
+                html += `<div class="time-cursor" style="left: calc(43px + (100% - 96px) * ${percent / 100})"></div>`;
             }
 
             qs.forEach(qKey => {
@@ -615,9 +615,10 @@
                     for(let m=0; m<60; m++) { if(map[h*60+m] === false) { isOff=true; offMins++; } }
                     hourCellsHTML += `<div class="hour-cell ${isOff ? 'off' : 'on'}"></div>`;
                 }
-                const stats = offMins===0 ? '<span style="color:var(--cell-on); font-weight:900;">✓</span>' : `-${Math.floor(offMins/60).toString().padStart(2,'0')}:${(offMins%60).toString().padStart(2,'0')}`;
+                const stats = offMins===0 ? '<span style="color:var(--chunk-on); font-weight:900;">✓</span>' : `-${Math.floor(offMins/60).toString().padStart(2,'0')}:${(offMins%60).toString().padStart(2,'0')}`;
                 html += `<div class="matrix-layout queue-row"><div class="q-name">${qKey}</div><div class="q-visual">${hourCellsHTML}</div><div class="q-stats">${stats}</div></div>`;
             });
+            html += `</div>`; // Закрываем wrapper
             container.innerHTML = html;
         }
 
