@@ -115,51 +115,15 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 .w-advice { margin-top: 5px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; }
 .w-advice-text { font-size: 13px; font-style: italic; opacity: 0.85; line-height: 1.4; font-weight: 500; }
 
-/* Hero & Animated House SVG */
+/* Hero & Lottie Container */
 .hero { text-align: center; padding: 30px 20px; overflow: hidden; }
-.main-icon-wrap { width: 100px; height: 100px; margin: 0 auto 10px auto; transition: filter 0.5s ease; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15)); }
+.main-icon-wrap { width: 120px; height: 120px; margin: 0 auto 10px auto; transition: filter 0.5s ease; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15)); }
+#main-svg-container { width: 100%; height: 100%; }
 .icon-on-glow { filter: drop-shadow(0 0 30px rgba(253, 224, 71, 0.5)); animation: houseGlow 4s infinite alternate; }
 
 @keyframes houseGlow { 
     0% { filter: drop-shadow(0 0 20px rgba(253, 224, 71, 0.4)); transform: scale(1); } 
     100% { filter: drop-shadow(0 0 40px rgba(253, 224, 71, 0.7)); transform: scale(1.02); } 
-}
-
-/* Animations inside SVG */
-.smoke { transform-origin: center; animation: floatUp 2.5s infinite ease-in; opacity: 0; }
-.smoke-1 { animation-delay: 0s; }
-.smoke-2 { animation-delay: 0.8s; }
-.smoke-3 { animation-delay: 1.6s; }
-@keyframes floatUp {
-    0% { transform: translateY(0) scale(0.8); opacity: 0.8; }
-    100% { transform: translateY(-20px) scale(2.5); opacity: 0; }
-}
-
-.window-glow { animation: windowPulse 2.5s infinite alternate ease-in-out; transform-origin: center; }
-@keyframes windowPulse {
-    0% { fill: #fde047; filter: drop-shadow(0 0 2px rgba(253,224,71,0.3)); }
-    100% { fill: #fef08a; filter: drop-shadow(0 0 10px rgba(253,224,71,0.8)); }
-}
-
-/* Физика реалистичной свечи */
-.flame {
-    transform-box: fill-box;
-    transform-origin: center bottom;
-    animation: flameFlicker 0.15s infinite alternate ease-in-out;
-}
-@keyframes flameFlicker {
-    0% { transform: scale(0.95) skewX(-2deg); }
-    100% { transform: scale(1.05) skewX(2deg); }
-}
-
-.candle-glow {
-    transform-box: fill-box;
-    transform-origin: center center;
-    animation: glowPulse 1.5s infinite alternate ease-in-out;
-}
-@keyframes glowPulse {
-    0% { opacity: 0.4; transform: scale(0.9); }
-    100% { opacity: 0.8; transform: scale(1.3); }
 }
 
 .status-main { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
