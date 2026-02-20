@@ -115,11 +115,36 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 .w-advice { margin-top: 5px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; }
 .w-advice-text { font-size: 13px; font-style: italic; opacity: 0.85; line-height: 1.4; font-weight: 500; }
 
-/* Hero */
+/* Hero & Animated House SVG */
 .hero { text-align: center; padding: 30px 20px; overflow: hidden; }
-.bulb-icon-wrap { width: 90px; height: 90px; margin: 0 auto 10px auto; transition: filter 0.5s ease; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15)); }
-.bulb-on-glow { filter: drop-shadow(0 0 30px rgba(255, 200, 0, 0.6)); animation: bulbPulse 3s infinite ease-in-out; }
-@keyframes bulbPulse { 0%, 100% { filter: drop-shadow(0 0 30px rgba(255, 200, 0, 0.6)); transform: scale(1); } 50% { filter: drop-shadow(0 0 50px rgba(255, 220, 50, 0.8)); transform: scale(1.02); } }
+.main-icon-wrap { width: 100px; height: 100px; margin: 0 auto 10px auto; transition: filter 0.5s ease; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15)); }
+.icon-on-glow { filter: drop-shadow(0 0 30px rgba(253, 224, 71, 0.5)); animation: houseGlow 4s infinite alternate; }
+
+@keyframes houseGlow { 
+    0% { filter: drop-shadow(0 0 20px rgba(253, 224, 71, 0.4)); transform: scale(1); } 
+    100% { filter: drop-shadow(0 0 40px rgba(253, 224, 71, 0.7)); transform: scale(1.02); } 
+}
+
+/* Animations inside SVG */
+.smoke { animation: floatUp 2.5s infinite ease-in; transform-origin: center; }
+.smoke-1 { animation-delay: 0s; }
+.smoke-2 { animation-delay: 0.8s; }
+.smoke-3 { animation-delay: 1.6s; }
+@keyframes floatUp {
+    0% { transform: translateY(0) scale(1); opacity: 0.7; }
+    100% { transform: translateY(-15px) scale(2); opacity: 0; }
+}
+.window-glow { animation: windowPulse 2.5s infinite alternate ease-in-out; transform-origin: center; }
+@keyframes windowPulse {
+    0% { fill: #fde047; }
+    100% { fill: #fef08a; filter: drop-shadow(0 0 5px rgba(253,224,71,0.5)); }
+}
+.candle-flicker { animation: flicker 0.15s infinite alternate; }
+@keyframes flicker {
+    0% { opacity: 0.6; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1.1); filter: drop-shadow(0 0 4px #ea580c); }
+}
+
 .status-main { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
 .timer { font-size: 18px; font-weight: 700; background: rgba(255,255,255,0.2); padding: 8px 20px; border-radius: 12px; display: inline-block; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.3); }
 .timer-note { font-size: 13px; opacity: 0.8; display: block; margin-top: 4px; font-weight: 500;}
@@ -152,10 +177,10 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 @keyframes fadeInRow { to { opacity: 1; } }
 .list-row:last-child { border-bottom: none; }
 .row-time { font-size: 16px; font-weight: 700; letter-spacing: -0.5px; }
-.row-badge { font-size: 13px; font-weight: 800; padding: 8px 14px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #ffffff; min-width: 145px; }
+
+/* Беджі без іконок */
+.row-badge { font-size: 13px; font-weight: 800; padding: 8px 16px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; color: #ffffff; min-width: 130px; letter-spacing: 0.5px; text-transform: uppercase;}
 .badge-on { background: var(--chunk-on); } .badge-off { background: var(--chunk-off); }
-.list-icon { width: 20px; height: 20px; flex-shrink: 0; }
-.list-icon svg { width: 100%; height: 100%; display: block; }
 
 /* Warnings & Loaders */
 .warning-box { background: rgba(255, 152, 0, 0.15); border: 1px solid rgba(255, 152, 0, 0.3); color: #d97706; padding: 10px; border-radius: 16px; font-size: 13px; font-weight: 700; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
@@ -193,8 +218,6 @@ body.dark-mode .q-visual { background: rgba(255, 255, 255, 0.05); }
 .hour-cell.off { background-color: var(--chunk-off); }
 
 .q-stats { text-align: right; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
-
-/* Фикс курсора матрицы: цвет привязан к var(--text) - белый в темной, синий в светлой */
 .time-cursor { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); box-shadow: 0 0 8px var(--text); z-index: 10; border-radius: 2px; }
 .time-cursor::before { content: ''; position: absolute; top: -4px; left: -2px; width: 6px; height: 6px; background: var(--text); border-radius: 50%; }
 
