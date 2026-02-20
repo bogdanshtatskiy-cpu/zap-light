@@ -7,8 +7,6 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-    
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     
@@ -16,7 +14,7 @@
     <script src="changelog.js"></script>
     <script src="weather_advice.js"></script>
     <script src="weather.js"></script>
-    <script src="flashlight.js"></script> </head>
+    <script src="meter.js"></script> <script src="flashlight.js"></script> </head>
 <body>
     <script>
         if (localStorage.getItem('isDarkMode') === 'true') {
@@ -171,9 +169,8 @@
         let currentView = 'view-main';
         let isSearchLoaded = false;
         
-        // Змінні для Lottie плеєра
-        let currentLottie = null;
-        let currentLottieState = null; 
+        // Змінна для відстеження поточного стану SVG (світло є/немає)
+        let currentIconState = null; 
 
         const T = {
             uk: { 
@@ -502,24 +499,17 @@
             const st = document.getElementById('status');
             const tm = document.getElementById('timer');
 
-            // Керування станами: СВІТЛО Є або СВІТЛА НЕМА
+            // Керування відмальовкою іконок (Світла/Темна тема)
             if (isLight) {
                 body.classList.remove('dark-mode');
                 localStorage.setItem('isDarkMode', 'false');
                 
-                if (currentLottieState !== 'on') {
-                    if (currentLottie) { currentLottie.destroy(); currentLottie = null; }
-                    iconContainer.innerHTML = '';
-                    currentLottie = lottie.loadAnimation({
-                        container: iconContainer,
-                        renderer: 'svg',
-                        loop: true,
-                        autoplay: true,
-                        path: './on.json'
-                    });
-                    currentLottieState = 'on';
+                if (currentIconState !== 'on') {
+                    // Викликаємо Лічильник
+                    iconContainer.innerHTML = typeof Meter !== 'undefined' ? Meter.getSVG() : '';
+                    currentIconState = 'on';
                     iconWrap.classList.remove('flashlight-mode');
-                    iconWrap.classList.add('icon-on-glow'); 
+                    iconWrap.classList.add('meter-mode'); 
                 }
                 
                 st.innerText = T[lang].on; st.style.color = 'var(--text)';
@@ -529,14 +519,11 @@
                 body.classList.add('dark-mode');
                 localStorage.setItem('isDarkMode', 'true');
                 
-                if (currentLottieState !== 'off') {
-                    if (currentLottie) { currentLottie.destroy(); currentLottie = null; }
-                    
-                    // Викликаємо функцію з flashlight.js
-                    iconContainer.innerHTML = Flashlight.getSVG(T, lang);
-                    
-                    currentLottieState = 'off';
-                    iconWrap.classList.remove('icon-on-glow'); 
+                if (currentIconState !== 'off') {
+                    // Викликаємо Ліхтарик
+                    iconContainer.innerHTML = typeof Flashlight !== 'undefined' ? Flashlight.getSVG() : '';
+                    currentIconState = 'off';
+                    iconWrap.classList.remove('meter-mode'); 
                     iconWrap.classList.add('flashlight-mode');
                 }
 
