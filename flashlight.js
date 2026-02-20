@@ -1,6 +1,5 @@
 const Flashlight = {
-    // Функція генерації SVG
-    getSVG: function(T, lang) {
+    getSVG: function() {
         return `
             <div id="flashlight-wrapper" class="flashlight-wrapper" onclick="Flashlight.toggle(this)">
                 <svg viewBox="-20 -150 450 300" class="fl-svg" xmlns="http://www.w3.org/2000/svg">
@@ -104,9 +103,7 @@ const Flashlight = {
             </div>`;
     },
 
-    // Оптимізована функція перемикання з Haptic-віддачею
     toggle: function(wrapper) {
-        // Вібрація при кліку (якщо підтримується Telegram або браузером)
         if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
             window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
         } else if (navigator.vibrate) {
@@ -117,7 +114,6 @@ const Flashlight = {
         
         const sway = wrapper.querySelector('.fl-sway');
         if (sway) {
-            // Безпечний і швидкий перезапуск анімації через RequestAnimationFrame
             sway.classList.remove('shake-anim');
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
