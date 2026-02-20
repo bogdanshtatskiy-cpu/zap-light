@@ -115,16 +115,117 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 .w-advice { margin-top: 5px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; }
 .w-advice-text { font-size: 13px; font-style: italic; opacity: 0.85; line-height: 1.4; font-weight: 500; }
 
-/* Hero & Lottie Container */
+/* =========================================
+   ИКОНКИ: LOTTIE И ИНТЕРАКТИВНЫЙ ФОНАРИК
+   ========================================= */
 .hero { text-align: center; padding: 30px 20px; overflow: hidden; }
-.main-icon-wrap { width: 120px; height: 120px; margin: 0 auto 10px auto; transition: filter 0.5s ease; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15)); }
-#main-svg-container { width: 100%; height: 100%; }
-.icon-on-glow { filter: drop-shadow(0 0 30px rgba(253, 224, 71, 0.5)); animation: houseGlow 4s infinite alternate; }
 
-@keyframes houseGlow { 
+/* Базовый контейнер для светлой темы (Lottie) */
+.main-icon-wrap { 
+    width: 120px; 
+    height: 120px; 
+    margin: 0 auto 10px auto; 
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15)); 
+}
+#main-svg-container { width: 100%; height: 100%; }
+
+.icon-on-glow { 
+    filter: drop-shadow(0 0 30px rgba(253, 224, 71, 0.5)); 
+    animation: lottieGlow 4s infinite alternate; 
+}
+@keyframes lottieGlow { 
     0% { filter: drop-shadow(0 0 20px rgba(253, 224, 71, 0.4)); transform: scale(1); } 
     100% { filter: drop-shadow(0 0 40px rgba(253, 224, 71, 0.7)); transform: scale(1.02); } 
 }
+
+/* Контейнер расширяется для фонарика (Темная тема) */
+.main-icon-wrap.flashlight-mode {
+    width: 100%;
+    max-width: 380px;
+    height: 160px;
+    filter: drop-shadow(0 20px 40px rgba(0,0,0,0.4));
+}
+
+/* --- Внутренности Фонарика --- */
+.flashlight-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+}
+.fl-svg { width: 100%; height: 100%; overflow: visible; }
+
+/* Подсказка "Нажми/Натисни" */
+.fl-hint {
+    position: absolute;
+    top: 0;
+    left: 45%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.9;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    animation: bounceHint 1s infinite alternate ease-in-out;
+    pointer-events: none;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 6px 12px;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+@keyframes bounceHint {
+    0% { transform: translate(-50%, 0); }
+    100% { transform: translate(-50%, -8px); }
+}
+.flashlight-wrapper.is-on .fl-hint {
+    opacity: 0;
+    transform: translate(-50%, -20px) scale(0.9);
+}
+
+/* Физика SVG фонарика */
+.fl-beam, .fl-lens { opacity: 0; transition: opacity 0.15s ease-in; }
+.flashlight-wrapper.is-on .fl-beam,
+.flashlight-wrapper.is-on .fl-lens {
+    opacity: 1;
+    animation: beamFlicker 5s infinite alternate ease-in-out;
+}
+@keyframes beamFlicker {
+    0%, 100% { opacity: 0.95; }
+    50% { opacity: 0.85; }
+    55% { opacity: 1; } /* Резкая микро-вспышка напряжения */
+    80% { opacity: 0.9; }
+}
+
+.fl-btn { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
+.flashlight-wrapper.is-on .fl-btn { transform: translateY(4px); }
+
+.fl-sway {
+    transform-origin: 180px -35px;
+    transition: transform 0.4s ease-in-out;
+}
+.flashlight-wrapper.is-on .fl-sway {
+    animation: swayLight 4s infinite alternate ease-in-out;
+}
+@keyframes swayLight {
+    0% { transform: rotate(-3deg); }
+    100% { transform: rotate(4deg); }
+}
+
+/* ========================================= */
 
 .status-main { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
 .timer { font-size: 18px; font-weight: 700; background: rgba(255,255,255,0.2); padding: 8px 20px; border-radius: 12px; display: inline-block; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.3); }
