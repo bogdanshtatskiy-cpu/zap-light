@@ -169,10 +169,10 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 }
 @keyframes bounceHintSVG {
     0% { transform: translateY(0); }
-    100% { transform: translateY(8px); } /* Плавний стрибок вниз на кнопку */
+    100% { transform: translateY(8px); }
 }
 
-/* Фізика SVG ліхтарика */
+/* Фізика SVG ліхтарика (Світло) */
 .fl-beam, .fl-lens { opacity: 0; transition: opacity 0.15s ease-in; }
 .flashlight-wrapper.is-on .fl-beam,
 .flashlight-wrapper.is-on .fl-lens {
@@ -186,6 +186,7 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
     80% { opacity: 0.9; }
 }
 
+/* Натискання кнопки */
 .fl-btn { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); transform-box: fill-box; }
 .flashlight-wrapper.is-on .fl-btn { transform: translateY(3px); }
 
@@ -195,13 +196,14 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
     transform-box: fill-box;
 }
 .shake-anim {
-    animation: quickShake 0.6s cubic-bezier(.36,.07,.19,.97) both;
+    /* Точна тривалість та таймінг для швидкої віддачі */
+    animation: quickShake 0.5s ease-in-out;
 }
 @keyframes quickShake {
     0% { transform: rotate(0deg); }
-    20% { transform: rotate(6deg); } /* Віддача від натискання кнопки */
-    50% { transform: rotate(-4deg); }
-    75% { transform: rotate(2deg); }
+    25% { transform: rotate(-2.5deg); }
+    50% { transform: rotate(1.0deg); }
+    75% { transform: rotate(-0.5deg); }
     100% { transform: rotate(0deg); }
 }
 
