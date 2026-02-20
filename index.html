@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ГПВ Запоріжжя</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     
@@ -12,217 +13,127 @@
     <script src="changelog.js"></script>
     <script src="weather_advice.js"></script>
     <script src="weather.js"></script>
-
-    <style>
-        :root { --gap-size: 12px; }
-        body { padding: 16px; }
-        
-        .header, .donate-wrap, .weather-widget, .date-wrap, 
-        .queue-grid, .action-buttons-grid, .hero, 
-        .bar-wrap, .stats, .list-card, .warning-box {
-            margin-bottom: var(--gap-size) !important;
-            margin-top: 0 !important;
-        }
-
-        /* --- СТИЛИ ДЛЯ СКРОЛЛА ДАТ --- */
-        .date-wrap {
-            position: relative;
-            z-index: 5;
-            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-        }
-
-        .date-container {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding: 4px 16px;
-            scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-        }
-        .date-container::-webkit-scrollbar { display: none; }
-
-        .date-tab {
-            flex: 0 0 auto;
-            min-width: 60px;
-            text-align: center;
-            padding: 8px 10px; /* Чуть меньше паддинг, чтобы влез день недели */
-            border-radius: 16px;
-            background: var(--glass-bg, rgba(255, 255, 255, 0.65));
-            border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8));
-            color: var(--text);
-            cursor: pointer;
-            transition: all 0.2s;
-            backdrop-filter: blur(10px);
-            
-            /* Flex для вертикального расположения дня и даты */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* ДЕНЬ НЕДЕЛИ */
-        .weekday-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            font-weight: 700;
-            opacity: 0.7;
-            margin-bottom: 2px;
-            line-height: 1;
-        }
-        
-        /* ДАТА (27.01) */
-        .date-value {
-            font-size: 15px;
-            font-weight: 800;
-            line-height: 1;
-        }
-
-        /* Выходные дни - красный цвет */
-        .is-weekend {
-            color: #ff453a !important; /* Красный как в iOS */
-            opacity: 1 !important;
-        }
-
-        /* --- АКТИВНАЯ ДАТА (БЕЗ СВЕЧЕНИЯ) --- */
-        .date-tab.active {
-            background: #fbc02d; /* Цвет очереди */
-            border-color: #fbc02d;
-            color: #000; /* Текст черный */
-            box-shadow: none !important; /* УБРАНО СВЕЧЕНИЕ */
-            transform: scale(1.05);
-        }
-        
-        /* В активном состоянии выходной тоже должен быть читаем, но можно оставить красным или сделать черным */
-        .date-tab.active .is-weekend {
-            color: #d32f2f !important; /* Темно-красный для контраста на желтом */
-        }
-        
-        body.dark-mode .date-tab.active {
-            background: #fbc02d;
-            color: #000;
-        }
-
-        /* --- ПЛАШКА "ОРИЕНТИРОВОЧНЫЙ ГРАФИК" --- */
-        .warning-box {
-            display: none;
-            background: rgba(255, 152, 0, 0.15);
-            border: 1px solid rgba(255, 152, 0, 0.3);
-            color: #ff9800;
-            padding: 10px;
-            border-radius: 16px;
-            font-size: 13px;
-            font-weight: 700;
-            text-align: center;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            backdrop-filter: blur(10px);
-        }
-        .warning-icon { font-size: 16px; }
-        body.dark-mode .warning-box { color: #ffb74d; border-color: rgba(255, 183, 77, 0.3); }
-
-        /* Остальные стили */
-        .header { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 20; min-height: 44px; }
-        .header-left { display: flex; align-items: center; gap: 10px; z-index: 21; }
-        .title-wrap { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; z-index: 10; }
-        .app-title { font-family: 'SF Pro Display', sans-serif; font-weight: 900; font-size: 20px; line-height: 1; letter-spacing: 0.5px; }
-        .app-subtitle { font-size: 11px; opacity: 0.6; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-        .tooltip { z-index: 100 !important; }
-        .donate-wrap, .action-buttons-grid { position: relative; z-index: 5; }
-        .action-buttons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .glass-btn { display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; gap: 8px; padding: 12px; border-radius: 20px; text-decoration: none; font-size: 14px; font-weight: 800; color: var(--text, #1e3a8a); background: var(--glass-bg, rgba(255, 255, 255, 0.65)); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.8)); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(0,0,0,0.03); transition: transform 0.2s, background 0.3s, border-color 0.3s, color 0.3s; text-align: center; line-height: 1.2; }
-        .glass-btn:active { transform: scale(0.98); }
-        body.dark-mode .glass-btn { background: rgba(30, 41, 59, 0.6); border-color: rgba(255, 255, 255, 0.1); color: #f1f5f9; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .btn-icon { margin-right: 4px; font-size: 16px; }
-        .row-badge { min-width: 145px !important; justify-content: center !important; display: inline-flex !important; align-items: center !important; text-align: center !important; }
-        .list-icon { width: 20px; height: 20px; display: inline-block; margin-right: 8px; flex-shrink: 0; }
-        .list-icon svg { width: 100%; height: 100%; display: block; }
-        .timer { margin-bottom: 4px !important; }
-        .quote-box { margin-top: 0 !important; padding-top: 4px !important; }
-    </style>
 </head>
 <body>
     
-    <div id="snow-container"></div>
+    <div id="particles-container"></div>
 
     <div class="header">
         <div class="header-left">
-            <div class="info-btn" onclick="openInfo()">i</div>
+            <div class="info-btn" id="nav-back" onclick="showView('view-main')" style="display:none;">←</div>
+            <div class="info-btn" id="nav-info" onclick="openInfo()">i</div>
             <div class="weather-toggle-btn active" id="weather-toggle" onclick="toggleWeatherWidget()">🌤️</div>
-            <div class="tooltip" id="weather-tooltip">
-                Натисни сюди, щоб сховати або показати погоду 🌤️
-                <button class="tooltip-btn" onclick="hideTooltip()">Зрозуміло</button>
-            </div>
         </div>
         <div class="title-wrap">
             <div class="app-title" id="app-title">⚡ ГПВ</div>
             <div class="app-subtitle" id="city-label">м. Запоріжжя</div>
         </div>
-        <div class="lang-switch">
+        <div class="lang-switch" id="lang-switch-container">
             <div class="lang-btn active" id="btn-uk" onclick="setLang('uk')">UA</div>
             <div class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</div>
         </div>
     </div>
 
-    <div class="donate-wrap">
-        <a href="https://mobile-app.pumb.ua/YCLM" target="_blank" class="glass-btn">
-            <span>☕</span> <span id="donate-text">Підтримати</span>
-        </a>
-    </div>
-
-    <div id="weather-widget" class="weather-widget glass-panel">
-        <div class="w-current">
-            <div class="w-main"><span class="w-icon" id="w-icon"></span><span class="w-temp" id="w-temp"></span></div>
-            <div class="w-info"><div class="w-desc" id="w-desc"></div><div class="w-feel" id="w-feel"></div></div>
+    <div id="view-main" class="view-section active">
+        <div class="donate-wrap">
+            <a href="https://mobile-app.pumb.ua/YCLM" target="_blank" class="glass-btn">
+                <span>☕</span> <span id="donate-text">Підтримати</span>
+            </a>
         </div>
-        <div class="w-hourly" id="w-hourly"></div>
-        <div class="w-advice"><div class="w-advice-text" id="w-advice-text">...</div></div>
+
+        <div id="weather-widget" class="weather-widget glass-panel">
+            <div class="w-current">
+                <div class="w-main"><span class="w-icon" id="w-icon"></span><span class="w-temp" id="w-temp"></span></div>
+                <div class="w-info"><div class="w-desc" id="w-desc"></div><div class="w-feel" id="w-feel"></div></div>
+            </div>
+            <div class="w-hourly" id="w-hourly"></div>
+            <div class="w-advice"><div class="w-advice-text" id="w-advice-text">...</div></div>
+        </div>
+
+        <div class="date-wrap">
+            <div class="date-container" id="dates"></div>
+        </div>
+        
+        <div class="warning-box" id="tentative-warning">
+            <span class="warning-icon">⚠️</span>
+            <span id="tentative-text">Це орієнтовний графік. Можливі зміни.</span>
+        </div>
+        
+        <div class="queue-grid" id="queues"></div>
+
+        <div class="action-buttons-grid">
+            <div onclick="showView('view-search')" class="glass-btn cursor-pointer">
+                <span class="btn-icon">🔍</span><span id="find-label">Знайти чергу</span>
+            </div>
+            <div onclick="showView('view-all')" class="glass-btn cursor-pointer">
+                <span class="btn-icon">📊</span><span id="all-label">Всі черги</span>
+            </div>
+        </div>
+
+        <div class="hero glass-panel" id="hero" style="display:none">
+            <div class="bulb-icon-wrap" id="bulb-wrap"><div id="bulb-svg-container"></div></div>
+            <div class="status-main" id="status">...</div>
+            <div class="timer" id="timer">...</div>
+            <div class="quote-box" id="quote"></div>
+            <div class="last-update" id="updated"></div>
+        </div>
+
+        <div class="bar-wrap" id="bar-wrap" style="display:none">
+            <div class="bar" id="visual"></div>
+            <div class="marker" id="marker"></div>
+            <div class="labels"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+        </div>
+
+        <div class="stats" id="stats" style="display:none">
+            <div class="stat-card"><span class="stat-label" id="lbl-on">Світло є</span><div class="stat-val on" id="val-on">-</div></div>
+            <div class="stat-card"><span class="stat-label" id="lbl-off">Світла нема</span><div class="stat-val off" id="val-off">-</div></div>
+        </div>
+
+        <div class="list-card glass-panel" id="details-list" style="display:none"></div>
+        <div class="loader" id="loader">...</div>
     </div>
 
-    <div class="date-wrap">
-        <div class="date-container" id="dates"></div>
-    </div>
-    
-    <div class="warning-box" id="tentative-warning">
-        <span class="warning-icon">⚠️</span>
-        <span id="tentative-text">Це орієнтовний графік. Можливі зміни.</span>
-    </div>
-    
-    <div class="queue-grid" id="queues"></div>
+    <div id="view-search" class="view-section">
+        <div class="glass-panel" style="margin-bottom: 20px;">
+            <div id="loading-status" class="loader">🔄 Завантаження бази...</div>
 
-    <div class="action-buttons-grid">
-        <a href="#" onclick="goToSearch(event)" class="glass-btn">
-            <span class="btn-icon">🔍</span><span id="find-label">Знайти чергу</span>
-        </a>
-        <a href="#" onclick="goToAll(event)" class="glass-btn">
-            <span class="btn-icon">📊</span><span id="all-label">Всі черги</span>
-        </a>
-    </div>
+            <div class="input-group">
+                <label id="lbl-street">Вулиця</label>
+                <input type="text" id="street-input" placeholder="Почніть вводити назву..." disabled autocomplete="off">
+                <div id="street-list" class="autocomplete-list"></div>
+            </div>
 
-    <div class="hero glass-panel" id="hero" style="display:none">
-        <div class="bulb-icon-wrap" id="bulb-wrap"><div id="bulb-svg-container"></div></div>
-        <div class="status-main" id="status">...</div>
-        <div class="timer" id="timer">...</div>
-        <div class="quote-box" id="quote"></div>
-        <div class="last-update" id="updated"></div>
-    </div>
+            <div class="input-group">
+                <label id="lbl-house">Будинок</label>
+                <input type="text" id="house-input" placeholder="Спочатку оберіть вулицю" disabled autocomplete="off">
+                <div id="house-list" class="autocomplete-list"></div>
+            </div>
 
-    <div class="bar-wrap" id="bar-wrap" style="display:none">
-        <div class="bar" id="visual"></div>
-        <div class="marker" id="marker"></div>
-        <div class="labels"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
-    </div>
+            <div id="result-card" style="display:none;">
+                <div style="text-transform: uppercase; opacity: 0.6; font-size: 12px; letter-spacing: 1px;" id="lbl-res">Результат</div>
+                <span id="result-queue">-</span>
+            </div>
 
-    <div class="stats" id="stats" style="display:none">
-        <div class="stat-card"><span class="stat-label" id="lbl-on">Світло є</span><div class="stat-val on" id="val-on">-</div></div>
-        <div class="stat-card"><span class="stat-label" id="lbl-off">Світла нема</span><div class="stat-val off" id="val-off">-</div></div>
+            <div class="info-notes">
+                <div class="note-item">
+                    <span class="note-icon">⚡</span>
+                    <span id="note-1">Якщо вашої адреси немає у списку — ймовірно, графіки відключень до неї <b>не застосовуються</b>.</span>
+                </div>
+            </div>
+            
+            <div class="action-buttons-grid" style="margin-top: 15px;">
+                <div id="clear-btn" class="glass-btn cursor-pointer">
+                    <span class="btn-icon">🧹</span><span id="clear-label">Очистити</span>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="list-card glass-panel" id="details-list" style="display:none"></div>
-    <div class="loader" id="loader">...</div>
+    <div id="view-all" class="view-section">
+        <div class="matrix-panel" id="matrix-container">
+            <div class="loader">Формування матриці...</div>
+        </div>
+    </div>
 
     <div id="info-modal" class="modal">
         <div class="modal-content">
@@ -240,19 +151,20 @@
         const SVG_BULB_ON = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gradOn" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#ffeb3b;stop-opacity:1"/><stop offset="100%" style="stop-color:#ffc107;stop-opacity:1"/></linearGradient><filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path fill="url(#gradOn)" filter="url(#glow)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,220c-24.3,0-44-19.7-44-44s19.7-44,44-44s44,19.7,44,44S280.3,220,256,220z"/><path fill="#e0e0e0" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/><path fill="#bdbdbd" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/></svg>`;
         const SVG_BULB_OFF = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gradOff" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#90a4ae;stop-opacity:1"/><stop offset="100%" style="stop-color:#607d8b;stop-opacity:1"/></linearGradient></defs><path fill="url(#gradOff)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,150c-10,0-18,8-18,18s8,18,18,18s18-8,18-18S266,150,256,150z"/><path fill="#78909c" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/><path fill="#546e7a" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/></svg>`;
 
-        function createSnow() {
-            const container = document.getElementById('snow-container');
-            const count = 25; 
+        function createParticles() {
+            const container = document.getElementById('particles-container');
+            container.innerHTML = '';
+            const count = 15; 
             for (let i = 0; i < count; i++) {
-                const flake = document.createElement('div');
-                flake.className = 'snowflake';
-                const size = Math.random() * 5 + 3; 
-                flake.style.width = size + 'px';
-                flake.style.height = size + 'px';
-                flake.style.left = Math.random() * 100 + 'vw';
-                flake.style.animationDuration = Math.random() * 5 + 10 + 's';
-                flake.style.animationDelay = Math.random() * 5 + 's';
-                container.appendChild(flake);
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const size = Math.random() * 6 + 4; 
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.animationDuration = Math.random() * 8 + 10 + 's';
+                particle.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(particle);
             }
         }
 
@@ -269,43 +181,70 @@
         let selectedQueue = localStorage.getItem('queue');
         let lang = localStorage.getItem('lang') || 'uk';
         let lastStatusType = null; 
+        
+        let currentView = 'view-main';
+        let isSearchLoaded = false;
 
         const T = {
             uk: { 
-                title: "⚡ ГПВ", city: "м. Запоріжжя",
-                load: "Завантаження...", nodata: "Даних немає", choose: "Оберіть чергу", 
-                on: "СВІТЛО Є", off: "СВІТЛА НЕМА", 
-                in_on: "Ввімкнення через:", in_off: "Вимкнення через:", 
-                upd: "Актуально на:", h: "год", m: "хв", 
-                lbl_on: "Світло є", lbl_off: "Світла нема",
-                tom: "завтра", at: "о",
-                modal_title: "Інформація", dev: "Розробник", cl: "Історія змін",
-                tip: "Натисни сюди, щоб сховати або показати погоду 🌤️", tip_btn: "Зрозуміло",
+                title: "⚡ ГПВ", city: "м. Запоріжжя", load: "Завантаження...", nodata: "Даних немає", choose: "Оберіть чергу", 
+                on: "СВІТЛО Є", off: "СВІТЛА НЕМА", in_on: "Ввімкнення через:", in_off: "Вимкнення через:", 
+                upd: "Актуально на:", h: "г", m: "хв", lbl_on: "Світло є", lbl_off: "Світла нема",
+                tom: "завтра", at: "в", modal_title: "Інформація", dev: "Розробник", cl: "Історія змін",
                 support: "Підтримати", find_q: "Знайти чергу", all_q: "Всі черги",
-                tentative: "Це орієнтовний графік. Можливі зміни."
+                tentative: "Це орієнтовний графік. Можливі зміни.",
+                search_title: "Пошук черги", street: "Вулиця", house: "Будинок", res: "Результат",
+                clear: "Очистити", note1: "Якщо вашої адреси немає у списку — ймовірно, графіки відключень до неї <b>не застосовуються</b>.",
+                matrix_title: "Матриця черг", total: "Всього"
             },
             ru: { 
-                title: "⚡ ГПО", city: "г. Запорожье",
-                load: "Загрузка...", nodata: "Данных нет", choose: "Выберите очередь", 
-                on: "СВЕТ ЕСТЬ", off: "СВЕТА НЕТ", 
-                in_on: "Включение через:", in_off: "Отключение через:", 
-                upd: "Актуально на:", h: "ч", m: "мин", 
-                lbl_on: "Свет есть", lbl_off: "Света нет",
-                tom: "завтра", at: "в",
-                modal_title: "Информация", dev: "Разработчик", cl: "История изменений",
-                tip: "Нажми сюда, чтобы скрыть или показать погоду 🌤️", tip_btn: "Понял",
+                title: "⚡ ГПО", city: "г. Запорожье", load: "Загрузка...", nodata: "Данных нет", choose: "Выберите очередь", 
+                on: "СВЕТ ЕСТЬ", off: "СВЕТА НЕТ", in_on: "Включение через:", in_off: "Отключение через:", 
+                upd: "Актуально на:", h: "ч", m: "м", lbl_on: "Свет есть", lbl_off: "Света нет",
+                tom: "завтра", at: "в", modal_title: "Информация", dev: "Разработчик", cl: "История изменений",
                 support: "Поддержать", find_q: "Найти очередь", all_q: "Все очереди",
-                tentative: "Это ориентировочный график. Возможны изменения."
+                tentative: "Это ориентировочный график. Возможны изменения.",
+                search_title: "Поиск очереди", street: "Улица", house: "Дом", res: "Результат",
+                clear: "Очистить", note1: "Если вашего адреса нет в списке — вероятно, графики отключений к нему <b>не применяются</b>.",
+                matrix_title: "Матрица очередей", total: "Всего"
             }
         };
 
-        function goToSearch(e) { e.preventDefault(); const isDark = document.body.classList.contains('dark-mode'); window.location.href = 'find_queue.html' + (isDark ? '?theme=dark' : ''); }
-        function goToAll(e) { e.preventDefault(); const isDark = document.body.classList.contains('dark-mode'); window.location.href = 'all.html' + (isDark ? '?theme=dark' : ''); }
+        function showView(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.getElementById(viewId).classList.add('active');
+            currentView = viewId;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            const btnBack = document.getElementById('nav-back');
+            const btnInfo = document.getElementById('nav-info');
+            const langSwitch = document.getElementById('lang-switch-container');
+            const title = document.getElementById('app-title');
+
+            if (viewId === 'view-main') {
+                btnBack.style.display = 'none';
+                btnInfo.style.display = 'flex';
+                langSwitch.style.display = 'flex';
+                title.innerText = T[lang].title;
+            } else {
+                btnBack.style.display = 'flex';
+                btnInfo.style.display = 'none';
+                langSwitch.style.display = 'none';
+                if (viewId === 'view-search') {
+                    title.innerText = T[lang].search_title;
+                    if(!isSearchLoaded) initSearchEngine();
+                } else if (viewId === 'view-all') {
+                    title.innerText = T[lang].matrix_title;
+                    renderMatrix();
+                }
+            }
+        }
 
         async function init() {
-            createSnow();
+            createParticles();
             setLang(lang);
-            checkTooltip(); 
             if (typeof initWeather === "function") await initWeather(); 
             document.getElementById('loader').innerText = T[lang].load;
 
@@ -324,7 +263,6 @@
                 document.getElementById('loader').style.display = 'none';
                 renderQueues();
                 
-                // Визначаємо сьогоднішній день
                 const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
                 const todayDay = kievDate.getDate();
                 const todayMonthIdx = kievDate.getMonth();
@@ -333,14 +271,11 @@
                 DATA.forEach((item, idx) => {
                     const parts = item.date.split(' ');
                     const d = parseInt(parts[0]);
-                    const mName = parts[1].toUpperCase();
-                    const mIdx = UA_MONTHS.indexOf(mName);
+                    const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
                     if (d === todayDay && mIdx === todayMonthIdx) todayIdx = idx;
                 });
 
-                // Якщо сьогодні немає в списку, беремо останній доступний
                 const activeIdx = todayIdx !== -1 ? todayIdx : DATA.length - 1;
-                
                 todaySchedule = DATA[activeIdx]; 
                 
                 renderDates(activeIdx);
@@ -361,29 +296,15 @@
             }
         }
 
-        function checkTooltip() {
-            if (!localStorage.getItem('weatherTooltipSeen')) {
-                document.getElementById('weather-tooltip').classList.add('show');
-                setTimeout(() => { if (!localStorage.getItem('weatherTooltipSeen')) hideTooltip(); }, 5000); 
-            }
-        }
-        function hideTooltip() {
-            document.getElementById('weather-tooltip').classList.remove('show');
-            localStorage.setItem('weatherTooltipSeen', 'true');
-        }
-
         function renderDates(activeIdx) {
             const container = document.getElementById('dates');
             container.innerHTML = '';
-            
             const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
-            const currentMonth = kievDate.getMonth();
             const currentYear = kievDate.getFullYear();
 
             DATA.forEach((item, idx) => {
                 const btn = document.createElement('div');
                 btn.className = `date-tab ${idx === activeIdx ? 'active' : ''}`;
-                
                 let dateLabel = item.date;
                 let weekdayHtml = '';
                 
@@ -391,41 +312,18 @@
                 if (parts.length === 2) {
                     const day = parseInt(parts[0]);
                     const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
-                    
                     if (mIdx !== -1) {
-                        // Формуємо коротку дату 27.01
                         const monthNum = (mIdx + 1).toString().padStart(2, '0');
-                        const dayPadded = day.toString().padStart(2, '0');
-                        dateLabel = `${dayPadded}.${monthNum}`;
-
-                        // Вираховуємо рік для правильного дня тижня
-                        let year = currentYear;
-                        // Якщо зараз грудень, а місяць дати - січень, то це наступний рік
-                        if (currentMonth === 11 && mIdx === 0) year++;
-                        // Якщо зараз січень, а місяць дати - грудень, то це минулий рік (рідко, але буває)
-                        if (currentMonth === 0 && mIdx === 11) year--;
-
-                        const dateObj = new Date(year, mIdx, day);
-                        const dayOfWeek = dateObj.getDay(); // 0 = Нд
-                        const dayName = WEEKDAYS[lang][dayOfWeek];
-                        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-                        
-                        weekdayHtml = `<div class="weekday-label ${isWeekend ? 'is-weekend' : ''}">${dayName}</div>`;
+                        dateLabel = `${day.toString().padStart(2, '0')}.${monthNum}`;
+                        const dateObj = new Date(currentYear, mIdx, day);
+                        const dayOfWeek = dateObj.getDay();
+                        weekdayHtml = `<div class="weekday-label ${(dayOfWeek===0||dayOfWeek===6)?'is-weekend':''}">${WEEKDAYS[lang][dayOfWeek]}</div>`;
                     }
                 }
-
                 btn.innerHTML = `${weekdayHtml}<div class="date-value">${dateLabel}</div>`;
-                btn.onclick = () => { selectDate(idx); renderDates(idx); };
+                btn.onclick = () => { selectDate(idx); renderDates(idx); if(currentView === 'view-all') renderMatrix(); };
                 container.appendChild(btn);
             });
-
-            // АВТО-СКРОЛЛ
-            setTimeout(() => {
-                const activeBtn = container.children[activeIdx];
-                if (activeBtn) {
-                    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                }
-            }, 100);
         }
 
         function renderQueues() {
@@ -444,53 +342,36 @@
         function selectDate(idx) {
             viewSchedule = DATA[idx]; 
             if (typeof renderWeatherForDate === "function") renderWeatherForDate(viewSchedule.date);
-            
             const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
-            const tomorrow = new Date(kievDate);
-            tomorrow.setDate(kievDate.getDate() + 1);
-            tomorrow.setHours(0, 0, 0, 0);
+            const tomorrow = new Date(kievDate); tomorrow.setDate(kievDate.getDate() + 1); tomorrow.setHours(0,0,0,0);
+            const scheduleDateObj = new Date(kievDate.getFullYear(), UA_MONTHS.indexOf(viewSchedule.date.split(' ')[1].toUpperCase()), parseInt(viewSchedule.date.split(' ')[0]));
 
-            const parts = viewSchedule.date.split(' ');
-            const day = parseInt(parts[0]);
-            const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
-            let year = kievDate.getFullYear();
-            if (kievDate.getMonth() === 11 && mIdx === 0) year++;
-            
-            const scheduleDateObj = new Date(year, mIdx, day);
-
-            const warningBox = document.getElementById('tentative-warning');
-            // Якщо дата суворо більше завтрашнього дня
-            if (scheduleDateObj > tomorrow) {
-                warningBox.style.display = 'flex';
-                document.getElementById('tentative-text').innerText = T[lang].tentative;
-            } else {
-                warningBox.style.display = 'none';
-            }
-
+            document.getElementById('tentative-warning').style.display = (scheduleDateObj > tomorrow) ? 'flex' : 'none';
             if (selectedQueue) updateView();
         }
 
         function selectQueue(q) {
-            selectedQueue = q;
-            localStorage.setItem('queue', q);
+            selectedQueue = q; localStorage.setItem('queue', q);
             document.querySelectorAll('.queue-btn').forEach(b => {
-                if (b.innerText === q) b.classList.add('active');
-                else b.classList.remove('active');
+                b.classList.toggle('active', b.innerText === q);
             });
             document.getElementById('hero').style.display = 'block';
             document.getElementById('bar-wrap').style.display = 'block';
             document.getElementById('stats').style.display = 'grid';
             document.getElementById('details-list').style.display = 'block';
             lastStatusType = null;
-            tick();
-            updateView();
+            tick(); updateView();
         }
 
         function setLang(l) {
             lang = l; localStorage.setItem('lang', l);
             document.getElementById('btn-uk').className = `lang-btn ${l==='uk'?'active':''}`;
             document.getElementById('btn-ru').className = `lang-btn ${l==='ru'?'active':''}`;
-            document.getElementById('app-title').innerText = T[l].title;
+            
+            if(currentView === 'view-main') document.getElementById('app-title').innerText = T[l].title;
+            else if(currentView === 'view-search') document.getElementById('app-title').innerText = T[l].search_title;
+            else if(currentView === 'view-all') document.getElementById('app-title').innerText = T[l].matrix_title;
+
             document.getElementById('city-label').innerText = T[l].city;
             document.getElementById('lbl-on').innerText = T[l].lbl_on;
             document.getElementById('lbl-off').innerText = T[l].lbl_off;
@@ -500,14 +381,14 @@
             document.getElementById('find-label').innerText = T[l].find_q;
             document.getElementById('all-label').innerText = T[l].all_q;
             document.getElementById('tentative-text').innerText = T[l].tentative;
-
-            const donateText = document.getElementById('donate-text');
-            if (donateText) donateText.innerText = T[l].support;
-
-            const tooltip = document.getElementById('weather-tooltip');
-            if (tooltip) tooltip.innerHTML = `${T[l].tip} <button class="tooltip-btn" onclick="hideTooltip()">${T[l].tip_btn}</button>`;
+            document.getElementById('donate-text').innerText = T[l].support;
             
-            if (typeof updateWeatherLang === "function" && viewSchedule) renderWeatherForDate(viewSchedule.date);
+            // Search View Translations
+            document.getElementById('lbl-street').innerText = T[l].street;
+            document.getElementById('lbl-house').innerText = T[l].house;
+            document.getElementById('lbl-res').innerText = T[l].res;
+            document.getElementById('clear-label').innerText = T[l].clear;
+            document.getElementById('note-1').innerHTML = T[l].note1;
 
             if(DATA.length) {
                 const idx = DATA.indexOf(viewSchedule);
@@ -515,6 +396,7 @@
                 if (!selectedQueue) document.getElementById('status').innerText = T[l].choose;
                 else { updateView(); tick(); }
             }
+            if(currentView === 'view-all') renderMatrix();
             renderChangelog();
         }
 
@@ -526,9 +408,7 @@
             const barFrag = document.createDocumentFragment();
             const map = getDayMap(viewSchedule, selectedQueue);
             
-            let current = map[0];
-            let start = 0;
-
+            let current = map[0]; let start = 0;
             for(let i=1; i<=1440; i++) {
                 if(i===1440 || map[i] !== current) {
                     const d = document.createElement('div');
@@ -538,15 +418,16 @@
 
                     const row = document.createElement('div');
                     row.className = 'list-row';
+                    // Додаємо плавний вліт для кожного рядка списку
+                    row.style.animationDelay = `${listFrag.children.length * 0.05}s`;
+                    
                     const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
                     const badgeClass = current ? 'badge-on' : 'badge-off';
                     const text = current ? T[lang].on : T[lang].off;
                     const uid = `row_${start}`; 
                     let rawSvg = current ? SVG_BULB_ON : SVG_BULB_OFF;
                     rawSvg = rawSvg.replaceAll('id="', `id="${uid}_`).replaceAll('url(#', `url(#${uid}_`);
-                    const iconHtml = `<div class="list-icon">${rawSvg}</div>`;
-
-                    row.innerHTML = `<div class="row-time">${timeRange}</div><div class="row-badge ${badgeClass}">${iconHtml} ${text}</div>`;
+                    row.innerHTML = `<div class="row-time">${timeRange}</div><div class="row-badge ${badgeClass}"><div class="list-icon">${rawSvg}</div> ${text}</div>`;
                     listFrag.appendChild(row);
                     current = map[i]; start = i;
                 }
@@ -569,30 +450,22 @@
                     const rnd = Math.floor(Math.random() * list.length);
                     const qEl = document.getElementById('quote');
                     qEl.style.opacity = 0;
-                    setTimeout(() => {
-                        qEl.innerText = list[rnd];
-                        qEl.style.opacity = 0.9;
-                    }, 200);
+                    setTimeout(() => { qEl.innerText = list[rnd]; qEl.style.opacity = 0.9; }, 200);
                 }
             }
         }
 
         function tick() {
-            if (!todaySchedule || !selectedQueue) return;
+            if (!todaySchedule || !selectedQueue || currentView !== 'view-main') return;
             const updateTimeStr = generatedAt || todaySchedule.updated_at;
-            const updText = `${T[lang].upd} ${updateTimeStr}`;
             const updEl = document.getElementById('updated');
-            if (updEl.innerText !== updText) updEl.innerText = updText;
+            if (updEl.innerText !== `${T[lang].upd} ${updateTimeStr}`) updEl.innerText = `${T[lang].upd} ${updateTimeStr}`;
 
             const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
             const curMins = now.getHours() * 60 + now.getMinutes();
             const curSecs = curMins * 60 + now.getSeconds();
 
-            const viewParts = viewSchedule.date.split(' ');
-            const vD = parseInt(viewParts[0]);
-            const vMIdx = UA_MONTHS.indexOf(viewParts[1].toUpperCase());
-            const isViewingToday = (vD === now.getDate() && vMIdx === now.getMonth());
-
+            const isViewingToday = (parseInt(viewSchedule.date.split(' ')[0]) === now.getDate());
             const marker = document.getElementById('marker');
             marker.style.display = isViewingToday ? 'block' : 'none';
             if(isViewingToday) marker.style.left = (curMins / 1440 * 100) + '%';
@@ -605,29 +478,20 @@
                 if(map[i] !== isLight) { nextChange = i; break; }
             }
 
-            let totalSecsLeft = 0;
-            let timeInfoStr = "";
-            
+            let totalSecsLeft = 0; let timeInfoStr = "";
             if (nextChange !== -1) {
                 totalSecsLeft = (nextChange * 60) - curSecs;
-                const eventTimeLabel = minsToTime(nextChange);
             } else {
                 const secsToMidnight = (1440 * 60) - curSecs;
-                const currentIdx = DATA.indexOf(todaySchedule);
-                const nextDaySchedule = DATA[currentIdx + 1];
-                let foundChangeTomorrow = false;
-                let nextChangeTom = -1;
-
+                const nextDaySchedule = DATA[DATA.indexOf(todaySchedule) + 1];
+                let foundChangeTomorrow = false; let nextChangeTom = -1;
                 if (nextDaySchedule) {
                     const nextMap = getDayMap(nextDaySchedule, selectedQueue);
                     if (nextMap[0] === isLight) {
-                        for(let i = 0; i < 1440; i++) {
-                            if(nextMap[i] !== isLight) { nextChangeTom = i; break; }
-                        }
+                        for(let i = 0; i < 1440; i++) { if(nextMap[i] !== isLight) { nextChangeTom = i; break; } }
                         if (nextChangeTom !== -1) {
                             totalSecsLeft = secsToMidnight + (nextChangeTom * 60);
-                            const eventTimeLabel = minsToTime(nextChangeTom);
-                            timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} ${eventTimeLabel})</span>`;
+                            timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} ${minsToTime(nextChangeTom)})</span>`;
                             foundChangeTomorrow = true;
                         }
                     } else {
@@ -639,11 +503,8 @@
                 if (!foundChangeTomorrow) totalSecsLeft = secsToMidnight;
             }
 
-            const h = Math.floor(totalSecsLeft / 3600);
-            const m = Math.floor((totalSecsLeft % 3600) / 60);
-            const s = Math.floor(totalSecsLeft % 60);
+            const h = Math.floor(totalSecsLeft / 3600); const m = Math.floor((totalSecsLeft % 3600) / 60); const s = Math.floor(totalSecsLeft % 60);
             const timeStr = `${pad(h)}:${pad(m)}:${pad(s)}`;
-
             const body = document.body;
             const iconContainer = document.getElementById('bulb-svg-container');
             const bulbWrap = document.getElementById('bulb-wrap');
@@ -652,65 +513,130 @@
 
             if (isLight) {
                 body.classList.remove('dark-mode');
-                if (iconContainer.innerHTML !== SVG_BULB_ON) {
-                    iconContainer.innerHTML = SVG_BULB_ON;
-                    bulbWrap.classList.add('bulb-on-glow'); 
-                }
+                if (iconContainer.innerHTML !== SVG_BULB_ON) { iconContainer.innerHTML = SVG_BULB_ON; bulbWrap.classList.add('bulb-on-glow'); }
                 st.innerText = T[lang].on; st.style.color = 'var(--text)';
                 const newHtml = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
-                if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml;
-                updateQuote('on');
+                if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('on');
             } else {
                 body.classList.add('dark-mode');
-                if (iconContainer.innerHTML !== SVG_BULB_OFF) {
-                    iconContainer.innerHTML = SVG_BULB_OFF;
-                    bulbWrap.classList.remove('bulb-on-glow');
-                }
+                if (iconContainer.innerHTML !== SVG_BULB_OFF) { iconContainer.innerHTML = SVG_BULB_OFF; bulbWrap.classList.remove('bulb-on-glow'); }
                 st.innerText = T[lang].off; st.style.color = 'var(--off)';
                 const newHtml = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`;
-                if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml;
-                updateQuote('off');
+                if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('off');
             }
+        }
+
+        // ================= SPA: SEARCH ENGINE =================
+        let dbSearch = [], uniqueStreets = [], selectedStreet = null;
+        async function initSearchEngine() {
+            isSearchLoaded = true;
+            const statusEl = document.getElementById('loading-status');
+            const streetInput = document.getElementById('street-input');
+            const QUEUE_FILES = ["1.1.xlsx", "1.2.xlsx", "2.1.xlsx", "2.2.xlsx", "3.1.xlsx", "3.2.xlsx", "4.1.xlsx", "4.2.xlsx", "5.1.xlsx", "5.2.xlsx", "6.1.xlsx", "6.2.xlsx"];
+            try {
+                const promises = QUEUE_FILES.map(file => fetch("./xls/" + file).then(r => r.arrayBuffer()).then(ab => {
+                    const wb = XLSX.read(ab, { type: 'array' });
+                    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+                    for(let i=0; i<rows.length; i++) {
+                        if(!rows[i] || rows[i].length < 2) continue;
+                        const rawStreet = String(rows[i][0]).trim(); const rawHouses = String(rows[i][1]).trim();
+                        if (rawStreet.toLowerCase().includes('вулиця') && rawHouses.toLowerCase().includes('будинок')) continue;
+                        const parts = rawHouses.split(/[|,\/]/).map(s => s.trim()).filter(s => s);
+                        parts.forEach(part => {
+                            const rangeMatch = part.match(/^(\d+)[-–—](\d+)$/);
+                            if (rangeMatch && !isNaN(rangeMatch[1]) && !isNaN(rangeMatch[2])) {
+                                const step = (parseInt(rangeMatch[1]) % 2 === parseInt(rangeMatch[2]) % 2) ? 2 : 1;
+                                for (let j = parseInt(rangeMatch[1]); j <= parseInt(rangeMatch[2]); j += step) dbSearch.push({ fullStreet: rawStreet, house: j.toString(), queue: file.replace('.xlsx', '') });
+                            } else dbSearch.push({ fullStreet: rawStreet, house: part, queue: file.replace('.xlsx', '') });
+                        });
+                    }
+                }).catch(() => {}));
+                await Promise.all(promises);
+                uniqueStreets = Array.from(new Set(dbSearch.map(d => d.fullStreet))).sort((a, b) => a.localeCompare(b));
+                statusEl.style.display = 'none'; streetInput.disabled = false;
+            } catch(e) { statusEl.innerText = "❌ Помилка бази"; statusEl.style.color = "#ef5350"; }
+        }
+
+        const sInput = document.getElementById('street-input'), hInput = document.getElementById('house-input');
+        const sList = document.getElementById('street-list'), hList = document.getElementById('house-list');
+        const resCard = document.getElementById('result-card'), resQ = document.getElementById('result-queue');
+        
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            sInput.value = ''; hInput.value = ''; hInput.disabled = true; selectedStreet = null;
+            resCard.style.display = 'none'; sList.style.display = 'none'; hList.style.display = 'none'; sInput.focus();
+        });
+
+        sInput.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase(); selectedStreet = null; hInput.disabled = true; hInput.value = ''; resCard.style.display = 'none'; hList.style.display = 'none';
+            if (val.length < 1) { sList.style.display = 'none'; return; }
+            const matches = uniqueStreets.filter(s => s.toLowerCase().replace(/^(вул\.|пров\.|бул\.|пр\.|площа|майдан)\s*/g, '').split(/\s+/).some(k => k.startsWith(val))).slice(0, 50);
+            sList.innerHTML = '';
+            if(matches.length) { matches.forEach(m => { const d = document.createElement('div'); d.className='autocomplete-item'; d.innerText=m; d.onclick=() => { sInput.value = m; selectedStreet = m; sList.style.display='none'; hInput.disabled=false; hInput.focus(); }; sList.appendChild(d); }); sList.style.display = 'block'; }
+            else sList.style.display = 'none';
+        });
+
+        hInput.addEventListener('input', (e) => {
+            const val = e.target.value;
+            const houses = [...new Set(dbSearch.filter(d => d.fullStreet === selectedStreet).map(d => d.house))].filter(h => h.toLowerCase().startsWith(val.toLowerCase())).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+            hList.innerHTML = '';
+            if(houses.length && val) { houses.forEach(h => { const d = document.createElement('div'); d.className='autocomplete-item'; d.innerText=h; d.onclick=() => { hInput.value=h; hList.style.display='none'; checkHouse(h); }; hList.appendChild(d); }); hList.style.display='block'; }
+            else hList.style.display='none';
+            checkHouse(val);
+        });
+
+        function checkHouse(val) {
+            if (!selectedStreet || val.trim() === "") { resCard.style.display = 'none'; return; }
+            const entry = dbSearch.find(d => d.fullStreet === selectedStreet && d.house.toLowerCase() === val.toLowerCase());
+            resQ.innerText = entry ? entry.queue : "Не відключається";
+            resQ.style.background = entry ? "linear-gradient(45deg, #fbc02d, #f57f17)" : "linear-gradient(45deg, #4caf50, #8bc34a)";
+            resQ.style.webkitBackgroundClip = "text"; resQ.style.webkitTextFillColor = "transparent";
+            resCard.style.display = 'block';
+        }
+
+        // ================= SPA: MATRIX (all.html logic) =================
+        function renderMatrix() {
+            if(!viewSchedule) return;
+            const container = document.getElementById('matrix-container');
+            const qs = ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"];
+            const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
+            const isToday = (parseInt(viewSchedule.date.split(' ')[0]) === now.getDate());
+
+            let html = `<div class="matrix-layout matrix-header"><div>Черга</div><div class="time-labels"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div style="text-align:right">${T[lang].total}</div></div>`;
+            if (isToday) {
+                const percent = ((now.getHours() * 60 + now.getMinutes()) / 1440) * 100;
+                html += `<div class="time-cursor" style="left: calc(43px + (100% - 88px) * ${percent / 100})"></div>`;
+            }
+
+            qs.forEach(qKey => {
+                const map = getDayMap(viewSchedule, qKey);
+                let hourCellsHTML = ''; let offMins = 0;
+                for(let h=0; h<24; h++) {
+                    let isOff = false;
+                    for(let m=0; m<60; m++) { if(map[h*60+m] === false) { isOff=true; offMins++; } }
+                    hourCellsHTML += `<div class="hour-cell ${isOff ? 'off' : 'on'}"></div>`;
+                }
+                const stats = offMins===0 ? '<span style="color:var(--cell-on); font-weight:900;">✓</span>' : `-${Math.floor(offMins/60).toString().padStart(2,'0')}:${(offMins%60).toString().padStart(2,'0')}`;
+                html += `<div class="matrix-layout queue-row"><div class="q-name">${qKey}</div><div class="q-visual">${hourCellsHTML}</div><div class="q-stats">${stats}</div></div>`;
+            });
+            container.innerHTML = html;
         }
 
         function getDayMap(schedule, queue) {
             const map = new Array(1440).fill(true);
             const list = schedule.queues[queue] || [];
-            list.forEach(o => {
-                let s = timeToMins(o.start), e = timeToMins(o.end);
-                if(e===0) e=1440;
-                for(let i=s; i<e; i++) if(i<1440) map[i] = false;
-            });
+            list.forEach(o => { let s=timeToMins(o.start), e=timeToMins(o.end); if(e===0) e=1440; for(let i=s; i<e; i++) if(i<1440) map[i]=false; });
             return map;
         }
 
-        function openInfo() {
-            renderChangelog();
-            const modal = document.getElementById('info-modal');
-            modal.style.display = 'flex';
-            setTimeout(() => modal.classList.add('show'), 10);
-        }
-        function closeInfo() {
-            const modal = document.getElementById('info-modal');
-            modal.classList.remove('show');
-            setTimeout(() => modal.style.display = 'none', 300);
-        }
+        function openInfo() { renderChangelog(); document.getElementById('info-modal').style.display='flex'; setTimeout(() => document.getElementById('info-modal').classList.add('show'), 10); }
+        function closeInfo() { document.getElementById('info-modal').classList.remove('show'); setTimeout(() => document.getElementById('info-modal').style.display='none', 300); }
         function renderChangelog() {
             if (typeof CHANGELOG_DATA === 'undefined') return;
-            const container = document.getElementById('changelog-container');
-            container.innerHTML = '';
-            CHANGELOG_DATA.forEach(ver => {
-                const item = document.createElement('div');
-                item.className = 'cl-item';
-                const changesList = ver.changes[lang] || ver.changes['uk'];
-                const listHtml = changesList.map(c => `<li>${c}</li>`).join('');
-                item.innerHTML = `<div class="cl-ver">v${ver.version}</div><span class="cl-date">${ver.date}</span><div class="cl-desc"><ul>${listHtml}</ul></div>`;
-                container.appendChild(item);
-            });
+            document.getElementById('changelog-container').innerHTML = CHANGELOG_DATA.map(v => `<div class="cl-item"><div class="cl-ver">v${v.version}</div><span class="cl-date">${v.date}</span><div class="cl-desc"><ul>${(v.changes[lang]||v.changes['uk']).map(c=>`<li>${c}</li>`).join('')}</ul></div></div>`).join('');
         }
         function timeToMins(s) { const p=s.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); }
-        function minsToTime(m) { if(m===1440) return "24:00"; return `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`; }
-        function fmtDur(m) { const h = Math.floor(m/60), mn = m%60; if(h>0 && mn>0) return `${h}${T[lang].h} ${mn}${T[lang].m}`; if(h>0) return `${h} ${T[lang].h}`; return `${mn} ${T[lang].m}`; }
+        function minsToTime(m) { return m===1440 ? "24:00" : `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`; }
+        function fmtDur(m) { const h = Math.floor(m/60), mn = m%60; if(h>0 && mn>0) return `${h}${T[lang].h} ${mn}${T[lang].m}`; if(h>0) return `${h}${T[lang].h}`; return `${mn}${T[lang].m}`; }
         function pad(n) { return n.toString().padStart(2,'0'); }
 
         init();
