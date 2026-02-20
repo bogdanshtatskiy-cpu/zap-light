@@ -120,6 +120,7 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
    ========================================= */
 .hero { text-align: center; padding: 30px 20px; overflow: hidden; }
 
+/* Базовый контейнер для светлой темы (Lottie) */
 .main-icon-wrap { 
     width: 120px; 
     height: 120px; 
@@ -138,6 +139,7 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
     100% { filter: drop-shadow(0 0 40px rgba(253, 224, 71, 0.7)); transform: scale(1.02); } 
 }
 
+/* Контейнер расширяется для фонарика (Темная тема) */
 .main-icon-wrap.flashlight-mode {
     width: 100%;
     max-width: 380px;
@@ -156,13 +158,19 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
     justify-content: center;
     -webkit-tap-highlight-color: transparent;
 }
-.fl-svg { width: 100%; height: 100%; overflow: visible; }
+/* Аппаратное ускорение для всего SVG */
+.fl-svg { 
+    width: 100%; 
+    height: 100%; 
+    overflow: visible; 
+    transform: translateZ(0); 
+}
 
-/* Іконка-підказка (Тільки емодзі всередині SVG) */
 .fl-hint-icon {
     animation: bounceHintSVG 0.6s infinite alternate ease-in-out;
     transition: opacity 0.2s ease;
     pointer-events: none;
+    will-change: transform, opacity;
 }
 .flashlight-wrapper.is-on .fl-hint-icon {
     opacity: 0;
@@ -172,8 +180,12 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
     100% { transform: translateY(8px); }
 }
 
-/* Фізика SVG ліхтарика (Світло) */
-.fl-beam, .fl-lens { opacity: 0; transition: opacity 0.15s ease-in; }
+/* ОПТИМИЗАЦИЯ СВЕТА: Ускорено появление луча, включен GPU рендеринг */
+.fl-beam, .fl-lens { 
+    opacity: 0; 
+    transition: opacity 0.05s ease-out;
+    will-change: opacity; 
+}
 .flashlight-wrapper.is-on .fl-beam,
 .flashlight-wrapper.is-on .fl-lens {
     opacity: 1;
@@ -186,18 +198,22 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
     80% { opacity: 0.9; }
 }
 
-/* Натискання кнопки */
-.fl-btn { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); transform-box: fill-box; }
+.fl-btn { 
+    transition: transform 0.05s ease-out; 
+    transform-box: fill-box; 
+    will-change: transform;
+}
 .flashlight-wrapper.is-on .fl-btn { transform: translateY(3px); }
 
 /* ШВИДКА АНІМАЦІЯ ПОХИТУВАННЯ ПРИ КЛІКУ */
 .fl-sway {
     transform-origin: 180px -35px;
     transform-box: fill-box;
+    will-change: transform;
 }
 .shake-anim {
-    /* Точна тривалість та таймінг для швидкої віддачі */
-    animation: quickShake 0.5s ease-in-out;
+    /* Точна тривалість та таймінг як в оригіналі для швидкої віддачі */
+    animation: quickShake 0.4s ease-in-out both; 
 }
 @keyframes quickShake {
     0% { transform: rotate(0deg); }
