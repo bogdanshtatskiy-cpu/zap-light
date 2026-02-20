@@ -185,8 +185,7 @@
                 search_title: "Пошук черги", street: "Вулиця", house: "Будинок", res: "Результат",
                 clear: "Очистити", note1: "Якщо вашої адреси немає у списку — ймовірно, графіки відключень до неї <b>не застосовуються</b>.",
                 matrix_title: "Матриця черг", total: "Всього",
-                search_ph_street: "Почніть вводити назву...", search_ph_house_1: "Спочатку оберіть вулицю", search_ph_house_2: "Тепер оберіть будинок",
-                click_me: "Увімкни"
+                search_ph_street: "Почніть вводити назву...", search_ph_house_1: "Спочатку оберіть вулицю", search_ph_house_2: "Тепер оберіть будинок"
             },
             ru: { 
                 title: "⚡ ГПО", city: "г. Запорожье", load: "Загрузка...", nodata: "Данных нет", choose: "Выберите очередь", 
@@ -198,18 +197,24 @@
                 search_title: "Поиск очереди", street: "Улица", house: "Дом", res: "Результат",
                 clear: "Очистить", note1: "Если вашего адреса нет в списке — вероятно, графики отключений к нему <b>не применяются</b>.",
                 matrix_title: "Матрица очередей", total: "Всего",
-                search_ph_street: "Начните вводить название...", search_ph_house_1: "Сначала выберите улицу", search_ph_house_2: "Теперь выберите дом",
-                click_me: "Включи"
+                search_ph_street: "Начните вводить название...", search_ph_house_1: "Сначала выберите улицу", search_ph_house_2: "Теперь выберите дом"
             }
         };
 
-        // Генерация интерактивного фонарика (Без черного фона, настроенный viewBox)
+        // Функція для перезапуску швидкої анімації при кліку
+        window.toggleFlashlight = function(wrapper) {
+            wrapper.classList.toggle('is-on');
+            const sway = wrapper.querySelector('.fl-sway');
+            if (sway) {
+                sway.classList.remove('shake-anim');
+                void sway.offsetWidth; // Тригер reflow для перезапуску анімації
+                sway.classList.add('shake-anim');
+            }
+        };
+
+        // Генерация интерактивного фонарика
         const getFlashlightSVG = () => `
-            <div id="flashlight-wrapper" class="flashlight-wrapper" onclick="this.classList.toggle('is-on')">
-                <div class="fl-hint">
-                    <span id="fl-hint-text" class="hint-text">${T[lang].click_me}</span>
-                    <span class="hint-arrow">👇</span>
-                </div>
+            <div id="flashlight-wrapper" class="flashlight-wrapper" onclick="toggleFlashlight(this)">
                 <svg viewBox="-20 -150 450 300" class="fl-svg" xmlns="http://www.w3.org/2000/svg">
                   <defs>
                     <linearGradient id="bodyMetal" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -265,6 +270,11 @@
                   </defs>
 
                   <g transform="translate(30, 0)"> 
+                    
+                    <g class="fl-hint-icon">
+                        <text x="180" y="-65" font-size="34" text-anchor="middle">👇</text>
+                    </g>
+
                     <g class="fl-sway">
                       <g class="fl-beam" style="mix-blend-mode: screen; pointer-events: none;">
                         <polygon points="270,-50 950,-280 950,280 270,50" fill="url(#beamAmbient)" filter="url(#beamBlur)"/>
@@ -486,9 +496,6 @@
             document.getElementById('note-1').innerHTML = T[l].note1;
             document.getElementById('street-input').placeholder = T[l].search_ph_street;
             document.getElementById('house-input').placeholder = selectedStreet ? T[l].search_ph_house_2 : T[l].search_ph_house_1;
-            
-            const hintText = document.getElementById('fl-hint-text');
-            if (hintText) hintText.innerText = T[l].click_me;
 
             if(DATA.length) {
                 const idx = DATA.indexOf(viewSchedule);
@@ -609,12 +616,11 @@
             const tm = document.getElementById('timer');
 
             if (isLight) {
-                // СВЕТ ЕСТЬ: Работает Lottie анимация
                 body.classList.remove('dark-mode');
                 localStorage.setItem('isDarkMode', 'false');
                 
                 if (currentLottieState !== 'on') {
-                    if (currentLottie) currentLottie.destroy();
+                    if (currentLottie) { currentLottie.destroy(); currentLottie = null; }
                     iconContainer.innerHTML = '';
                     currentLottie = lottie.loadAnimation({
                         container: iconContainer,
@@ -632,7 +638,6 @@
                 const newHtml = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('on');
             } else {
-                // СВЕТА НЕТ: Интерактивный фонарик
                 body.classList.add('dark-mode');
                 localStorage.setItem('isDarkMode', 'true');
                 
