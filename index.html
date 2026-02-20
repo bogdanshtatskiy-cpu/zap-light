@@ -201,18 +201,19 @@
             }
         };
 
-        // Функція для перезапуску швидкої анімації при кліку
+        // Функція для перезапуску швидкої анімації при кожному кліку
         window.toggleFlashlight = function(wrapper) {
             wrapper.classList.toggle('is-on');
             const sway = wrapper.querySelector('.fl-sway');
             if (sway) {
+                // Видаляємо клас, примушуємо браузер перемалювати елемент (reflow) і додаємо знову
                 sway.classList.remove('shake-anim');
-                void sway.offsetWidth; // Тригер reflow для перезапуску анімації
+                void sway.getBoundingClientRect(); 
                 sway.classList.add('shake-anim');
             }
         };
 
-        // Генерация интерактивного фонарика
+        // Генерация интерактивного фонарика (Без тексту, тільки емодзі 👇)
         const getFlashlightSVG = () => `
             <div id="flashlight-wrapper" class="flashlight-wrapper" onclick="toggleFlashlight(this)">
                 <svg viewBox="-20 -150 450 300" class="fl-svg" xmlns="http://www.w3.org/2000/svg">
@@ -272,7 +273,7 @@
                   <g transform="translate(30, 0)"> 
                     
                     <g class="fl-hint-icon">
-                        <text x="180" y="-65" font-size="34" text-anchor="middle">👇</text>
+                        <text x="175" y="-65" font-size="34" text-anchor="middle">👇</text>
                     </g>
 
                     <g class="fl-sway">
