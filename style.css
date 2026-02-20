@@ -120,7 +120,6 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
    ========================================= */
 .hero { text-align: center; padding: 30px 20px; overflow: hidden; }
 
-/* Базовый контейнер для светлой темы (Lottie) */
 .main-icon-wrap { 
     width: 120px; 
     height: 120px; 
@@ -139,7 +138,6 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
     100% { filter: drop-shadow(0 0 40px rgba(253, 224, 71, 0.7)); transform: scale(1.02); } 
 }
 
-/* Контейнер расширяется для фонарика (Темная тема) */
 .main-icon-wrap.flashlight-mode {
     width: 100%;
     max-width: 380px;
@@ -160,43 +158,21 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 }
 .fl-svg { width: 100%; height: 100%; overflow: visible; }
 
-/* Подсказка "Нажми/Натисни" */
-.fl-hint {
-    position: absolute;
-    top: 0;
-    left: 45%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    opacity: 0.9;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    animation: bounceHint 1s infinite alternate ease-in-out;
+/* Іконка-підказка (Тільки емодзі всередині SVG) */
+.fl-hint-icon {
+    animation: bounceHintSVG 0.6s infinite alternate ease-in-out;
+    transition: opacity 0.2s ease;
     pointer-events: none;
-    z-index: 10;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 6px 12px;
-    border-radius: 16px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
-@keyframes bounceHint {
-    0% { transform: translate(-50%, 0); }
-    100% { transform: translate(-50%, -8px); }
-}
-.flashlight-wrapper.is-on .fl-hint {
+.flashlight-wrapper.is-on .fl-hint-icon {
     opacity: 0;
-    transform: translate(-50%, -20px) scale(0.9);
+}
+@keyframes bounceHintSVG {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(8px); } /* Плавний стрибок вниз на кнопку */
 }
 
-/* Физика SVG фонарика */
+/* Фізика SVG ліхтарика */
 .fl-beam, .fl-lens { opacity: 0; transition: opacity 0.15s ease-in; }
 .flashlight-wrapper.is-on .fl-beam,
 .flashlight-wrapper.is-on .fl-lens {
@@ -206,23 +182,27 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 @keyframes beamFlicker {
     0%, 100% { opacity: 0.95; }
     50% { opacity: 0.85; }
-    55% { opacity: 1; } /* Резкая микро-вспышка напряжения */
+    55% { opacity: 1; }
     80% { opacity: 0.9; }
 }
 
-.fl-btn { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
-.flashlight-wrapper.is-on .fl-btn { transform: translateY(4px); }
+.fl-btn { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); transform-box: fill-box; }
+.flashlight-wrapper.is-on .fl-btn { transform: translateY(3px); }
 
+/* ШВИДКА АНІМАЦІЯ ПОХИТУВАННЯ ПРИ КЛІКУ */
 .fl-sway {
     transform-origin: 180px -35px;
-    transition: transform 0.4s ease-in-out;
+    transform-box: fill-box;
 }
-.flashlight-wrapper.is-on .fl-sway {
-    animation: swayLight 4s infinite alternate ease-in-out;
+.shake-anim {
+    animation: quickShake 0.6s cubic-bezier(.36,.07,.19,.97) both;
 }
-@keyframes swayLight {
-    0% { transform: rotate(-3deg); }
-    100% { transform: rotate(4deg); }
+@keyframes quickShake {
+    0% { transform: rotate(0deg); }
+    20% { transform: rotate(6deg); } /* Віддача від натискання кнопки */
+    50% { transform: rotate(-4deg); }
+    75% { transform: rotate(2deg); }
+    100% { transform: rotate(0deg); }
 }
 
 /* ========================================= */
