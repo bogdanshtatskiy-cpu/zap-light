@@ -1,6 +1,5 @@
 /* --- ОСНОВНІ ЗМІННІ ТА СТИЛІ (ВЕСНА) --- */
 :root {
-    /* Легкий весенний градиент (мягкая зелень и голубое небо) */
     --bg-gradient: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: rgba(255, 255, 255, 0.8);
@@ -10,12 +9,11 @@
     --text-inv: #ffffff;
     --text-secondary: #64748b;
     --accent: #2563eb;
+    
     --on: #059669;
     --off: #dc2626;
     --chunk-on: #10b981;
     --chunk-off: #ef4444;
-    --cell-on: #4caf50; 
-    --cell-off: #ff5252;
     
     --modal-overlay: rgba(255, 255, 255, 0.4);
     --blur-strength: 15px;
@@ -24,20 +22,17 @@
 }
 
 body.dark-mode {
-    /* Более глубокий темный с изумрудным оттенком */
     --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #064e3b 100%);
     --glass-bg: rgba(30, 41, 59, 0.65);
     --glass-border: rgba(255, 255, 255, 0.1);
     --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     
     --text: #f1f5f9;
-    --accent: #34d399; /* Весенний акцент в темной теме */
+    --accent: #34d399; 
     --on: #34d399;
     --off: #fb7185;
     --chunk-on: #34d399;
     --chunk-off: #f87171;
-    --cell-on: #66bb6a; 
-    --cell-off: #ff1744;
     
     --modal-overlay: rgba(0, 0, 0, 0.7);
     --dev-gradient: linear-gradient(90deg, #38bdf8 0%, #34d399 100%);
@@ -55,19 +50,15 @@ body {
     transition: background 0.5s ease, color 0.3s ease;
 }
 
-/* --- ВЕСНЯНІ ЧАСТИНКИ (замість снігу) --- */
-#particles-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
-.particle { position: absolute; top: -20px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; animation: fall linear infinite; will-change: transform; filter: blur(2px); }
-@keyframes fall { to { transform: translateY(110vh) rotate(360deg); } }
-
 /* --- SPA (Single Page Application) Анімації --- */
 .view-section { display: none; animation: fadeInView 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .view-section.active { display: block; }
 @keyframes fadeInView { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+/* СИММЕТРИЯ: карточки 24px, внутренние кнопки/инпуты 16px */
 .glass-panel { background: var(--glass-bg); backdrop-filter: blur(var(--blur-strength)); -webkit-backdrop-filter: blur(var(--blur-strength)); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); border-radius: 24px; position: relative; z-index: 1; transform: translateZ(0); will-change: transform; transition: all 0.4s ease; padding: 20px 15px; }
 
-/* Інші глобальні стилі (відступи, як просив) */
+/* Відступи */
 .header, .donate-wrap, .weather-widget, .date-wrap, .queue-grid, .action-buttons-grid, .hero, .bar-wrap, .stats, .list-card, .warning-box { margin-bottom: var(--gap-size); margin-top: 0; }
 
 .header { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 20; min-height: 44px; padding-top: 5px; }
@@ -83,7 +74,7 @@ body {
 
 /* Buttons */
 .action-buttons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; position: relative; z-index: 5; }
-.glass-btn { display: flex; align-items: center; justify-content: center; width: 100%; gap: 8px; padding: 12px; border-radius: 20px; text-decoration: none; font-size: 14px; font-weight: 800; color: var(--text); background: var(--glass-bg); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(0,0,0,0.03); transition: transform 0.2s, background 0.3s; line-height: 1.2; cursor: pointer; }
+.glass-btn { display: flex; align-items: center; justify-content: center; width: 100%; gap: 8px; padding: 12px; border-radius: 16px; text-decoration: none; font-size: 14px; font-weight: 800; color: var(--text); background: var(--glass-bg); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(0,0,0,0.03); transition: transform 0.2s, background 0.3s; line-height: 1.2; cursor: pointer; }
 .glass-btn:active { transform: scale(0.96); }
 .btn-icon { font-size: 16px; }
 
@@ -116,7 +107,7 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 .w-desc { font-size: 15px; font-weight: 800; margin-bottom: 4px; text-transform: capitalize; }
 .w-feel { font-size: 12px; opacity: 0.7; font-weight: 600; }
 .w-hourly { display: flex; gap: 8px; overflow-x: auto; padding: 10px 2px 5px 2px; scrollbar-width: none; mask-image: linear-gradient(to right, transparent, black 15px, black 90%, transparent); }
-.w-hour { display: flex; flex-direction: column; align-items: center; min-width: 58px; background: rgba(255,255,255,0.06); padding: 12px 5px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
+.w-hour { display: flex; flex-direction: column; align-items: center; min-width: 58px; background: rgba(255,255,255,0.06); padding: 12px 5px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
 .w-hour.current-hour { background: var(--accent); color: #fff; transform: scale(1.1) translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
 .w-hour.past-hour { opacity: 0.3; transform: scale(0.95); filter: grayscale(1); }
 .wh-time { font-size: 11px; opacity: 0.7; margin-bottom: 6px; font-weight: 700; }
@@ -139,7 +130,7 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 
 /* Queues */
 .queue-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; position: relative; z-index: 1; }
-.queue-btn { background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 12px 0; border-radius: 14px; font-weight: 800; font-size: 15px; text-align: center; cursor: pointer; transition: 0.2s; }
+.queue-btn { background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 12px 0; border-radius: 16px; font-weight: 800; font-size: 15px; text-align: center; cursor: pointer; transition: 0.2s; }
 .queue-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); transform: scale(1.05); }
 
 /* Timeline Visual */
@@ -158,7 +149,7 @@ body.dark-mode .w-icon { filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
 .stat-val { font-size: 22px; font-weight: 900; }
 .stat-val.on { color: var(--on); } .stat-val.off { color: var(--off); }
 
-.list-card { padding: 0; overflow: hidden; }
+.list-card { padding: 0; overflow: hidden; border-radius: 24px; }
 .list-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); animation: fadeInRow 0.3s ease forwards; opacity: 0; }
 @keyframes fadeInRow { to { opacity: 1; } }
 .list-row:last-child { border-bottom: none; }
@@ -182,14 +173,13 @@ body.dark-mode .input-group input { background: rgba(0,0,0,0.2); }
 .autocomplete-list { position: absolute; top: 105%; left: 0; right: 0; background: var(--glass-bg); backdrop-filter: blur(15px); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 250px; overflow-y: auto; z-index: 100; padding: 5px; border: 1px solid var(--glass-border); display: none; }
 .autocomplete-item { padding: 12px 15px; cursor: pointer; border-radius: 10px; margin-bottom: 2px; font-size: 15px; font-weight: 600; }
 .autocomplete-item:hover { background-color: rgba(37, 99, 235, 0.1); color: var(--accent); }
-#result-card { margin-top: 20px; background: rgba(255,255,255,0.2); border: 1px solid var(--glass-border); padding: 20px; border-radius: 20px; text-align: center; animation: fadeInView 0.3s ease; }
+#result-card { margin-top: 20px; background: rgba(255,255,255,0.2); border: 1px solid var(--glass-border); padding: 20px; border-radius: 16px; text-align: center; animation: fadeInView 0.3s ease; }
 #result-queue { font-size: 48px; font-weight: 900; background: linear-gradient(45deg, #fbc02d, #f57f17); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: block; line-height: 1; margin-top: 5px; }
 .info-notes { margin-top: 20px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 15px; }
 body.dark-mode .info-notes { border-top-color: rgba(255,255,255,0.1); }
 .note-item { display: flex; align-items: flex-start; font-size: 13px; line-height: 1.4; opacity: 0.8; }
 
 /* === МАТРИЦЯ (All Queues) === */
-.matrix-panel { padding: 15px; }
 .matrix-layout { display: grid; grid-template-columns: 35px 1fr 45px; gap: 8px; align-items: center; }
 .matrix-header { margin-bottom: 10px; font-size: 11px; opacity: 0.6; text-transform: uppercase; font-weight: 700; padding: 0 2px; }
 .time-labels { display: flex; justify-content: space-between; font-size: 10px; }
@@ -201,9 +191,15 @@ body.dark-mode .queue-row { border-bottom-color: rgba(255, 255, 255, 0.05); }
 body.dark-mode .q-visual { background: rgba(255, 255, 255, 0.05); }
 .hour-cell { flex: 1; height: 100%; border-right: 1px solid rgba(0,0,0,0.05); }
 .hour-cell:last-child { border-right: none; }
-.hour-cell.on { background-color: var(--cell-on); } .hour-cell.off { background-color: var(--cell-off); }
+
+/* Матрица использует цвета графика из главной страницы */
+.hour-cell.on { background-color: var(--chunk-on); } 
+.hour-cell.off { background-color: var(--chunk-off); }
+
 .q-stats { text-align: right; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.time-cursor { position: absolute; top: 32px; bottom: 15px; width: 2px; background: var(--accent); box-shadow: 0 0 8px var(--accent); z-index: 10; border-radius: 2px; }
+
+/* Фикс курсора матрицы: растягивается строго по высоте контейнера строк */
+.time-cursor { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); box-shadow: 0 0 8px var(--accent); z-index: 10; border-radius: 2px; }
 .time-cursor::before { content: ''; position: absolute; top: -4px; left: -2px; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
 
 /* Modal */
