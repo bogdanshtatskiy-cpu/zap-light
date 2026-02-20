@@ -6,6 +6,9 @@
     <title>ГПВ Запоріжжя</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     
@@ -151,51 +154,6 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const SVG_MAIN_ON = `
-            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <linearGradient id="houseOn" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stop-color="#60a5fa"/>
-                        <stop offset="100%" stop-color="#1e3a8a"/>
-                    </linearGradient>
-                    <linearGradient id="roofOn" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stop-color="#3b82f6"/>
-                        <stop offset="100%" stop-color="#2563eb"/>
-                    </linearGradient>
-                </defs>
-                <circle cx="75" cy="25" r="4" fill="#64748b" class="smoke smoke-1"/>
-                <circle cx="78" cy="18" r="5" fill="#64748b" class="smoke smoke-2"/>
-                <circle cx="82" cy="10" r="6" fill="#64748b" class="smoke smoke-3"/>
-                
-                <rect x="70" y="25" width="10" height="20" fill="#1e40af"/>
-                <path d="M10 45 L50 15 L90 45 L80 45 L80 85 L20 85 L20 45 Z" fill="url(#houseOn)" stroke="#bfdbfe" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M10 45 L50 15 L90 45 L80 45 L50 25 L20 45 Z" fill="url(#roofOn)"/>
-                <rect x="25" y="50" width="18" height="18" rx="4" fill="#fde047" class="window-glow"/>
-                <rect x="57" y="50" width="18" height="18" rx="4" fill="#fde047" class="window-glow"/>
-                <path d="M43 65 h14 v20 h-14 z" fill="#1e40af" rx="2"/>
-            </svg>`;
-
-        const SVG_MAIN_OFF = `
-            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <filter id="glowBlur" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="2.5" result="blur"/>
-                    </filter>
-                </defs>
-                <rect x="70" y="25" width="10" height="20" fill="#0f172a"/>
-                <path d="M10 45 L50 15 L90 45 L80 45 L80 85 L20 85 L20 45 Z" fill="#1e293b" stroke="#334155" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M10 45 L50 15 L90 45 L80 45 L50 25 L20 45 Z" fill="#0f172a"/>
-                <rect x="25" y="50" width="18" height="18" rx="4" fill="#0f172a"/>
-                <rect x="57" y="50" width="18" height="18" rx="4" fill="#0f172a"/>
-                
-                <circle cx="66" cy="57" r="6" fill="#f59e0b" filter="url(#glowBlur)" class="candle-glow"/>
-                <rect x="64.5" y="61" width="3" height="7" fill="#cbd5e1" rx="1"/>
-                <line x1="66" y1="61" x2="66" y2="59.5" stroke="#475569" stroke-width="1"/>
-                <path d="M66,53 C66,53 64.5,56.5 64.5,58 C64.5,58.8 65.2,59.5 66,59.5 C66.8,59.5 67.5,58.8 67.5,58 C67.5,56.5 66,53 66,53 Z" fill="#facc15" class="flame"/>
-                
-                <path d="M43 65 h14 v20 h-14 z" fill="#0f172a" rx="2"/>
-            </svg>`;
-
         const UA_MONTHS = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
         const WEEKDAYS = {
             uk: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
@@ -212,6 +170,10 @@
         
         let currentView = 'view-main';
         let isSearchLoaded = false;
+        
+        // Переменные для Lottie плеера
+        let currentLottie = null;
+        let currentLottieState = null; 
 
         const T = {
             uk: { 
@@ -540,23 +502,48 @@
             const st = document.getElementById('status');
             const tm = document.getElementById('timer');
 
+            // Управление Lottie Анимациями
             if (isLight) {
                 body.classList.remove('dark-mode');
                 localStorage.setItem('isDarkMode', 'false');
-                if (iconContainer.innerHTML !== SVG_MAIN_ON) { 
-                    iconContainer.innerHTML = SVG_MAIN_ON; 
+                
+                // Если сейчас загружен не on.json, переключаем
+                if (currentLottieState !== 'on') {
+                    if (currentLottie) currentLottie.destroy();
+                    iconContainer.innerHTML = '';
+                    currentLottie = lottie.loadAnimation({
+                        container: iconContainer,
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: true,
+                        path: 'on.json'
+                    });
+                    currentLottieState = 'on';
                     iconWrap.classList.add('icon-on-glow'); 
                 }
+                
                 st.innerText = T[lang].on; st.style.color = 'var(--text)';
                 const newHtml = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('on');
             } else {
                 body.classList.add('dark-mode');
                 localStorage.setItem('isDarkMode', 'true');
-                if (iconContainer.innerHTML !== SVG_MAIN_OFF) { 
-                    iconContainer.innerHTML = SVG_MAIN_OFF; 
+                
+                // Если сейчас загружен не off.json, переключаем
+                if (currentLottieState !== 'off') {
+                    if (currentLottie) currentLottie.destroy();
+                    iconContainer.innerHTML = '';
+                    currentLottie = lottie.loadAnimation({
+                        container: iconContainer,
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: true,
+                        path: 'off.json'
+                    });
+                    currentLottieState = 'off';
                     iconWrap.classList.remove('icon-on-glow'); 
                 }
+
                 st.innerText = T[lang].off; st.style.color = 'var(--off)';
                 const newHtml = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`;
                 if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('off');
