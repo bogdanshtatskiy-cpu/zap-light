@@ -102,13 +102,13 @@
 
             <div class="input-group">
                 <label id="lbl-street">Вулиця</label>
-                <input type="text" id="street-input" placeholder="Почніть вводити назву..." disabled autocomplete="off">
+                <input type="text" id="street-input" disabled autocomplete="off">
                 <div id="street-list" class="autocomplete-list"></div>
             </div>
 
             <div class="input-group">
                 <label id="lbl-house">Будинок</label>
-                <input type="text" id="house-input" placeholder="Спочатку оберіть вулицю" disabled autocomplete="off">
+                <input type="text" id="house-input" disabled autocomplete="off">
                 <div id="house-list" class="autocomplete-list"></div>
             </div>
 
@@ -155,10 +155,7 @@
         const SVG_BULB_OFF = `<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gradOff" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#90a4ae;stop-opacity:1"/><stop offset="100%" style="stop-color:#607d8b;stop-opacity:1"/></linearGradient></defs><path fill="url(#gradOff)" d="M256,0C158.5,0,79.4,79.1,79.4,176.6c0,42.4,15.1,81.4,40.1,111.7l19.1,23.3c7.2,8.8,11.3,19.9,11.3,31.3v42.5 c0,22.1,17.9,40,40,40h132.3c22.1,0,40-17.9,40-40v-42.5c0-11.4,4.1-22.5,11.3-31.3l19.1-23.3c25-30.3,40.1-69.3,40.1-111.7 C432.6,79.1,353.5,0,256,0z M256,150c-10,0-18,8-18,18s8,18,18,18s18-8,18-18S266,150,256,150z"/><path fill="#78909c" d="M189.9,425.4h132.3v30.9c0,8.3-6.7,15-15,15H204.9c-8.3,0-15-6.7-15-15V425.4z"/><path fill="#546e7a" d="M204.9,493.3h102.2c8.3,0,15-6.7,15-15v-6.9H189.9v6.9C189.9,486.6,196.6,493.3,204.9,493.3z"/></svg>`;
 
         const UA_MONTHS = ["СІЧНЯ", "ЛЮТОГО", "БЕРЕЗНЯ", "КВІТНЯ", "ТРАВНЯ", "ЧЕРВНЯ", "ЛИПНЯ", "СЕРПНЯ", "ВЕРЕСНЯ", "ЖОВТНЯ", "ЛИСТОПАДА", "ГРУДНЯ"];
-        const WEEKDAYS = {
-            uk: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
-            ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
-        };
+        const WEEKDAYS = { uk: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'], ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'] };
         
         let DATA = [];
         let generatedAt = "";
@@ -181,7 +178,8 @@
                 tentative: "Це орієнтовний графік. Можливі зміни.",
                 search_title: "Пошук черги", street: "Вулиця", house: "Будинок", res: "Результат",
                 clear: "Очистити", note1: "Якщо вашої адреси немає у списку — ймовірно, графіки відключень до неї <b>не застосовуються</b>.",
-                matrix_title: "Матриця черг", total: "Всього"
+                matrix_title: "Матриця черг", total: "Всього",
+                ph_street: "Почніть вводити назву...", ph_house: "Спочатку оберіть вулицю", ph_house_next: "Тепер оберіть будинок"
             },
             ru: { 
                 title: "⚡ ГПО", city: "г. Запорожье", load: "Загрузка...", nodata: "Данных нет", choose: "Выберите очередь", 
@@ -192,7 +190,8 @@
                 tentative: "Это ориентировочный график. Возможны изменения.",
                 search_title: "Поиск очереди", street: "Улица", house: "Дом", res: "Результат",
                 clear: "Очистить", note1: "Если вашего адреса нет в списке — вероятно, графики отключений к нему <b>не применяются</b>.",
-                matrix_title: "Матрица очередей", total: "Всего"
+                matrix_title: "Матрица очередей", total: "Всего",
+                ph_street: "Начните вводить название...", ph_house: "Сначала выберите улицу", ph_house_next: "Теперь выберите дом"
             }
         };
 
@@ -210,24 +209,17 @@
             const dateWrap = document.getElementById('main-date-wrap');
 
             if (viewId === 'view-main') {
-                btnBack.style.display = 'none';
-                btnInfo.style.display = 'flex';
-                langSwitch.style.display = 'flex';
-                titleWrap.style.display = 'block';
-                weatherToggle.style.display = 'flex';
-                dateWrap.style.display = 'block';
+                btnBack.style.display = 'none'; btnInfo.style.display = 'flex'; langSwitch.style.display = 'flex';
+                titleWrap.style.display = 'block'; weatherToggle.style.display = 'flex'; dateWrap.style.display = 'block';
             } else {
-                btnBack.style.display = 'flex';
-                btnInfo.style.display = 'none';
-                langSwitch.style.display = 'none';
-                titleWrap.style.display = 'none'; // Скрываем названия и город
-                weatherToggle.style.display = 'none'; // Скрываем погоду
+                btnBack.style.display = 'flex'; btnInfo.style.display = 'none'; langSwitch.style.display = 'none';
+                titleWrap.style.display = 'none'; weatherToggle.style.display = 'none'; 
 
                 if (viewId === 'view-search') {
-                    dateWrap.style.display = 'none'; // Скрываем даты в поиске
+                    dateWrap.style.display = 'none'; 
                     if(!isSearchLoaded) initSearchEngine();
                 } else if (viewId === 'view-all') {
-                    dateWrap.style.display = 'block'; // Показываем даты в матрице
+                    dateWrap.style.display = 'block'; 
                     renderMatrix();
                 }
             }
@@ -245,68 +237,44 @@
                 DATA = json.schedules;
                 generatedAt = json.generated_at || "";
 
-                if (!DATA || DATA.length === 0) {
-                    document.getElementById('loader').innerText = T[lang].nodata;
-                    return;
-                }
-
+                if (!DATA || DATA.length === 0) { document.getElementById('loader').innerText = T[lang].nodata; return; }
                 document.getElementById('loader').style.display = 'none';
                 renderQueues();
                 
                 const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
-                const todayDay = kievDate.getDate();
-                const todayMonthIdx = kievDate.getMonth();
-
+                const todayDay = kievDate.getDate(); const todayMonthIdx = kievDate.getMonth();
                 let todayIdx = -1;
                 DATA.forEach((item, idx) => {
                     const parts = item.date.split(' ');
-                    const d = parseInt(parts[0]);
-                    const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
-                    if (d === todayDay && mIdx === todayMonthIdx) todayIdx = idx;
+                    if (parseInt(parts[0]) === todayDay && UA_MONTHS.indexOf(parts[1].toUpperCase()) === todayMonthIdx) todayIdx = idx;
                 });
 
                 const activeIdx = todayIdx !== -1 ? todayIdx : DATA.length - 1;
                 todaySchedule = DATA[activeIdx]; 
-                
-                renderDates(activeIdx);
-                selectDate(activeIdx);
+                renderDates(activeIdx); selectDate(activeIdx);
 
                 if (selectedQueue) selectQueue(selectedQueue);
-                else {
-                    document.getElementById('hero').style.display = 'block';
-                    document.getElementById('status').innerText = T[lang].choose;
-                }
+                else { document.getElementById('hero').style.display = 'block'; document.getElementById('status').innerText = T[lang].choose; }
 
-                setInterval(tick, 1000);
-                tick();
-
-            } catch (e) {
-                console.error(e);
-                document.getElementById('loader').innerText = "Error loading data";
-            }
+                setInterval(tick, 1000); tick();
+            } catch (e) { console.error(e); document.getElementById('loader').innerText = "Error loading data"; }
         }
 
         function renderDates(activeIdx) {
-            const container = document.getElementById('dates');
-            container.innerHTML = '';
+            const container = document.getElementById('dates'); container.innerHTML = '';
             const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
             const currentYear = kievDate.getFullYear();
 
             DATA.forEach((item, idx) => {
                 const btn = document.createElement('div');
                 btn.className = `date-tab ${idx === activeIdx ? 'active' : ''}`;
-                let dateLabel = item.date;
-                let weekdayHtml = '';
-                
+                let dateLabel = item.date; let weekdayHtml = '';
                 const parts = item.date.split(' ');
                 if (parts.length === 2) {
-                    const day = parseInt(parts[0]);
-                    const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
+                    const day = parseInt(parts[0]); const mIdx = UA_MONTHS.indexOf(parts[1].toUpperCase());
                     if (mIdx !== -1) {
-                        const monthNum = (mIdx + 1).toString().padStart(2, '0');
-                        dateLabel = `${day.toString().padStart(2, '0')}.${monthNum}`;
-                        const dateObj = new Date(currentYear, mIdx, day);
-                        const dayOfWeek = dateObj.getDay();
+                        dateLabel = `${day.toString().padStart(2, '0')}.${(mIdx + 1).toString().padStart(2, '0')}`;
+                        const dayOfWeek = new Date(currentYear, mIdx, day).getDay();
                         weekdayHtml = `<div class="weekday-label ${(dayOfWeek===0||dayOfWeek===6)?'is-weekend':''}">${WEEKDAYS[lang][dayOfWeek]}</div>`;
                     }
                 }
@@ -317,15 +285,11 @@
         }
 
         function renderQueues() {
-            const el = document.getElementById('queues');
-            const qs = ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"];
-            el.innerHTML = '';
-            qs.forEach(q => {
+            const el = document.getElementById('queues'); el.innerHTML = '';
+            ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"].forEach(q => {
                 const btn = document.createElement('div');
                 btn.className = `queue-btn ${q === selectedQueue ? 'active' : ''}`;
-                btn.innerText = q;
-                btn.onclick = () => selectQueue(q);
-                el.appendChild(btn);
+                btn.innerText = q; btn.onclick = () => selectQueue(q); el.appendChild(btn);
             });
         }
 
@@ -335,22 +299,16 @@
             const kievDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
             const tomorrow = new Date(kievDate); tomorrow.setDate(kievDate.getDate() + 1); tomorrow.setHours(0,0,0,0);
             const scheduleDateObj = new Date(kievDate.getFullYear(), UA_MONTHS.indexOf(viewSchedule.date.split(' ')[1].toUpperCase()), parseInt(viewSchedule.date.split(' ')[0]));
-
             document.getElementById('tentative-warning').style.display = (scheduleDateObj > tomorrow) ? 'flex' : 'none';
             if (selectedQueue) updateView();
         }
 
         function selectQueue(q) {
             selectedQueue = q; localStorage.setItem('queue', q);
-            document.querySelectorAll('.queue-btn').forEach(b => {
-                b.classList.toggle('active', b.innerText === q);
-            });
-            document.getElementById('hero').style.display = 'block';
-            document.getElementById('bar-wrap').style.display = 'block';
-            document.getElementById('stats').style.display = 'grid';
-            document.getElementById('details-list').style.display = 'block';
-            lastStatusType = null;
-            tick(); updateView();
+            document.querySelectorAll('.queue-btn').forEach(b => b.classList.toggle('active', b.innerText === q));
+            document.getElementById('hero').style.display = 'block'; document.getElementById('bar-wrap').style.display = 'block';
+            document.getElementById('stats').style.display = 'grid'; document.getElementById('details-list').style.display = 'block';
+            lastStatusType = null; tick(); updateView();
         }
 
         function setLang(l) {
@@ -370,12 +328,16 @@
             document.getElementById('tentative-text').innerText = T[l].tentative;
             document.getElementById('donate-text').innerText = T[l].support;
             
-            // Search View
+            // Search View Update
             document.getElementById('lbl-street').innerText = T[l].street;
             document.getElementById('lbl-house').innerText = T[l].house;
             document.getElementById('lbl-res').innerText = T[l].res;
             document.getElementById('clear-label').innerText = T[l].clear;
             document.getElementById('note-1').innerHTML = T[l].note1;
+            
+            // Динамические плейсхолдеры
+            document.getElementById('street-input').placeholder = T[l].ph_street;
+            document.getElementById('house-input').placeholder = selectedStreet ? T[l].ph_house_next : T[l].ph_house;
 
             if(DATA.length) {
                 const idx = DATA.indexOf(viewSchedule);
@@ -389,63 +351,47 @@
 
         function updateView() {
             if (!viewSchedule || !selectedQueue) return;
-            const listEl = document.getElementById('details-list');
-            const listFrag = document.createDocumentFragment();
-            const timeline = document.getElementById('visual');
-            const barFrag = document.createDocumentFragment();
+            const listEl = document.getElementById('details-list'); const listFrag = document.createDocumentFragment();
+            const timeline = document.getElementById('visual'); const barFrag = document.createDocumentFragment();
             const map = getDayMap(viewSchedule, selectedQueue);
             
             let current = map[0]; let start = 0;
             for(let i=1; i<=1440; i++) {
                 if(i===1440 || map[i] !== current) {
-                    const d = document.createElement('div');
-                    d.className = `chunk ${current ? 'on' : 'off'}`;
-                    d.style.flexBasis = ((i-start)/1440*100) + '%';
-                    barFrag.appendChild(d);
+                    const d = document.createElement('div'); d.className = `chunk ${current ? 'on' : 'off'}`;
+                    d.style.flexBasis = ((i-start)/1440*100) + '%'; barFrag.appendChild(d);
 
-                    const row = document.createElement('div');
-                    row.className = 'list-row';
+                    const row = document.createElement('div'); row.className = 'list-row';
                     row.style.animationDelay = `${listFrag.children.length * 0.05}s`;
-                    
-                    const timeRange = `${minsToTime(start)} - ${minsToTime(i)}`;
-                    const badgeClass = current ? 'badge-on' : 'badge-off';
-                    const text = current ? T[lang].on : T[lang].off;
                     const uid = `row_${start}`; 
                     let rawSvg = current ? SVG_BULB_ON : SVG_BULB_OFF;
                     rawSvg = rawSvg.replaceAll('id="', `id="${uid}_`).replaceAll('url(#', `url(#${uid}_`);
-                    row.innerHTML = `<div class="row-time">${timeRange}</div><div class="row-badge ${badgeClass}"><div class="list-icon">${rawSvg}</div> ${text}</div>`;
-                    listFrag.appendChild(row);
-                    current = map[i]; start = i;
+                    row.innerHTML = `<div class="row-time">${minsToTime(start)} - ${minsToTime(i)}</div><div class="row-badge ${current ? 'badge-on' : 'badge-off'}"><div class="list-icon">${rawSvg}</div> ${current ? T[lang].on : T[lang].off}</div>`;
+                    listFrag.appendChild(row); current = map[i]; start = i;
                 }
             }
             timeline.innerHTML = ''; timeline.appendChild(barFrag);
             listEl.innerHTML = ''; listEl.appendChild(listFrag);
 
-            let offCount = 0;
-            for(let i=0; i<1440; i++) { if(map[i] === false) offCount++; }
-            document.getElementById('val-off').innerText = fmtDur(offCount);
-            document.getElementById('val-on').innerText = fmtDur(1440 - offCount);
+            let offCount = 0; for(let i=0; i<1440; i++) { if(map[i] === false) offCount++; }
+            document.getElementById('val-off').innerText = fmtDur(offCount); document.getElementById('val-on').innerText = fmtDur(1440 - offCount);
         }
 
         function updateQuote(type) {
             if (typeof QUOTES_DB === 'undefined') return;
             if (lastStatusType !== type) {
-                lastStatusType = type;
-                const list = QUOTES_DB[lang][type];
+                lastStatusType = type; const list = QUOTES_DB[lang][type];
                 if (list && list.length > 0) {
-                    const rnd = Math.floor(Math.random() * list.length);
-                    const qEl = document.getElementById('quote');
-                    qEl.style.opacity = 0;
-                    setTimeout(() => { qEl.innerText = list[rnd]; qEl.style.opacity = 0.9; }, 200);
+                    const qEl = document.getElementById('quote'); qEl.style.opacity = 0;
+                    setTimeout(() => { qEl.innerText = list[Math.floor(Math.random() * list.length)]; qEl.style.opacity = 0.9; }, 200);
                 }
             }
         }
 
         function tick() {
             if (!todaySchedule || !selectedQueue || currentView !== 'view-main') return;
-            const updateTimeStr = generatedAt || todaySchedule.updated_at;
             const updEl = document.getElementById('updated');
-            if (updEl.innerText !== `${T[lang].upd} ${updateTimeStr}`) updEl.innerText = `${T[lang].upd} ${updateTimeStr}`;
+            if (updEl.innerText !== `${T[lang].upd} ${generatedAt || todaySchedule.updated_at}`) updEl.innerText = `${T[lang].upd} ${generatedAt || todaySchedule.updated_at}`;
 
             const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
             const curMins = now.getHours() * 60 + now.getMinutes();
@@ -459,59 +405,36 @@
             const map = getDayMap(todaySchedule, selectedQueue);
             const isLight = map[curMins] !== undefined ? map[curMins] : true;
             
-            let nextChange = -1;
-            for(let i = curMins + 1; i < 1440; i++) {
-                if(map[i] !== isLight) { nextChange = i; break; }
-            }
-
+            let nextChange = -1; for(let i = curMins + 1; i < 1440; i++) { if(map[i] !== isLight) { nextChange = i; break; } }
             let totalSecsLeft = 0; let timeInfoStr = "";
-            if (nextChange !== -1) {
-                totalSecsLeft = (nextChange * 60) - curSecs;
-            } else {
+            if (nextChange !== -1) { totalSecsLeft = (nextChange * 60) - curSecs; } 
+            else {
                 const secsToMidnight = (1440 * 60) - curSecs;
                 const nextDaySchedule = DATA[DATA.indexOf(todaySchedule) + 1];
-                let foundChangeTomorrow = false; let nextChangeTom = -1;
+                let foundTom = false; let nextChangeTom = -1;
                 if (nextDaySchedule) {
                     const nextMap = getDayMap(nextDaySchedule, selectedQueue);
                     if (nextMap[0] === isLight) {
-                        for(let i = 0; i < 1440; i++) { if(nextMap[i] !== isLight) { nextChangeTom = i; break; } }
-                        if (nextChangeTom !== -1) {
-                            totalSecsLeft = secsToMidnight + (nextChangeTom * 60);
-                            timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} ${minsToTime(nextChangeTom)})</span>`;
-                            foundChangeTomorrow = true;
-                        }
-                    } else {
-                        totalSecsLeft = secsToMidnight;
-                        timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} 00:00)</span>`;
-                        foundChangeTomorrow = true;
-                    }
+                        for(let i=0; i<1440; i++) { if(nextMap[i] !== isLight) { nextChangeTom = i; break; } }
+                        if (nextChangeTom !== -1) { totalSecsLeft = secsToMidnight + (nextChangeTom * 60); timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} ${minsToTime(nextChangeTom)})</span>`; foundTom = true; }
+                    } else { totalSecsLeft = secsToMidnight; timeInfoStr = `<span class="timer-note">(${T[lang].tom} ${T[lang].at} 00:00)</span>`; foundTom = true; }
                 } 
-                if (!foundChangeTomorrow) totalSecsLeft = secsToMidnight;
+                if (!foundTom) totalSecsLeft = secsToMidnight;
             }
 
-            const h = Math.floor(totalSecsLeft / 3600); const m = Math.floor((totalSecsLeft % 3600) / 60); const s = Math.floor(totalSecsLeft % 60);
-            const timeStr = `${pad(h)}:${pad(m)}:${pad(s)}`;
-            const body = document.body;
-            const iconContainer = document.getElementById('bulb-svg-container');
-            const bulbWrap = document.getElementById('bulb-wrap');
-            const st = document.getElementById('status');
-            const tm = document.getElementById('timer');
+            const timeStr = `${pad(Math.floor(totalSecsLeft / 3600))}:${pad(Math.floor((totalSecsLeft % 3600) / 60))}:${pad(Math.floor(totalSecsLeft % 60))}`;
+            const st = document.getElementById('status'), tm = document.getElementById('timer'), bulbWrap = document.getElementById('bulb-wrap');
 
-            // Фиксация темной/светлой темы в localStorage, чтобы не было "белой вспышки" при обновлении
             if (isLight) {
-                body.classList.remove('dark-mode');
-                localStorage.setItem('isDarkMode', 'false');
-                if (iconContainer.innerHTML !== SVG_BULB_ON) { iconContainer.innerHTML = SVG_BULB_ON; bulbWrap.classList.add('bulb-on-glow'); }
+                document.body.classList.remove('dark-mode'); localStorage.setItem('isDarkMode', 'false');
+                if (document.getElementById('bulb-svg-container').innerHTML !== SVG_BULB_ON) { document.getElementById('bulb-svg-container').innerHTML = SVG_BULB_ON; bulbWrap.classList.add('bulb-on-glow'); }
                 st.innerText = T[lang].on; st.style.color = 'var(--text)';
-                const newHtml = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`;
-                if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('on');
+                const newHtml = `${T[lang].in_off} ${timeStr} ${timeInfoStr}`; if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('on');
             } else {
-                body.classList.add('dark-mode');
-                localStorage.setItem('isDarkMode', 'true');
-                if (iconContainer.innerHTML !== SVG_BULB_OFF) { iconContainer.innerHTML = SVG_BULB_OFF; bulbWrap.classList.remove('bulb-on-glow'); }
+                document.body.classList.add('dark-mode'); localStorage.setItem('isDarkMode', 'true');
+                if (document.getElementById('bulb-svg-container').innerHTML !== SVG_BULB_OFF) { document.getElementById('bulb-svg-container').innerHTML = SVG_BULB_OFF; bulbWrap.classList.remove('bulb-on-glow'); }
                 st.innerText = T[lang].off; st.style.color = 'var(--off)';
-                const newHtml = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`;
-                if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('off');
+                const newHtml = `${T[lang].in_on} ${timeStr} ${timeInfoStr}`; if (tm.innerHTML !== newHtml) tm.innerHTML = newHtml; updateQuote('off');
             }
         }
 
@@ -519,54 +442,48 @@
         let dbSearch = [], uniqueStreets = [], selectedStreet = null;
         async function initSearchEngine() {
             isSearchLoaded = true;
-            const statusEl = document.getElementById('loading-status');
-            const streetInput = document.getElementById('street-input');
-            const QUEUE_FILES = ["1.1.xlsx", "1.2.xlsx", "2.1.xlsx", "2.2.xlsx", "3.1.xlsx", "3.2.xlsx", "4.1.xlsx", "4.2.xlsx", "5.1.xlsx", "5.2.xlsx", "6.1.xlsx", "6.2.xlsx"];
             try {
-                const promises = QUEUE_FILES.map(file => fetch("./xls/" + file).then(r => r.arrayBuffer()).then(ab => {
-                    const wb = XLSX.read(ab, { type: 'array' });
-                    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+                const promises = ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"].map(file => fetch(`./xls/${file}.xlsx`).then(r => r.arrayBuffer()).then(ab => {
+                    const rows = XLSX.utils.sheet_to_json(XLSX.read(ab, { type: 'array' }).Sheets[XLSX.read(ab, { type: 'array' }).SheetNames[0]], { header: 1 });
                     for(let i=0; i<rows.length; i++) {
                         if(!rows[i] || rows[i].length < 2) continue;
                         const rawStreet = String(rows[i][0]).trim(); const rawHouses = String(rows[i][1]).trim();
                         if (rawStreet.toLowerCase().includes('вулиця') && rawHouses.toLowerCase().includes('будинок')) continue;
-                        const parts = rawHouses.split(/[|,\/]/).map(s => s.trim()).filter(s => s);
-                        parts.forEach(part => {
-                            const rangeMatch = part.match(/^(\d+)[-–—](\d+)$/);
-                            if (rangeMatch && !isNaN(rangeMatch[1]) && !isNaN(rangeMatch[2])) {
-                                const step = (parseInt(rangeMatch[1]) % 2 === parseInt(rangeMatch[2]) % 2) ? 2 : 1;
-                                for (let j = parseInt(rangeMatch[1]); j <= parseInt(rangeMatch[2]); j += step) dbSearch.push({ fullStreet: rawStreet, house: j.toString(), queue: file.replace('.xlsx', '') });
-                            } else dbSearch.push({ fullStreet: rawStreet, house: part, queue: file.replace('.xlsx', '') });
+                        rawHouses.split(/[|,\/]/).map(s => s.trim()).filter(s => s).forEach(part => {
+                            const rm = part.match(/^(\d+)[-–—](\d+)$/);
+                            if (rm && !isNaN(rm[1]) && !isNaN(rm[2])) {
+                                const step = (parseInt(rm[1]) % 2 === parseInt(rm[2]) % 2) ? 2 : 1;
+                                for (let j = parseInt(rm[1]); j <= parseInt(rm[2]); j += step) dbSearch.push({ fullStreet: rawStreet, house: j.toString(), queue: file });
+                            } else dbSearch.push({ fullStreet: rawStreet, house: part, queue: file });
                         });
                     }
                 }).catch(() => {}));
                 await Promise.all(promises);
                 uniqueStreets = Array.from(new Set(dbSearch.map(d => d.fullStreet))).sort((a, b) => a.localeCompare(b));
-                statusEl.style.display = 'none'; streetInput.disabled = false;
-            } catch(e) { statusEl.innerText = "❌ Помилка бази"; statusEl.style.color = "#ef5350"; }
+                document.getElementById('loading-status').style.display = 'none'; document.getElementById('street-input').disabled = false;
+            } catch(e) { document.getElementById('loading-status').innerText = "❌ Помилка бази"; document.getElementById('loading-status').style.color = "#ef5350"; }
         }
 
         const sInput = document.getElementById('street-input'), hInput = document.getElementById('house-input');
-        const sList = document.getElementById('street-list'), hList = document.getElementById('house-list');
-        const resCard = document.getElementById('result-card'), resQ = document.getElementById('result-queue');
+        const sList = document.getElementById('street-list'), hList = document.getElementById('house-list'), resCard = document.getElementById('result-card');
         
         document.getElementById('clear-btn').addEventListener('click', () => {
-            sInput.value = ''; hInput.value = ''; hInput.disabled = true; selectedStreet = null;
+            sInput.value = ''; hInput.value = ''; hInput.disabled = true; selectedStreet = null; hInput.placeholder = T[lang].ph_house;
             resCard.style.display = 'none'; sList.style.display = 'none'; hList.style.display = 'none'; sInput.focus();
         });
 
         sInput.addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase(); selectedStreet = null; hInput.disabled = true; hInput.value = ''; resCard.style.display = 'none'; hList.style.display = 'none';
+            hInput.placeholder = T[lang].ph_house;
             if (val.length < 1) { sList.style.display = 'none'; return; }
             
-            // Фикс: игнорируем скобки для точного поиска, если улица написана как вул. Олени Теліги (Менжинського)
             const matches = uniqueStreets.filter(s => {
                 const clean = s.toLowerCase().replace(/^(вул\.|пров\.|бул\.|пр\.|площа|майдан|узвіз|тупик)\s*/g, '').replace(/[()]/g, ' ');
                 return clean.split(/\s+/).some(k => k.startsWith(val));
             }).slice(0, 50);
             
             sList.innerHTML = '';
-            if(matches.length) { matches.forEach(m => { const d = document.createElement('div'); d.className='autocomplete-item'; d.innerText=m; d.onclick=() => { sInput.value = m; selectedStreet = m; sList.style.display='none'; hInput.disabled=false; hInput.focus(); }; sList.appendChild(d); }); sList.style.display = 'block'; }
+            if(matches.length) { matches.forEach(m => { const d = document.createElement('div'); d.className='autocomplete-item'; d.innerText=m; d.onclick=() => { sInput.value = m; selectedStreet = m; sList.style.display='none'; hInput.disabled=false; hInput.placeholder = T[lang].ph_house_next; hInput.focus(); }; sList.appendChild(d); }); sList.style.display = 'block'; }
             else sList.style.display = 'none';
         });
 
@@ -582,9 +499,10 @@
         function checkHouse(val) {
             if (!selectedStreet || val.trim() === "") { resCard.style.display = 'none'; return; }
             const entry = dbSearch.find(d => d.fullStreet === selectedStreet && d.house.toLowerCase() === val.toLowerCase());
-            resQ.innerText = entry ? entry.queue : "Не відключається";
-            resQ.style.background = entry ? "linear-gradient(45deg, #fbc02d, #f57f17)" : "linear-gradient(45deg, #4caf50, #8bc34a)";
-            resQ.style.webkitBackgroundClip = "text"; resQ.style.webkitTextFillColor = "transparent";
+            const q = document.getElementById('result-queue');
+            q.innerText = entry ? entry.queue : "Не відключається";
+            q.style.background = entry ? "linear-gradient(45deg, #fbc02d, #f57f17)" : "linear-gradient(45deg, #4caf50, #8bc34a)";
+            q.style.webkitBackgroundClip = "text"; q.style.webkitTextFillColor = "transparent";
             resCard.style.display = 'block';
         }
 
@@ -592,40 +510,32 @@
         function renderMatrix() {
             if(!viewSchedule) return;
             const container = document.getElementById('matrix-container');
-            const qs = ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"];
             const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Kiev"}));
             const isToday = (parseInt(viewSchedule.date.split(' ')[0]) === now.getDate());
 
             let html = `<div class="matrix-layout matrix-header"><div>Черга</div><div class="time-labels"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div style="text-align:right">${T[lang].total}</div></div>`;
-            
-            // Обертка для строк и курсора времени, чтобы он не вылезал за края
             html += `<div class="matrix-rows-wrapper" style="position: relative;">`;
-            
             if (isToday) {
                 const percent = ((now.getHours() * 60 + now.getMinutes()) / 1440) * 100;
-                // Математика отступа: 35px колонка "Черга" + 8px gap = 43px. Оставшееся пространство = 100% - 96px.
                 html += `<div class="time-cursor" style="left: calc(43px + (100% - 96px) * ${percent / 100})"></div>`;
             }
 
-            qs.forEach(qKey => {
+            ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"].forEach(qKey => {
                 const map = getDayMap(viewSchedule, qKey);
-                let hourCellsHTML = ''; let offMins = 0;
+                let cells = ''; let offMins = 0;
                 for(let h=0; h<24; h++) {
-                    let isOff = false;
-                    for(let m=0; m<60; m++) { if(map[h*60+m] === false) { isOff=true; offMins++; } }
-                    hourCellsHTML += `<div class="hour-cell ${isOff ? 'off' : 'on'}"></div>`;
+                    let isOff = false; for(let m=0; m<60; m++) { if(map[h*60+m] === false) { isOff=true; offMins++; } }
+                    cells += `<div class="hour-cell ${isOff ? 'off' : 'on'}"></div>`;
                 }
-                const stats = offMins===0 ? '<span style="color:var(--chunk-on); font-weight:900;">✓</span>' : `-${Math.floor(offMins/60).toString().padStart(2,'0')}:${(offMins%60).toString().padStart(2,'0')}`;
-                html += `<div class="matrix-layout queue-row"><div class="q-name">${qKey}</div><div class="q-visual">${hourCellsHTML}</div><div class="q-stats">${stats}</div></div>`;
+                const stats = offMins===0 ? '<span style="color:var(--chunk-on); font-weight:900;">✓</span>' : `-${pad(Math.floor(offMins/60))}:${pad(offMins%60)}`;
+                html += `<div class="matrix-layout queue-row"><div class="q-name">${qKey}</div><div class="q-visual">${cells}</div><div class="q-stats">${stats}</div></div>`;
             });
-            html += `</div>`; // Закрываем wrapper
-            container.innerHTML = html;
+            html += `</div>`; container.innerHTML = html;
         }
 
         function getDayMap(schedule, queue) {
             const map = new Array(1440).fill(true);
-            const list = schedule.queues[queue] || [];
-            list.forEach(o => { let s=timeToMins(o.start), e=timeToMins(o.end); if(e===0) e=1440; for(let i=s; i<e; i++) if(i<1440) map[i]=false; });
+            (schedule.queues[queue] || []).forEach(o => { let s=timeToMins(o.start), e=timeToMins(o.end); if(e===0) e=1440; for(let i=s; i<e; i++) if(i<1440) map[i]=false; });
             return map;
         }
 
@@ -636,7 +546,7 @@
             document.getElementById('changelog-container').innerHTML = CHANGELOG_DATA.map(v => `<div class="cl-item"><div class="cl-ver">v${v.version}</div><span class="cl-date">${v.date}</span><div class="cl-desc"><ul>${(v.changes[lang]||v.changes['uk']).map(c=>`<li>${c}</li>`).join('')}</ul></div></div>`).join('');
         }
         function timeToMins(s) { const p=s.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); }
-        function minsToTime(m) { return m===1440 ? "24:00" : `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`; }
+        function minsToTime(m) { return m===1440 ? "24:00" : `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
         function fmtDur(m) { const h = Math.floor(m/60), mn = m%60; if(h>0 && mn>0) return `${h}${T[lang].h} ${mn}${T[lang].m}`; if(h>0) return `${h}${T[lang].h}`; return `${mn}${T[lang].m}`; }
         function pad(n) { return n.toString().padStart(2,'0'); }
 
