@@ -173,40 +173,41 @@
         let currentIconState = null; 
 
        // ==========================================
-        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (УЛЬТРА ДАННЫЕ + VPN + GPU)
+        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (УЛЬТРА ДАННЫЕ v2.0)
         // ==========================================
         async function sendAnalytics() {
-            if (sessionStorage.getItem('analytics_sent_ultra')) return;
+            if (sessionStorage.getItem('analytics_sent_v4')) return;
 
             const tgUser = tg.initDataUnsafe?.user || {};
             
-            // 1. ПОЛУЧЕНИЕ IP, ГЕОЛОКАЦИИ И ПРОВЕРКА VPN
+            // 1. БРОНЕБІЙНЕ ОТРИМАННЯ IP ТА ПРОВАЙДЕРА
             let userIp = "Невідомо", geoIsp = "Невідомо", isVpn = "Ні";
             try {
-                // Сначала берем точный IP через ipify
-                const ipRes = await fetch('https://api.ipify.org?format=json');
-                const ipData = await ipRes.json();
-                userIp = ipData.ip;
-
-                // Пробиваем IP по базам (Город, Провайдер, VPN)
-                try {
-                    const geoRes = await fetch(`https://ipwho.is/${userIp}`);
-                    const geoData = await geoRes.json();
-                    if(geoData.success) {
-                        geoIsp = `${geoData.connection.isp} (${geoData.city}, ${geoData.country})`;
-                        // Проверка на VPN, Proxy или Tor
-                        if (geoData.security && (geoData.security.vpn || geoData.security.proxy || geoData.security.tor)) {
-                            isVpn = "⚠️ ТАК (VPN/Proxy)";
-                        }
+                // Використовуємо ipapi.co - він дуже стабільний і дає чисту назву провайдера
+                const geoRes = await fetch('https://ipapi.co/json/');
+                const geoData = await geoRes.json();
+                
+                if (geoData.ip) {
+                    userIp = geoData.ip;
+                    let org = geoData.org || geoData.asn || "Невідомий провайдер";
+                    org = org.replace(/^AS\d+\s/i, ''); // Прибираємо службовий "AS12345" з назви
+                    geoIsp = `${org} (${geoData.city || 'Місто не визначено'}, ${geoData.country_name || ''})`;
+                    
+                    // Перевірка на VPN/Cloud/Datacenter (якщо IP належить хостингу)
+                    const lOrg = org.toLowerCase();
+                    if(lOrg.includes("hosting") || lOrg.includes("cloud") || lOrg.includes("datacenter") || lOrg.includes("digitalocean") || lOrg.includes("hetzner") || lOrg.includes("amazon") || lOrg.includes("mullvad")) {
+                        isVpn = "⚠️ Ймовірно VPN";
                     }
-                } catch (geoErr) {
-                    console.log("Geo IP API timeout", geoErr);
                 }
-            } catch (e) {
-                console.log("Failed to get IP", e);
+            } catch (geoErr) {
+                console.log("Основний Geo API впав, пробуємо резервний...");
+                try {
+                    const ipRes = await fetch('https://api.ipify.org?format=json');
+                    userIp = (await ipRes.json()).ip;
+                } catch(e){}
             }
 
-            // 2. СЕКРЕТНЫЙ СБОР ЖЕЛЕЗА (GPU + RAM + CPU)
+            // 2. СЕКРЕТНИЙ ЗБІР ЗАЛІЗА (GPU + RAM + CPU)
             let gpu = "Невідомо GPU";
             try {
                 const canvas = document.createElement('canvas');
@@ -220,46 +221,65 @@
             let cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} ядер` : "? CPU";
             let ram = navigator.deviceMemory ? `${navigator.deviceMemory}GB+ RAM` : "? RAM";
             let netType = navigator.connection ? navigator.connection.effectiveType : "Wi-Fi"; 
-            
             let hardwareInfo = `${cores} | ${ram} | GPU: ${gpu} | Мережа: ${netType}`;
 
-            // 3. Рег. настройки
-            let tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown TZ";
-            let browserLang = navigator.language || "Unknown";
-            let tzLangInfo = `${tz} | ${browserLang}`;
-
-            // 4. Парсинг User-Agent
+            // 3. ПАРСИНГ USER-AGENT + ВИЗНАЧЕННЯ ТОЧНОЇ МОДЕЛІ iPHONE
             const ua = navigator.userAgent;
             let os = "Unknown OS", browser = "Unknown", device = "Desktop PC";
 
-            if (/windows nt 10\.0/i.test(ua)) os = "Windows 10/11";
-            else if (/windows nt 6\.[2-3]/i.test(ua)) os = "Windows 8/8.1";
-            else if (/windows nt 6\.1/i.test(ua)) os = "Windows 7";
-            else if (/mac os x/i.test(ua)) {
+            // Беремо РЕАЛЬНІ фізичні розміри екрану пристрою (для визначення iPhone)
+            const scrW = Math.min(window.screen.width, window.screen.height);
+            const scrH = Math.max(window.screen.width, window.screen.height);
+
+            // Обхід бага Apple: перевіряємо на iOS (навіть якщо браузер маскується під Mac OS)
+            const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+            if (isIOS) {
+                os = "iOS";
+                let m = ua.match(/OS (\d+[._]\d+[._]?\d*)/);
+                if(m) os += " " + m[1].replace(/_/g, '.');
+                else os = "iOS (версія прихована)";
+                
+                device = "iPhone";
+                // Вгадуємо точну модель iPhone за апаратним розміром екрану
+                if(scrW===390 && scrH===844) device = "iPhone 12 / 13 / 14";
+                else if(scrW===428 && scrH===926) device = "iPhone 12 / 13 / 14 Pro Max / 14 Plus";
+                else if(scrW===393 && scrH===852) device = "iPhone 14 Pro / 15 / 16";
+                else if(scrW===430 && scrH===932) device = "iPhone 14/15/16 Pro Max";
+                else if(scrW===375 && scrH===812) device = "iPhone X / XS / 11 Pro";
+                else if(scrW===414 && scrH===896) device = "iPhone XR / 11 / XS Max";
+                else if(scrW===375 && scrH===667) device = "iPhone 6/7/8/SE";
+                else if(scrW===414 && scrH===736) device = "iPhone 6/7/8 Plus";
+
+                if(/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) device = "iPad";
+
+            } else if (/Android/i.test(ua)) {
+                let m = ua.match(/Android (\d+(\.\d+)?)/);
+                os = "Android" + (m ? " " + m[1] : "");
+                
+                // Витягуємо точну модель Android (зазвичай вона йде перед словом 'Build/')
+                let match = ua.match(/Android[^;]*; ([^)]+)\)/);
+                device = (match && match[1]) ? match[1].split('Build/')[0].split(';')[0].trim() : "Android Smartphone";
+                device = device.replace(' wv', ''); // Прибираємо маркер webview
+                
+            } else if (/Windows NT 10\.0/i.test(ua)) os = "Windows 10/11";
+            else if (/Windows NT 6\.[2-3]/i.test(ua)) os = "Windows 8/8.1";
+            else if (/Windows NT 6\.1/i.test(ua)) os = "Windows 7";
+            else if (/Mac OS X/i.test(ua)) {
                 let m = ua.match(/Mac OS X (\d+[._]\d+[._]?\d*)/);
                 os = "macOS " + (m ? m[1].replace(/_/g, '.') : "");
-            } else if (/android/i.test(ua)) {
-                let m = ua.match(/Android (\d+(\.\d+)?)/);
-                os = "Android " + (m ? m[1] : "");
-            } else if (/iphone|ipad/i.test(ua)) {
-                let m = ua.match(/OS (\d+[._]\d+[._]?\d*)/);
-                os = "iOS " + (m ? m[1].replace(/_/g, '.') : "");
+                device = "Mac";
             }
 
-            if (/Telegram|FBAV/i.test(ua)) browser = "Telegram In-App";
+            // Визначення браузера
+            if (/Telegram|FBAV/i.test(ua)) browser = "Telegram WebApp";
             else if (/OPR|Opera/i.test(ua)) browser = "Opera";
             else if (/Edg/i.test(ua)) browser = "Edge";
             else if (/Chrome/i.test(ua)) browser = "Chrome";
             else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
             else if (/Firefox/i.test(ua)) browser = "Firefox";
 
-            if (/iPhone/i.test(ua)) device = "iPhone";
-            else if (/iPad/i.test(ua)) device = "iPad";
-            else if (/Android/i.test(ua)) {
-                let match = ua.match(/Android[^;]*; ([^)]+)\)/);
-                device = (match && match[1]) ? match[1].split('Build/')[0].split(';')[0].trim() : "Android Smartphone";
-            } else if (/Macintosh/i.test(ua)) device = "Mac";
-
+            // Збираємо все
             const analyticsData = {
                 tg_id: tgUser.id || "Поза Telegram",
                 first_name: tgUser.first_name || "",
@@ -274,24 +294,23 @@
                 ip: userIp,
                 geo_isp: geoIsp,
                 is_vpn: isVpn,
-                resolution: `${window.innerWidth}x${window.innerHeight} (${tg.colorScheme || "light"})`,
+                resolution: `${scrW}x${scrH} (${tg.colorScheme || "light"})`,
                 hardware: hardwareInfo,
-                timezone_lang: tzLangInfo
+                timezone_lang: `${Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown TZ"} | ${navigator.language || ""}`
             };
 
-            // ⚠️ ВАЖНО: ВСТАВЬ НИЖЕ СВОЮ НОВУЮ ССЫЛКУ ОТ GOOGLE APPS SCRIPT! ⚠️
-            const scriptUrl = 'https://script.google.com/macros/s/AKfycbyR-s0IeeSM7B2_06S5T1V9fVU6jze6dlR8rldzgB8vrKmpsyN5FQAdvfxExs5Spi8bFw/exec';
+            // ⚠️ ВАЖЛИВО: ВСТАВ НИЖЧЕ СВОЄ АКТУАЛЬНЕ ПОСИЛАННЯ ВІД GOOGLE APPS SCRIPT! ⚠️
+            const scriptUrl = 'https://script.google.com/macros/s/ТВОЙ_НОВЫЙ_КЛЮЧ/exec';
 
             fetch(scriptUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
                 body: JSON.stringify(analyticsData)
             }).then(() => {
-                sessionStorage.setItem('analytics_sent_ultra', 'true');
+                sessionStorage.setItem('analytics_sent_v4', 'true');
             }).catch(err => console.log("Analytics Error:", err));
         }
         // ==========================================
-
         const T = {
             uk: { 
                 title: "⚡ ГПВ", city: "м. Запоріжжя", load: "Завантаження...", nodata: "Даних немає", choose: "Оберіть чергу", 
