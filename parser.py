@@ -178,16 +178,11 @@ def parse_channel(url):
                 
                 for q_id in found_ids:
                     if is_no_outage: 
-                        # Явно сказано, что отключений нет -> ставим пустой список
                         queues_found[q_id] = []
                     elif intervals: 
-                        # Найдены часы отключений -> ставим их
                         queues_found[q_id] = intervals
                     else:
-                        # ⚠️ ФИКС: Если не "нет отключений" и "нет времени" — 
-                        # НЕ записываем пустой список. Игнорируем эту очередь.
-                        # Это заставит merge_schedules оставить старое значение.
-                        pass
+                        pass # Пропускаем, если не нашли ни времени, ни слова про отмену
 
         if queues_found:
             for q_id in queues_found:
@@ -221,15 +216,26 @@ def load_existing_schedules():
         except Exception: return []
     return []
 
+# ==========================
+# 🔍 ЛОГИРОВАНИЕ ЗМІН
+# ==========================
+def format_intervals_for_log(intervals):
+    """Форматирует интервалы для красивого вывода в лог"""
+    if intervals is None:
+        return "Немає даних"
+    if not intervals:
+        return "Без відключень"
+    return ", ".join([f"{i['start']}-{i['end']}" for i in intervals])
+
 def merge_schedules(old_data, new_data):
     merged = {}
     
-    # Загружаем старые данные (делаем копию, чтобы не повредить ссылки)
     for sch in old_data: 
         merged[sch['date']] = copy.deepcopy(sch)
         
-    # Сортируем новые данные по времени (от старых постов к самым новым)
     new_data.sort(key=lambda x: x.get('_post_timestamp', 0))
+    
+    log("\n🛠 ПОЧИНАЄМО ПЕРЕВІРКУ ТА ЗЛИТТЯ ДАНИХ...")
     
     for sch in new_data:
         clean_sch = copy.deepcopy(sch)
@@ -238,26 +244,33 @@ def merge_schedules(old_data, new_data):
             
         date_key = clean_sch['date']
         
-        # Защита от пустых мусорных постов
         if not clean_sch['queues']:
             continue
 
         if date_key not in merged:
-            # Если даты вообще не было, создаем новую запись
+            log(f"  ✨ ДОДАНО НОВИЙ ДЕНЬ: {date_key}")
             merged[date_key] = clean_sch
         else:
-            # ФИКС ЧАСТИЧНЫХ ОБНОВЛЕНИЙ:
-            # Обновляем ТОЛЬКО те очереди, которые есть в новом посте!
+            changes_for_day = []
             for q_id, intervals in clean_sch['queues'].items():
                 if 'queues' not in merged[date_key]:
                     merged[date_key]['queues'] = {}
                 
-                # Если в новом посте очередь пустая ([]), но это НЕ явная отмена (is_no_outage),
-                # мы бы уже отфильтровали это в parse_channel.
-                # Поэтому если код дошел сюда, значит либо intervals есть, либо это явная отмена.
-                merged[date_key]['queues'][q_id] = intervals
+                old_intervals = merged[date_key]['queues'].get(q_id)
                 
-            merged[date_key]['updated_at'] = clean_sch['updated_at']
+                if old_intervals != intervals:
+                    old_str = format_intervals_for_log(old_intervals)
+                    new_str = format_intervals_for_log(intervals)
+                    changes_for_day.append(f"Черга {q_id}: [{old_str}] ➔ [{new_str}]")
+                    
+                    merged[date_key]['queues'][q_id] = intervals
+            
+            if changes_for_day:
+                log(f"  📝 ОНОВЛЕНО ДАНІ ДЛЯ ({date_key}):")
+                for change in changes_for_day:
+                    log(f"     {change}")
+                    
+                merged[date_key]['updated_at'] = clean_sch['updated_at']
             
     return list(merged.values())
 
@@ -324,7 +337,7 @@ def main():
         json.dump(output_json, f, ensure_ascii=False, indent=4)
         
     dates_in_file = [item['date'] for item in final_list]
-    log(f"💾 ИТОГ ({len(dates_in_file)} дн): {dates_in_file}")
+    log(f"\n💾 ИТОГ ({len(dates_in_file)} дн): {dates_in_file}")
 
 if __name__ == "__main__":
     main()
