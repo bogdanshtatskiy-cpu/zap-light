@@ -44,7 +44,7 @@ UA_MONTHS_REVERSE = {v: k for k, v in UA_MONTHS.items()}
 
 NO_OUTAGE_PHRASES = [
     "НЕ ВИМИКАЄТЬСЯ", "НЕ ЗАСТОСОВУЮТЬСЯ", "БЕЗ ВІДКЛЮЧЕНЬ", 
-    "СКАСОВАНО", "БІЛИЙ", "ЗЕЛЕНИЙ"
+    "СКАСОВАНО", "БІЛИЙ", "ЗЕЛЕНИЙ", "НЕ ВІДКЛЮЧАЄТЬСЯ"
 ]
 
 # ==========================
@@ -60,27 +60,33 @@ def log(msg):
 
 def get_html(target_url):
     rnd = random.randint(1, 999999)
-    proxies = [
+    urls = [
+        target_url,
         f"https://api.allorigins.win/raw?url={quote(target_url)}&rnd={rnd}",
-        f"https://corsproxy.io/?{quote(target_url)}", 
-        f"https://api.codetabs.com/v1/proxy?quest={quote(target_url)}&rnd={rnd}"
+        f"https://api.codetabs.com/v1/proxy?quest={quote(target_url)}&rnd={rnd}",
+        f"https://corsproxy.io/?{quote(target_url)}"
     ]
+    
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache'
     }
-    for url in proxies:
+    
+    for i, url in enumerate(urls):
         try:
-            log(f"   🔄 Пробуем через прокси...")
-            response = requests.get(url, headers=headers, timeout=20)
-            if response.status_code == 200 and len(response.text) > 2000:
-                content = response.text
-                if "tgme_widget" in content:
-                    return content
+            if i > 0:
+                log(f"   🔄 Пробуем через прокси {i}...")
+            
+            # Таймаут снижен до 5 сек для максимальной скорости
+            response = requests.get(url, headers=headers, timeout=5)
+            
+            # Проверяем, что Telegram не выдал заглушку без постов
+            if response.status_code == 200 and "tgme_widget_message_text" in response.text:
+                return response.text
         except Exception:
             pass
-        time.sleep(1)
     return None
 
 def parse_post_date(date_str):
@@ -93,45 +99,49 @@ def parse_post_date(date_str):
 def determine_date_from_text(text, post_date):
     text_upper = text.upper()
     
-    # 1. Поиск явной даты в тексте (например, "21 ЛЮТОГО")
+    # 1. Поиск явной даты (теперь не требует пробела в конце, ловит "21 ЛЮТОГО." или "21 ЛЮТОГО\n")
     months_regex = "|".join(UA_MONTHS.keys())
-    date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})\b", text_upper)
+    date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})", text_upper)
     if date_match:
         day = int(date_match.group(1))
         month_name = date_match.group(2)
         return f"{day} {month_name}"
 
-    # Если явной даты нет, анализируем только начало текста (первые 250 символов),
-    # чтобы избежать ложных срабатываний слова "завтра" в конце поста.
+    # Анализируем только НАЧАЛО текста (первые 250 символов)
     header_text = text_upper[:250]
 
-    # 2. Если это экстренное обновление, то это 100% график на СЕГОДНЯ
+    # 2. Экстренное обновление = СЕГОДНЯ
     if re.search(r"\b(ОНОВЛЕНО|ОНОВЛЕННЯ|ЗМІНИ|ЗМІНЕНО|ТЕРМІНОВО|ЗНОВУ|СЬОГОДНІ)\b", header_text):
         return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
 
-    # 3. Прямое указание, что график на завтра
+    # 3. Прямое указание на ЗАВТРА
     if "ЗАВТРА" in header_text:
         target_date = post_date + timedelta(days=1)
         return f"{target_date.day} {UA_MONTHS_REVERSE.get(target_date.month, 'ГРУДНЯ')}"
 
-    # 4. Фоллбек: если нет никаких дат, но есть график, считаем что это на день публикации поста (сегодня)
+    # 4. Фоллбек: день публикации поста
     return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
 
 def parse_channel(url):
     html = get_html(url)
-    if not html: return []
+    if not html: 
+        return []
 
     soup = BeautifulSoup(html, 'html.parser')
     page_title = soup.title.string.strip() if soup.title else "Channel"
     log(f"   🔎 Анализ: {page_title}")
     
     message_wraps = soup.find_all('div', class_='tgme_widget_message')
-    if not message_wraps: return []
+    if not message_wraps: 
+        return []
 
     found_schedules = []
     
-    time_pattern = re.compile(r"(?:з\s*)?(\d{1,2}[:.;]\d{2})\s*(?:[-–—−]|до|по)\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
-    queue_line_pattern = re.compile(r"^\s*(?:Черга\s*|▪️\s*)?((?:\d\.\d\s*(?:[\/,+&]|і|та)?\s*)+)(?:\s*[:)])?\s*(.*)", re.IGNORECASE)
+    # "ВСЕЯДНЫЙ" ШАБЛОН ВРЕМЕНИ: Ищет два времени, разделенные чем угодно (кроме цифр)
+    time_pattern = re.compile(r"(\d{1,2}[:.;]\d{2})\s*[^\d:.;]+\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
+    
+    # "ВСЕЯДНЫЙ" ШАБЛОН ЧЕРЕДИ: Игнорирует эмодзи и мусор в начале строки
+    queue_line_pattern = re.compile(r"^(?:[^\d]{0,20})?((?:\d\.\d\s*(?:[\/,+&]|і|та)?\s*)+)(?:\s*[:)])?\s*(.*)", re.IGNORECASE)
 
     for msg in message_wraps:
         text_div = msg.find('div', class_='tgme_widget_message_text')
@@ -198,7 +208,7 @@ def parse_channel(url):
                 "date": final_date_key,
                 "queues": queues_found,
                 "updated_at": updated_at_val,
-                "_post_timestamp": post_date.timestamp() # Сохраняем точное время для сортировки
+                "_post_timestamp": post_date.timestamp()
             })
 
     return found_schedules
@@ -215,24 +225,19 @@ def load_existing_schedules():
 def merge_schedules(old_data, new_data):
     merged = {}
     
-    # Сначала загружаем старые данные
     for sch in old_data: 
         merged[sch['date']] = sch
         
-    # Сортируем новые данные по времени публикации (от старых постов к самым новым)
-    # Это гарантирует, что самое свежее обновление перезапишет все предыдущие
     new_data.sort(key=lambda x: x.get('_post_timestamp', 0))
     
     for sch in new_data:
         clean_sch = {k: v for k, v in sch.items() if k != '_post_timestamp'}
-        # Перезаписываем, если нашли график, или если для этой даты еще нет данных
         if clean_sch['queues'] or clean_sch['date'] not in merged:
             merged[clean_sch['date']] = clean_sch
             
     return list(merged.values())
 
 def clean_old_schedules(schedules):
-    """Видаляє графіки старіші за 2 дні"""
     today = get_kiev_time().date()
     cutoff_date = today - timedelta(days=2)
     
@@ -283,7 +288,6 @@ def main():
 
     final_list.sort(key=date_sorter)
     
-    # Очистка старых + лимит
     final_list = clean_old_schedules(final_list)
     final_list = final_list[-35:] 
 
