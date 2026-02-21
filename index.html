@@ -173,42 +173,52 @@
         let currentIconState = null; 
 
         // ==========================================
-        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (v3.0 - БЕЗ ДУБЛІВ + IPv4)
+        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (v4.0 - УЛЬТРА)
         // ==========================================
         let analyticsCache = { ip: null, geo: null, vpn: null };
         let lastSentQueue = null;
         let analyticsTimer = null;
+        let isSendingAnalytics = false; // Блокировка от двойных отправок
 
-        // Таймер для запобігання спаму (чекає 1 сек)
+        // Таймер-дебаунсер (ждет 1.5 сек после кликов)
         function requestAnalyticsUpdate() {
             if (analyticsTimer) clearTimeout(analyticsTimer);
-            analyticsTimer = setTimeout(sendAnalytics, 1000); 
+            analyticsTimer = setTimeout(() => {
+                sendAnalytics();
+            }, 1500); 
         }
 
         async function sendAnalytics() {
+            if (isSendingAnalytics) return;
             const currentQueue = localStorage.getItem('queue') || "Не обрано";
             
-            if (lastSentQueue === currentQueue && sessionStorage.getItem('analytics_sent_v6')) return;
+            // Если мы уже отправили эту же очередь в рамках сессии — отбой
+            if (lastSentQueue === currentQueue && sessionStorage.getItem('analytics_sent_v7')) return;
 
-            sessionStorage.setItem('analytics_sent_v6', 'true');
-            lastSentQueue = currentQueue;
-
+            isSendingAnalytics = true;
             const tgUser = tg.initDataUnsafe?.user || {};
-            const ua = navigator.userAgent;
-            const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
             
-            // 1. ПРИМУСОВЕ ОТРИМАННЯ IPv4
+            // 1. ЖЕСТКОЕ ПОЛУЧЕНИЕ ИСКЛЮЧИТЕЛЬНО IPv4 И ПРОВАЙДЕРА ЧЕРЕЗ GEOJS
             if (!analyticsCache.ip) {
                 try {
+                    // api4 форсирует получение только IPv4
                     const ipRes = await fetch('https://api4.ipify.org?format=json');
                     analyticsCache.ip = (await ipRes.json()).ip;
                     
                     try {
-                        const geoRes = await fetch(`https://ipwho.is/${analyticsCache.ip}`);
+                        // GeoJS - надежный и бесплатный
+                        const geoRes = await fetch(`https://get.geojs.io/v1/ip/geo/${analyticsCache.ip}.json`);
                         const geoData = await geoRes.json();
-                        if (geoData.success) {
-                            analyticsCache.geo = `${geoData.connection.isp} (${geoData.city}, ${geoData.country})`;
-                            analyticsCache.vpn = (geoData.security && (geoData.security.vpn || geoData.security.proxy || geoData.security.tor)) ? "⚠️ ТАК (VPN/Proxy)" : "Ні";
+                        if (geoData.ip) {
+                            let org = (geoData.organization_name || geoData.organization || "Невідомий провайдер").replace(/^AS\d+\s/i, '');
+                            analyticsCache.geo = `${org} (${geoData.city || 'Місто не визначено'}, ${geoData.country || ''})`;
+                            
+                            const lOrg = org.toLowerCase();
+                            if(lOrg.includes("hosting") || lOrg.includes("cloud") || lOrg.includes("datacenter") || lOrg.includes("digitalocean") || lOrg.includes("hetzner") || lOrg.includes("amazon") || lOrg.includes("vpn")) {
+                                analyticsCache.vpn = "⚠️ ТАК (VPN/Proxy)";
+                            } else {
+                                analyticsCache.vpn = "Ні";
+                            }
                         }
                     } catch(e) {}
                 } catch(e) {}
@@ -218,8 +228,8 @@
             let geoIsp = analyticsCache.geo || "Невідомо";
             let isVpn = analyticsCache.vpn || "Ні";
 
-            // 2. СЕКРЕТНИЙ ЗБІР ЗАЛІЗА
-            let gpu = "Невідомо";
+            // 2. СЕКРЕТНЫЙ СБОР ЖЕЛЕЗА (GPU + RAM + CPU)
+            let gpu = "Невідомо GPU";
             try {
                 const canvas = document.createElement('canvas');
                 const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -229,30 +239,39 @@
                 }
             } catch(e){}
 
+            const ua = navigator.userAgent;
+            const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
             let cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} ядер` : "? CPU";
-            let ram = navigator.deviceMemory ? `${navigator.deviceMemory}GB+ RAM` : (isIOS ? "[Сховано iOS]" : "? RAM");
+            // iOS всегда скрывает RAM, пишем красиво, чтобы не было '?'
+            let ram = navigator.deviceMemory ? `${navigator.deviceMemory}GB+ RAM` : (isIOS ? "[Приховано iOS]" : "? RAM");
             let netType = navigator.connection ? navigator.connection.effectiveType : "Wi-Fi"; 
             let hardwareInfo = `${cores} | ${ram} | GPU: ${gpu} | Мережа: ${netType}`;
 
-            // 3. ПАРСИНГ USER-AGENT + ВИЗНАЧЕННЯ МОДЕЛІ iPHONE ПО ШИРИНІ ЕКРАНУ
+            // 3. ПАРСИНГ USER-AGENT + ВИЗНАЧЕННЯ ТОЧНОЇ МОДЕЛІ iPHONE ПО ФИЗИЧЕСКОМУ ЭКРАНУ
             let os = "Unknown OS", browser = "Unknown", device = "Desktop PC";
+
+            // screen.width дает аппаратный размер, независимо от зума браузера
             const scrW = Math.min(window.screen.width, window.screen.height);
             const scrH = Math.max(window.screen.width, window.screen.height);
 
             if (isIOS) {
                 os = "iOS";
-                let m = ua.match(/OS (\d+[._]\d+[._]?\d*)/);
-                if(m) os += " " + m[1].replace(/_/g, '.');
+                let iosMatch = ua.match(/OS (\d+[._]\d+[._]?\d*)/);
+                let macMatch = ua.match(/Mac OS X (\d+[._]\d+[._]?\d*)/); // Защита от режима ПК
+                if (iosMatch) os += " " + iosMatch[1].replace(/_/g, '.');
+                else if (macMatch) os += " " + macMatch[1].replace(/_/g, '.') + " (Desktop Mode)";
+                else os = "iOS (версія прихована)";
                 
                 device = "iPhone";
-                if (scrW === 390) device = "iPhone 12/13/14";
-                else if (scrW === 428) device = "iPhone 12/13/14 Pro Max";
-                else if (scrW === 393) device = "iPhone 14 Pro / 15 / 16";
-                else if (scrW === 430) device = "iPhone 14/15/16 Pro Max";
-                else if (scrW === 375 && scrH > 800) device = "iPhone X/XS/11 Pro/12 mini";
-                else if (scrW === 375) device = "iPhone 6/7/8/SE";
-                else if (scrW === 414 && scrH > 800) device = "iPhone XR/11/XS Max";
-                else if (scrW === 414) device = "iPhone 6/7/8 Plus";
+                if(scrW === 375 && scrH === 667) device = "iPhone 6/7/8/SE2/SE3";
+                else if(scrW === 414 && scrH === 736) device = "iPhone 6+/7+/8+";
+                else if(scrW === 375 && scrH === 812) device = "iPhone X/XS/11Pro/12mini/13mini";
+                else if(scrW === 414 && scrH === 896) device = "iPhone XR/11/XS Max/11Pro Max";
+                else if(scrW === 390 && scrH === 844) device = "iPhone 12/12Pro/13/13Pro/14";
+                else if(scrW === 428 && scrH === 926) device = "iPhone 12PM/13PM/14 Plus";
+                else if(scrW === 393 && scrH === 852) device = "iPhone 14Pro/15/15Pro/16";
+                else if(scrW === 430 && scrH === 932) device = "iPhone 14PM/15Plus/15PM/16Plus/16PM";
 
                 if(/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) device = "iPad";
 
@@ -298,14 +317,20 @@
                 timezone_lang: `${Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown TZ"} | ${navigator.language || ""}`
             };
 
-            // ⚠️ ВАЖЛИВО: ВСТАВТЕ СЮДИ ВАШЕ ПОСИЛАННЯ ВІД GOOGLE APPS SCRIPT! ⚠️
+            // ⚠️ ВАЖЛИВО: ВСТАВТЕ СЮДИ СВОЮ НОВУЮ ССЫЛКУ ОТ GOOGLE APPS SCRIPT! ⚠️
             const scriptUrl = 'https://script.google.com/macros/s/AKfycbzZ-rdNPbmRflEsvuwITMhBNiYseWACSQv1KN09ayuzPwhhYwf4dg43bMTPbKXMWOgMIw/exec';
 
             fetch(scriptUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
                 body: JSON.stringify(analyticsData)
-            }).catch(err => console.log("Analytics Error:", err));
+            }).then(() => {
+                sessionStorage.setItem('analytics_sent_v7', 'true');
+                lastSentQueue = currentQueue;
+            }).catch(err => console.log("Analytics Error:", err))
+            .finally(() => {
+                isSendingAnalytics = false; // Снимаем блок
+            });
         }
         // ==========================================
 
@@ -378,7 +403,7 @@
             if (typeof initWeather === "function") await initWeather(); 
             document.getElementById('loader').innerText = T[lang].load;
 
-            // Виклик збору аналітики через таймер (щоб уникнути дублів)
+            // Запускаем сбор данных через безопасный таймер
             requestAnalyticsUpdate();
 
             try {
@@ -495,7 +520,7 @@
             lastStatusType = null;
             tick(); updateView();
             
-            // Якщо обрали нову чергу — відправляємо оновлення в Гугл Таблицю
+            // Запрашиваем обновление в таблице, если пользователь сменил очередь
             if (typeof requestAnalyticsUpdate === 'function') {
                 requestAnalyticsUpdate(); 
             }
