@@ -173,41 +173,46 @@
         let currentIconState = null; 
 
        // ==========================================
-        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (УЛЬТРА ДАННЫЕ v2.0)
+        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (УМНОЕ ОБНОВЛЕНИЕ)
         // ==========================================
-        async function sendAnalytics() {
-            if (sessionStorage.getItem('analytics_sent_v4')) return;
+        let analyticsCache = { ip: null, geo: null, vpn: null }; // Кэш для IP
+
+        async function sendAnalytics(isUpdate = false) {
+            // Если это не принудительное обновление и мы уже отправляли данные при старте — выходим
+            if (!isUpdate && sessionStorage.getItem('analytics_sent_v5')) return;
 
             const tgUser = tg.initDataUnsafe?.user || {};
             
-            // 1. БРОНЕБІЙНЕ ОТРИМАННЯ IP ТА ПРОВАЙДЕРА
-            let userIp = "Невідомо", geoIsp = "Невідомо", isVpn = "Ні";
-            try {
-                // Використовуємо ipapi.co - він дуже стабільний і дає чисту назву провайдера
-                const geoRes = await fetch('https://ipapi.co/json/');
-                const geoData = await geoRes.json();
-                
-                if (geoData.ip) {
-                    userIp = geoData.ip;
-                    let org = geoData.org || geoData.asn || "Невідомий провайдер";
-                    org = org.replace(/^AS\d+\s/i, ''); // Прибираємо службовий "AS12345" з назви
-                    geoIsp = `${org} (${geoData.city || 'Місто не визначено'}, ${geoData.country_name || ''})`;
-                    
-                    // Перевірка на VPN/Cloud/Datacenter (якщо IP належить хостингу)
-                    const lOrg = org.toLowerCase();
-                    if(lOrg.includes("hosting") || lOrg.includes("cloud") || lOrg.includes("datacenter") || lOrg.includes("digitalocean") || lOrg.includes("hetzner") || lOrg.includes("amazon") || lOrg.includes("mullvad")) {
-                        isVpn = "⚠️ Ймовірно VPN";
-                    }
-                }
-            } catch (geoErr) {
-                console.log("Основний Geo API впав, пробуємо резервний...");
+            // 1. БЕРЕМ IP ИЗ КЭША ИЛИ ЗАПРАШИВАЕМ ЗАНОВО
+            let userIp = analyticsCache.ip || "Невідомо";
+            let geoIsp = analyticsCache.geo || "Невідомо";
+            let isVpn = analyticsCache.vpn || "Ні";
+
+            if (!analyticsCache.ip) {
                 try {
-                    const ipRes = await fetch('https://api.ipify.org?format=json');
-                    userIp = (await ipRes.json()).ip;
-                } catch(e){}
+                    const geoRes = await fetch('https://ipapi.co/json/');
+                    const geoData = await geoRes.json();
+                    if (geoData.ip) {
+                        userIp = geoData.ip;
+                        let org = (geoData.org || geoData.asn || "").replace(/^AS\d+\s/i, '');
+                        geoIsp = `${org} (${geoData.city || 'Місто не визначено'}, ${geoData.country_name || ''})`;
+                        const lOrg = org.toLowerCase();
+                        if(lOrg.includes("hosting") || lOrg.includes("cloud") || lOrg.includes("datacenter") || lOrg.includes("digitalocean") || lOrg.includes("hetzner") || lOrg.includes("amazon") || lOrg.includes("mullvad")) {
+                            isVpn = "⚠️ Ймовірно VPN";
+                        }
+                    }
+                } catch (geoErr) {
+                    try {
+                        const ipRes = await fetch('https://api.ipify.org?format=json');
+                        userIp = (await ipRes.json()).ip;
+                    } catch(e){}
+                }
+                analyticsCache.ip = userIp;
+                analyticsCache.geo = geoIsp;
+                analyticsCache.vpn = isVpn;
             }
 
-            // 2. СЕКРЕТНИЙ ЗБІР ЗАЛІЗА (GPU + RAM + CPU)
+            // 2. СЕКРЕТНЫЙ ЗБІР ЗАЛІЗА (GPU + RAM + CPU)
             let gpu = "Невідомо GPU";
             try {
                 const canvas = document.createElement('canvas');
@@ -227,11 +232,8 @@
             const ua = navigator.userAgent;
             let os = "Unknown OS", browser = "Unknown", device = "Desktop PC";
 
-            // Беремо РЕАЛЬНІ фізичні розміри екрану пристрою (для визначення iPhone)
             const scrW = Math.min(window.screen.width, window.screen.height);
             const scrH = Math.max(window.screen.width, window.screen.height);
-
-            // Обхід бага Apple: перевіряємо на iOS (навіть якщо браузер маскується під Mac OS)
             const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
             if (isIOS) {
@@ -241,7 +243,6 @@
                 else os = "iOS (версія прихована)";
                 
                 device = "iPhone";
-                // Вгадуємо точну модель iPhone за апаратним розміром екрану
                 if(scrW===390 && scrH===844) device = "iPhone 12 / 13 / 14";
                 else if(scrW===428 && scrH===926) device = "iPhone 12 / 13 / 14 Pro Max / 14 Plus";
                 else if(scrW===393 && scrH===852) device = "iPhone 14 Pro / 15 / 16";
@@ -256,11 +257,9 @@
             } else if (/Android/i.test(ua)) {
                 let m = ua.match(/Android (\d+(\.\d+)?)/);
                 os = "Android" + (m ? " " + m[1] : "");
-                
-                // Витягуємо точну модель Android (зазвичай вона йде перед словом 'Build/')
                 let match = ua.match(/Android[^;]*; ([^)]+)\)/);
                 device = (match && match[1]) ? match[1].split('Build/')[0].split(';')[0].trim() : "Android Smartphone";
-                device = device.replace(' wv', ''); // Прибираємо маркер webview
+                device = device.replace(' wv', ''); 
                 
             } else if (/Windows NT 10\.0/i.test(ua)) os = "Windows 10/11";
             else if (/Windows NT 6\.[2-3]/i.test(ua)) os = "Windows 8/8.1";
@@ -271,7 +270,6 @@
                 device = "Mac";
             }
 
-            // Визначення браузера
             if (/Telegram|FBAV/i.test(ua)) browser = "Telegram WebApp";
             else if (/OPR|Opera/i.test(ua)) browser = "Opera";
             else if (/Edg/i.test(ua)) browser = "Edge";
@@ -279,7 +277,6 @@
             else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
             else if (/Firefox/i.test(ua)) browser = "Firefox";
 
-            // Збираємо все
             const analyticsData = {
                 tg_id: tgUser.id || "Поза Telegram",
                 first_name: tgUser.first_name || "",
@@ -300,14 +297,14 @@
             };
 
             // ⚠️ ВАЖЛИВО: ВСТАВ НИЖЧЕ СВОЄ АКТУАЛЬНЕ ПОСИЛАННЯ ВІД GOOGLE APPS SCRIPT! ⚠️
-            const scriptUrl = 'https://script.google.com/macros/s/ТВОЙ_НОВЫЙ_КЛЮЧ/exec';
+            const scriptUrl = 'https://script.google.com/macros/s/AKfycbzZ-rdNPbmRflEsvuwITMhBNiYseWACSQv1KN09ayuzPwhhYwf4dg43bMTPbKXMWOgMIw/exec';
 
             fetch(scriptUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
                 body: JSON.stringify(analyticsData)
             }).then(() => {
-                sessionStorage.setItem('analytics_sent_v4', 'true');
+                sessionStorage.setItem('analytics_sent_v5', 'true');
             }).catch(err => console.log("Analytics Error:", err));
         }
         // ==========================================
@@ -496,6 +493,11 @@
             document.getElementById('details-list').style.display = 'block';
             lastStatusType = null;
             tick(); updateView();
+            
+            // 🔥 ДОБАВЛЕНО: Принудительно отправляем сигнал об обновлении очереди!
+            if (typeof sendAnalytics === 'function') {
+                sendAnalytics(true); 
+            }
         }
 
         function setLang(l) {
