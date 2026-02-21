@@ -13,7 +13,6 @@ ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "12345")
 # ========================================================
 
-# Проверка куки (сессии)
 def verify_api(request: Request):
     if request.cookies.get("admin_session") != f"{ADMIN_LOGIN}:{ADMIN_PASSWORD}":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
@@ -22,16 +21,13 @@ class LoginData(BaseModel):
     username: str
     password: str
 
-# API: Авторизация и сохранение на 10 лет
 @app.post("/api/login")
 async def login(data: LoginData, response: Response):
     if data.username == ADMIN_LOGIN and data.password == ADMIN_PASSWORD:
-        # max_age = 315360000 секунд (это ровно 10 лет)
         response.set_cookie(key="admin_session", value=f"{ADMIN_LOGIN}:{ADMIN_PASSWORD}", max_age=315360000, httponly=True)
         return {"status": "ok"}
     raise HTTPException(status_code=400, detail="Неверные данные")
 
-# API: Выход
 @app.post("/api/logout")
 async def logout(response: Response):
     response.delete_cookie("admin_session")
@@ -73,57 +69,38 @@ async def update_user(user_id: int, user: UserUpdate):
     await conn.close()
     return {"status": "ok"}
 
-
 # ================= СТРАНИЦА ЛОГИНА =================
 HTML_LOGIN = """
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Вход | ZapLight CRM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>Вход | ZapLight</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #000; color: #fff; touch-action: manipulation; }
+        .glass { background: rgba(28, 28, 30, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+        .glass-input { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; }
+    </style>
 </head>
-<body class="bg-gray-900 flex items-center justify-center h-screen px-4 font-sans">
-    <div class="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-700">
+<body class="flex items-center justify-center h-screen px-4 font-sans">
+    <div class="glass p-8 rounded-3xl w-full max-w-sm">
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-black text-blue-500 mb-2 tracking-tight">⚡ ZapLight</h1>
-            <p class="text-gray-400 text-sm font-medium uppercase tracking-widest">Панель управления</p>
+            <h1 class="text-3xl font-bold mb-1 tracking-tight">ZapLight OS</h1>
+            <p class="text-gray-400 text-xs font-medium uppercase tracking-widest">Graphite Security</p>
         </div>
-        
-        <input type="text" id="login" placeholder="Логин" class="w-full mb-4 bg-gray-900 border border-gray-600 text-white p-4 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition">
-        <input type="password" id="pass" placeholder="Пароль" class="w-full mb-8 bg-gray-900 border border-gray-600 text-white p-4 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition">
-        
-        <button onclick="doLogin()" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/30 transition text-lg">
-            Войти в систему
-        </button>
+        <input type="text" id="login" placeholder="Логин" class="glass-input w-full mb-4 p-3.5 rounded-xl focus:outline-none focus:border-blue-500 transition">
+        <input type="password" id="pass" placeholder="Пароль" class="glass-input w-full mb-8 p-3.5 rounded-xl focus:outline-none focus:border-blue-500 transition">
+        <button onclick="doLogin()" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl transition">Авторизация</button>
     </div>
-
     <script>
         async function doLogin() {
-            const btn = document.getElementById('loginBtn');
-            btn.innerText = "Проверка...";
-            
-            const u = document.getElementById('login').value;
-            const p = document.getElementById('pass').value;
-            
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: u, password: p})
-            });
-            
-            if(res.ok) {
-                window.location.reload();
-            } else {
-                alert("❌ Неверный логин или пароль!");
-                btn.innerText = "Войти в систему";
-            }
+            const btn = document.getElementById('loginBtn'); btn.innerText = "Вход...";
+            const u = document.getElementById('login').value, p = document.getElementById('pass').value;
+            const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: u, password: p}) });
+            if(res.ok) window.location.reload(); else { alert("❌ Ошибка"); btn.innerText = "Авторизация"; }
         }
-        
-        document.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') doLogin();
-        });
     </script>
 </body>
 </html>
@@ -135,121 +112,156 @@ HTML_DASHBOARD = """
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>ZapLight | CRM Панель</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #1f2937; }
-        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 3px; }
-        body { background-color: #111827; color: #e5e7eb; }
+        /* Анти-зум и плавность */
+        * { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        
+        /* Графит & Жидкое стекло (iOS 26) */
+        body { background-color: #000; background-image: radial-gradient(circle at top right, #1c1c1e, #000); color: #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; min-height: 100vh; }
+        .glass { background: rgba(28, 28, 30, 0.6); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.08); }
+        .glass-input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: white; transition: all 0.2s; }
+        .glass-input:focus { border-color: #0a84ff; background: rgba(0,0,0,0.6); box-shadow: 0 0 0 2px rgba(10,132,255,0.3); }
+        .card-hover:active { transform: scale(0.98); background: rgba(44, 44, 46, 0.8); }
+        
+        select option { background: #1c1c1e; color: white; }
     </style>
 </head>
-<body class="p-4 md:p-6 font-sans antialiased">
+<body class="p-2 md:p-4">
     
-    <div class="max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto pb-10">
         
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl md:text-3xl font-bold text-blue-400 flex items-center gap-2">⚡ ZapLight CRM</h1>
-            <button onclick="logout()" class="bg-gray-800 hover:bg-red-900/50 text-gray-400 hover:text-red-400 border border-gray-700 hover:border-red-800/50 px-4 py-2 rounded-lg text-sm font-bold transition">🚪 Выйти</button>
+        <div class="flex justify-between items-center mb-4 px-1">
+            <h1 class="text-xl md:text-2xl font-bold tracking-tight">ZapLight</h1>
+            <div class="flex gap-2">
+                <button onclick="loadUsers(false, true)" class="glass hover:bg-white/10 p-2 rounded-full text-sm transition"><span id="syncIcon">🔄</span></button>
+                <button onclick="logout()" class="glass hover:bg-red-500/20 text-red-400 px-3 py-1.5 rounded-full text-xs font-bold transition">Выйти</button>
+            </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="dashboard"></div>
+        <div class="grid grid-cols-4 gap-2 mb-4" id="dashboard"></div>
 
-        <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 mb-6 flex flex-col md:flex-row gap-4 shadow-lg">
-            <input type="text" id="searchInput" oninput="applyFilters()" placeholder="🔍 Поиск (Имя, ID, Username)..." 
-                   class="w-full bg-gray-900 border border-gray-600 text-white p-3 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+        <div class="glass p-3 rounded-2xl mb-4 flex flex-col md:flex-row gap-2">
+            <div class="relative w-full">
+                <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Поиск (Имя, ID)..." class="glass-input w-full p-2 pl-3 pr-8 rounded-xl text-xs outline-none">
+                <button onclick="clearSearch()" class="absolute right-2 top-1.5 text-gray-400 hover:text-white font-bold p-1 text-xs">×</button>
+            </div>
             
-            <select id="queueFilter" onchange="applyFilters()" class="w-full md:w-48 bg-gray-900 border border-gray-600 text-white p-3 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
-                <option value="all">Все очереди</option>
-            </select>
-
-            <select id="notifyFilter" onchange="applyFilters()" class="w-full md:w-48 bg-gray-900 border border-gray-600 text-white p-3 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
-                <option value="all">Все уведомления</option>
-                <option value="on">Включены 🔔</option>
-                <option value="off">Выключены 🔕</option>
-            </select>
+            <div class="flex gap-2 w-full md:w-auto">
+                <select id="queueFilter" onchange="applyFilters()" class="glass-input w-1/2 md:w-32 p-2 rounded-xl text-xs outline-none">
+                    <option value="all">Очередь: Все</option>
+                </select>
+                <select id="notifyFilter" onchange="applyFilters()" class="glass-input w-1/2 md:w-32 p-2 rounded-xl text-xs outline-none">
+                    <option value="all">Статус: Все</option>
+                    <option value="on">ВКЛ 🔔</option>
+                    <option value="off">ВЫКЛ 🔕</option>
+                </select>
+            </div>
         </div>
 
-        <div id="usersList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div class="col-span-full text-center text-gray-400 py-10 animate-pulse">Загрузка защищенной базы...</div>
+        <div class="px-2 mb-2 text-xs text-gray-400 font-medium tracking-wide">
+            Показано: <span id="filteredCount" class="text-white font-bold">0</span>
+        </div>
+
+        <div id="usersList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            <div class="col-span-full text-center text-gray-500 py-10 text-sm">Подключение к БД...</div>
         </div>
     </div>
 
-    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-80 hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-gray-800 rounded-2xl p-6 w-full max-w-lg border border-gray-600 shadow-2xl relative">
-            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
-            <h2 class="text-xl font-bold text-blue-400 mb-6 border-b border-gray-700 pb-2" id="modalTitle">Настройки пользователя</h2>
+    <div id="editModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-3 z-50">
+        <div class="glass rounded-3xl p-5 w-full max-w-sm relative shadow-2xl border border-white/10 transform transition-all">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white bg-white/5 rounded-full w-7 h-7 flex items-center justify-center text-lg">&times;</button>
+            <h2 class="text-lg font-bold mb-4" id="modalTitle">Настройки</h2>
             
             <input type="hidden" id="editUserId">
             
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div><label class="block text-xs font-semibold text-gray-400 mb-1 uppercase">Имя</label><input type="text" id="editFirstName" class="w-full bg-gray-900 border border-gray-600 text-white p-2.5 rounded-lg focus:border-blue-500 text-sm"></div>
-                <div><label class="block text-xs font-semibold text-gray-400 mb-1 uppercase">Фамилия</label><input type="text" id="editLastName" class="w-full bg-gray-900 border border-gray-600 text-white p-2.5 rounded-lg focus:border-blue-500 text-sm"></div>
-                <div><label class="block text-xs font-semibold text-gray-400 mb-1 uppercase">Username</label><input type="text" id="editUsername" placeholder="@username" class="w-full bg-gray-900 border border-gray-600 text-white p-2.5 rounded-lg focus:border-blue-500 text-sm"></div>
-                <div><label class="block text-xs font-semibold text-gray-400 mb-1 uppercase">Телефон</label><input type="text" id="editPhone" placeholder="+380..." class="w-full bg-gray-900 border border-gray-600 text-white p-2.5 rounded-lg focus:border-blue-500 text-sm"></div>
-                <div><label class="block text-xs font-semibold text-gray-400 mb-1 uppercase">Очередь</label><input type="text" id="editQueue" class="w-full bg-gray-900 border border-gray-600 text-white p-2.5 rounded-lg focus:border-blue-500 text-sm"></div>
-                <div><label class="block text-xs font-semibold text-gray-400 mb-1 uppercase">Язык</label>
-                    <select id="editLang" class="w-full bg-gray-900 border border-gray-600 text-white p-2.5 rounded-lg focus:border-blue-500 text-sm">
-                        <option value="ua">Укр (ua)</option><option value="ru">Рус (ru)</option><option value="en">Англ (en)</option>
-                    </select>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="col-span-2 flex gap-3">
+                    <div class="w-1/2"><label class="block text-[10px] text-gray-400 mb-1 uppercase">Имя</label><input type="text" id="editFirstName" class="glass-input w-full p-2 rounded-lg text-xs"></div>
+                    <div class="w-1/2"><label class="block text-[10px] text-gray-400 mb-1 uppercase">Фамилия</label><input type="text" id="editLastName" class="glass-input w-full p-2 rounded-lg text-xs"></div>
                 </div>
-                <div class="col-span-2"><label class="block text-xs font-semibold text-gray-400 mb-1 uppercase">Предупреждать за (минут)</label><input type="number" id="editNotifyBefore" class="w-full bg-gray-900 border border-gray-600 text-white p-2.5 rounded-lg focus:border-blue-500 text-sm"></div>
+                <div><label class="block text-[10px] text-gray-400 mb-1 uppercase">Username</label><input type="text" id="editUsername" class="glass-input w-full p-2 rounded-lg text-xs"></div>
+                <div><label class="block text-[10px] text-gray-400 mb-1 uppercase">Телефон</label><input type="text" id="editPhone" class="glass-input w-full p-2 rounded-lg text-xs"></div>
+                <div><label class="block text-[10px] text-gray-400 mb-1 uppercase">Очередь</label><input type="text" id="editQueue" class="glass-input w-full p-2 rounded-lg text-xs text-center font-bold text-[#0a84ff]"></div>
+                <div><label class="block text-[10px] text-gray-400 mb-1 uppercase">Мин. до откл.</label><input type="number" id="editNotifyBefore" class="glass-input w-full p-2 rounded-lg text-xs text-center"></div>
             </div>
             
-            <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 mb-6 space-y-4">
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" id="editNotify" class="w-5 h-5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-0 cursor-pointer">
-                    <span class="ml-3 text-sm text-gray-200 font-medium">Отправлять уведомления 🔔</span>
+            <div class="bg-white/5 p-3 rounded-xl mb-5 space-y-3 border border-white/5">
+                <label class="flex items-center justify-between cursor-pointer">
+                    <span class="text-xs">Уведомления 🔔</span>
+                    <input type="checkbox" id="editNotify" class="w-4 h-4 accent-[#0a84ff]">
                 </label>
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" id="editSilent" class="w-5 h-5 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-0 cursor-pointer">
-                    <span class="ml-3 text-sm text-gray-200 font-medium">Тихий режим (без звука) 🌙</span>
+                <label class="flex items-center justify-between cursor-pointer">
+                    <span class="text-xs">Без звука 🌙</span>
+                    <input type="checkbox" id="editSilent" class="w-4 h-4 accent-purple-500">
                 </label>
             </div>
             
-            <div class="flex justify-end gap-3">
-                <button onclick="closeModal()" class="px-5 py-2.5 bg-gray-700 text-white rounded-xl hover:bg-gray-600 font-medium text-sm transition">Отмена</button>
-                <button onclick="saveUser(event)" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 font-medium text-sm shadow-lg shadow-blue-500/30 transition">Сохранить</button>
-            </div>
+            <button onclick="saveUser(event)" class="w-full bg-[#0a84ff] hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl shadow-lg shadow-blue-500/20 text-sm transition">Сохранить</button>
         </div>
     </div>
 
     <script>
         let allUsers = [];
 
-        async function loadUsers() {
-            const res = await fetch('/api/users');
-            if (res.status === 401) { window.location.reload(); return; }
-            allUsers = await res.json();
-            updateDashboard(); populateQueueDropdown(); applyFilters();
+        // Автообновление (каждые 5 сек), если модалка закрыта
+        setInterval(() => {
+            if (document.getElementById('editModal').classList.contains('hidden')) {
+                loadUsers(true, false);
+            }
+        }, 5000);
+
+        async function loadUsers(silent = false, isManualBtn = false) {
+            if(isManualBtn) document.getElementById('syncIcon').classList.add('animate-spin');
+            try {
+                const res = await fetch('/api/users');
+                if (res.status === 401) { window.location.reload(); return; }
+                allUsers = await res.json();
+                
+                updateDashboard();
+                if(!silent) populateQueueDropdown(); 
+                applyFilters();
+            } finally {
+                if(isManualBtn) setTimeout(() => document.getElementById('syncIcon').classList.remove('animate-spin'), 500);
+            }
         }
 
-        async function logout() {
-            await fetch('/api/logout', {method: 'POST'});
-            window.location.reload();
-        }
+        async function logout() { await fetch('/api/logout', {method: 'POST'}); window.location.reload(); }
+
+        function clearSearch() { document.getElementById('searchInput').value = ''; applyFilters(); }
 
         function updateDashboard() {
             const total = allUsers.length;
             const notifyOn = allUsers.filter(u => u.notifications_enabled).length;
             const queues = {};
             allUsers.forEach(u => { if(u.queue_id) queues[u.queue_id] = (queues[u.queue_id] || 0) + 1; });
-            let topQueue = "Нет", max = 0;
+            let topQueue = "-", max = 0;
             for (const [q, count] of Object.entries(queues)) { if(count > max) { max = count; topQueue = q; } }
 
             document.getElementById('dashboard').innerHTML = `
-                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm"><div class="text-xs text-gray-400 uppercase font-bold tracking-wider">Всего юзеров</div><div class="text-2xl font-black text-white mt-1">${total}</div></div>
-                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm"><div class="text-xs text-gray-400 uppercase font-bold tracking-wider">Уведомления ВКЛ</div><div class="text-2xl font-black text-green-400 mt-1">${notifyOn}</div></div>
-                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm"><div class="text-xs text-gray-400 uppercase font-bold tracking-wider">Топ Очередь</div><div class="text-2xl font-black text-blue-400 mt-1">${topQueue}</div></div>
-                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm"><div class="text-xs text-gray-400 uppercase font-bold tracking-wider">Новых сегодня</div><div class="text-2xl font-black text-purple-400 mt-1">~</div></div>
+                <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">Юзеров</div><div class="text-lg font-bold">${total}</div></div>
+                <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">СМС ВКЛ</div><div class="text-lg font-bold text-green-400">${notifyOn}</div></div>
+                <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">Топ Черга</div><div class="text-lg font-bold text-[#0a84ff]">${topQueue}</div></div>
+                <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">Язык UA</div><div class="text-lg font-bold text-yellow-400">${allUsers.filter(u=>u.language==='ua').length}</div></div>
             `;
         }
 
         function populateQueueDropdown() {
             const select = document.getElementById('queueFilter');
-            const queues = [...new Set(allUsers.map(u => u.queue_id).filter(q => q))].sort();
-            queues.forEach(q => { if(![...select.options].some(opt => opt.value === q)) select.add(new Option(`Очередь ${q}`, q)); });
+            const currentVal = select.value;
+            select.innerHTML = '<option value="all">Очередь: Все</option>';
+            
+            // Умная сортировка: 1.1 -> 1.2 -> 2.1 -> 10.1
+            const queues = [...new Set(allUsers.map(u => u.queue_id).filter(q => q))];
+            queues.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
+            
+            queues.forEach(q => select.add(new Option(`Очередь ${q}`, q)));
+            select.value = [...select.options].some(o=>o.value===currentVal) ? currentVal : 'all';
         }
 
         function applyFilters() {
@@ -263,31 +275,37 @@ HTML_DASHBOARD = """
                 const matchNotify = (notifyVal === 'all') || (notifyVal === 'on' && u.notifications_enabled) || (notifyVal === 'off' && !u.notifications_enabled);
                 return matchSearch && matchQueue && matchNotify;
             });
+            
+            document.getElementById('filteredCount').innerText = filtered.length;
             renderUsers(filtered);
         }
 
         function renderUsers(users) {
             const list = document.getElementById('usersList');
             list.innerHTML = '';
-            if(users.length === 0) { list.innerHTML = `<div class="col-span-full text-center text-gray-500 py-6">Ничего не найдено</div>`; return; }
+            if(users.length === 0) { list.innerHTML = `<div class="col-span-full text-center text-gray-500 py-4 text-xs">Ничего не найдено</div>`; return; }
 
             users.forEach(u => {
                 let name = u.first_name || 'Без имени'; if (u.last_name) name += ' ' + u.last_name;
-                let username = u.username ? `<span class="text-blue-400">@${u.username}</span>` : '<span class="text-gray-600">Нет юзернейма</span>';
-                let queue = u.queue_id ? `<span class="bg-blue-900/50 border border-blue-700 text-blue-300 text-xs px-2.5 py-1 rounded-full">${u.queue_id}</span>` : '<span class="bg-gray-700 text-gray-400 text-xs px-2.5 py-1 rounded-full">Не выбрана</span>';
-                let notifyIcon = u.notifications_enabled ? '🔔' : '🔕';
+                let username = u.username ? `<span class="text-[#0a84ff]">@${u.username}</span>` : '<span class="text-gray-600">Нет юзернейма</span>';
+                let queue = u.queue_id ? `<span class="bg-[#0a84ff]/20 text-[#0a84ff] border border-[#0a84ff]/30 text-[10px] px-2 py-0.5 rounded-md font-bold">${u.queue_id}</span>` : '<span class="bg-white/5 text-gray-400 text-[10px] px-2 py-0.5 rounded-md">Нет</span>';
+                
+                let notifyIcon = u.notifications_enabled ? '<span class="text-green-400">🔔</span>' : '<span class="text-red-400/50">🔕</span>';
                 let silentIcon = u.silent_mode ? '🌙' : '🔊';
 
                 let card = `
-                    <div class="bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-sm cursor-pointer hover:bg-gray-750 hover:border-gray-500 hover:shadow-md transition-all group" onclick='openModal(${JSON.stringify(u).replace(/'/g, "&#39;")})'>
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="font-bold text-gray-100 truncate pr-2 group-hover:text-blue-400 transition-colors">${name}</div><div>${queue}</div>
+                    <div class="glass p-2.5 rounded-2xl card-hover cursor-pointer flex flex-col justify-between" onclick='openModal(${JSON.stringify(u).replace(/'/g, "&#39;")})'>
+                        <div class="flex justify-between items-center mb-1">
+                            <div class="font-semibold text-sm truncate pr-2 text-white">${name}</div>
+                            <div>${queue}</div>
                         </div>
-                        <div class="text-xs text-gray-400 font-mono mb-2">ID: ${u.user_id}</div>
-                        <div class="text-xs mb-3 truncate">${username} ${u.phone_number ? `| 📞 ${u.phone_number}` : ''}</div>
-                        <div class="flex justify-between items-center text-xs text-gray-500 border-t border-gray-700 pt-3 mt-auto">
-                            <div>Lang: <span class="uppercase text-gray-300">${u.language || 'UA'}</span></div>
-                            <div class="flex gap-2 text-sm">${notifyIcon} ${silentIcon} <span class="text-gray-400 text-xs mt-0.5">-${u.notify_before || 15}м</span></div>
+                        <div class="flex justify-between items-end">
+                            <div class="text-[10px] text-gray-400 leading-tight">
+                                ID: ${u.user_id}<br>${username}
+                            </div>
+                            <div class="flex gap-1.5 text-xs bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+                                ${notifyIcon} ${silentIcon} <span class="text-gray-400">-${u.notify_before || 15}м</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -297,13 +315,11 @@ HTML_DASHBOARD = """
 
         function openModal(user) {
             document.getElementById('editUserId').value = user.user_id;
-            document.getElementById('modalTitle').innerText = `Юзер: ${user.user_id}`;
             document.getElementById('editFirstName').value = user.first_name || '';
             document.getElementById('editLastName').value = user.last_name || '';
             document.getElementById('editUsername').value = user.username || '';
             document.getElementById('editPhone').value = user.phone_number || '';
             document.getElementById('editQueue').value = user.queue_id || '';
-            document.getElementById('editLang').value = user.language || 'ua';
             document.getElementById('editNotifyBefore').value = user.notify_before || 15;
             document.getElementById('editNotify').checked = user.notifications_enabled;
             document.getElementById('editSilent').checked = user.silent_mode;
@@ -320,7 +336,7 @@ HTML_DASHBOARD = """
                 username: document.getElementById('editUsername').value || null,
                 phone_number: document.getElementById('editPhone').value || null,
                 queue_id: document.getElementById('editQueue').value || null,
-                language: document.getElementById('editLang').value || 'ua',
+                language: 'ua',
                 notify_before: parseInt(document.getElementById('editNotifyBefore').value) || 15,
                 notifications_enabled: document.getElementById('editNotify').checked,
                 silent_mode: document.getElementById('editSilent').checked
@@ -329,8 +345,8 @@ HTML_DASHBOARD = """
             btn.innerText = "Сохранение..."; btn.disabled = true;
             try {
                 await fetch(`/api/users/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-                closeModal(); loadUsers(); 
-            } catch(e) { alert("Ошибка при сохранении!"); } 
+                closeModal(); loadUsers(true); 
+            } catch(e) { alert("Ошибка сохранения"); } 
             finally { btn.innerText = oldText; btn.disabled = false; }
         }
 
@@ -340,11 +356,8 @@ HTML_DASHBOARD = """
 </html>
 """
 
-# ================= ГЛАВНЫЙ РОУТЕР =================
 @app.get("/", response_class=HTMLResponse)
 async def serve_admin_panel(request: Request):
-    # Если куки нет или она неправильная — отдаем красивую страницу логина
     if request.cookies.get("admin_session") != f"{ADMIN_LOGIN}:{ADMIN_PASSWORD}":
         return HTML_LOGIN
-    # Если кука верная — отдаем сам дашборд
     return HTML_DASHBOARD
