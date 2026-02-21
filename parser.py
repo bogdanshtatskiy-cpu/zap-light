@@ -6,6 +6,7 @@ import time
 import sys
 import os
 import random
+import copy
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
@@ -79,10 +80,8 @@ def get_html(target_url):
             if i > 0:
                 log(f"   🔄 Пробуем через прокси {i}...")
             
-            # Таймаут снижен до 5 сек для максимальной скорости
             response = requests.get(url, headers=headers, timeout=5)
             
-            # Проверяем, что Telegram не выдал заглушку без постов
             if response.status_code == 200 and "tgme_widget_message_text" in response.text:
                 return response.text
         except Exception:
@@ -99,7 +98,6 @@ def parse_post_date(date_str):
 def determine_date_from_text(text, post_date):
     text_upper = text.upper()
     
-    # 1. Поиск явной даты (теперь не требует пробела в конце, ловит "21 ЛЮТОГО." или "21 ЛЮТОГО\n")
     months_regex = "|".join(UA_MONTHS.keys())
     date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})", text_upper)
     if date_match:
@@ -107,19 +105,15 @@ def determine_date_from_text(text, post_date):
         month_name = date_match.group(2)
         return f"{day} {month_name}"
 
-    # Анализируем только НАЧАЛО текста (первые 250 символов)
     header_text = text_upper[:250]
 
-    # 2. Экстренное обновление = СЕГОДНЯ
     if re.search(r"\b(ОНОВЛЕНО|ОНОВЛЕННЯ|ЗМІНИ|ЗМІНЕНО|ТЕРМІНОВО|ЗНОВУ|СЬОГОДНІ)\b", header_text):
         return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
 
-    # 3. Прямое указание на ЗАВТРА
     if "ЗАВТРА" in header_text:
         target_date = post_date + timedelta(days=1)
         return f"{target_date.day} {UA_MONTHS_REVERSE.get(target_date.month, 'ГРУДНЯ')}"
 
-    # 4. Фоллбек: день публикации поста
     return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
 
 def parse_channel(url):
@@ -137,10 +131,7 @@ def parse_channel(url):
 
     found_schedules = []
     
-    # "ВСЕЯДНЫЙ" ШАБЛОН ВРЕМЕНИ: Ищет два времени, разделенные чем угодно (кроме цифр)
     time_pattern = re.compile(r"(\d{1,2}[:.;]\d{2})\s*[^\d:.;]+\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
-    
-    # "ВСЕЯДНЫЙ" ШАБЛОН ЧЕРЕДИ: Игнорирует эмодзи и мусор в начале строки
     queue_line_pattern = re.compile(r"^(?:[^\d]{0,20})?((?:\d\.\d\s*(?:[\/,+&]|і|та)?\s*)+)(?:\s*[:)])?\s*(.*)", re.IGNORECASE)
 
     for msg in message_wraps:
@@ -225,15 +216,36 @@ def load_existing_schedules():
 def merge_schedules(old_data, new_data):
     merged = {}
     
+    # Загружаем старые данные (делаем копию, чтобы не повредить ссылки)
     for sch in old_data: 
-        merged[sch['date']] = sch
+        merged[sch['date']] = copy.deepcopy(sch)
         
+    # Сортируем новые данные по времени (от старых постов к самым новым)
     new_data.sort(key=lambda x: x.get('_post_timestamp', 0))
     
     for sch in new_data:
-        clean_sch = {k: v for k, v in sch.items() if k != '_post_timestamp'}
-        if clean_sch['queues'] or clean_sch['date'] not in merged:
-            merged[clean_sch['date']] = clean_sch
+        clean_sch = copy.deepcopy(sch)
+        if '_post_timestamp' in clean_sch:
+            del clean_sch['_post_timestamp']
+            
+        date_key = clean_sch['date']
+        
+        # Защита от пустых мусорных постов
+        if not clean_sch['queues']:
+            continue
+
+        if date_key not in merged:
+            # Если даты вообще не было, создаем новую запись
+            merged[date_key] = clean_sch
+        else:
+            # ФИКС ЧАСТИЧНЫХ ОБНОВЛЕНИЙ:
+            # Обновляем ТОЛЬКО те очереди, которые есть в новом посте!
+            for q_id, intervals in clean_sch['queues'].items():
+                if 'queues' not in merged[date_key]:
+                    merged[date_key]['queues'] = {}
+                merged[date_key]['queues'][q_id] = intervals
+                
+            merged[date_key]['updated_at'] = clean_sch['updated_at']
             
     return list(merged.values())
 
