@@ -14,7 +14,8 @@
     <script src="changelog.js"></script>
     <script src="weather_advice.js"></script>
     <script src="weather.js"></script>
-    <script src="meter.js"></script> <script src="flashlight.js"></script> </head>
+    <script src="meter.js"></script> <script src="flashlight.js"></script> 
+</head>
 <body>
     <script>
         if (localStorage.getItem('isDarkMode') === 'true') {
@@ -169,8 +170,41 @@
         let currentView = 'view-main';
         let isSearchLoaded = false;
         
-        // Змінна для відстеження поточного стану SVG (світло є/немає)
         let currentIconState = null; 
+
+        // ==========================================
+        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS
+        // ==========================================
+        function sendAnalytics() {
+            if (sessionStorage.getItem('analytics_sent')) return;
+
+            const tgUser = tg.initDataUnsafe?.user || {};
+            
+            const analyticsData = {
+                tg_id: tgUser.id || "Поза Telegram",
+                first_name: tgUser.first_name || "",
+                last_name: tgUser.last_name || "",
+                username: tgUser.username ? "@" + tgUser.username : "",
+                language: tgUser.language_code || "uk",
+                is_premium: tgUser.is_premium || false,
+                queue: localStorage.getItem('queue') || "Не обрано",
+                user_agent: navigator.userAgent,
+                resolution: `${window.innerWidth}x${window.innerHeight}`,
+                theme: tg.colorScheme || "light"
+            };
+
+            // ⚠️ ВАЖНО: ВСТАВЬ НИЖЕ СВОЙ URL ОТ GOOGLE APPS SCRIPT! ⚠️
+            const scriptUrl = 'https://script.google.com/macros/s/AKfycbw0v2Yr0EasGBbltANTXMazat5Km7kF2Iomy72SVpF7gAuVJLVNfJF7TtiSMerUSOAz5w/exec';
+
+            fetch(scriptUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+                body: JSON.stringify(analyticsData)
+            }).then(() => {
+                sessionStorage.setItem('analytics_sent', 'true');
+            }).catch(err => console.error("Помилка відправки аналітики:", err));
+        }
+        // ==========================================
 
         const T = {
             uk: { 
@@ -240,6 +274,9 @@
             setLang(lang);
             if (typeof initWeather === "function") await initWeather(); 
             document.getElementById('loader').innerText = T[lang].load;
+
+            // Вызов сбора аналитики при старте
+            sendAnalytics();
 
             try {
                 const res = await fetch('https://raw.githubusercontent.com/bogdanshtatskiy-cpu/zap-light/main/schedule.json?v=' + Date.now());
@@ -499,13 +536,11 @@
             const st = document.getElementById('status');
             const tm = document.getElementById('timer');
 
-            // Керування відмальовкою іконок (Світла/Темна тема)
             if (isLight) {
                 body.classList.remove('dark-mode');
                 localStorage.setItem('isDarkMode', 'false');
                 
                 if (currentIconState !== 'on') {
-                    // Викликаємо Лічильник
                     iconContainer.innerHTML = typeof Meter !== 'undefined' ? Meter.getSVG() : '';
                     currentIconState = 'on';
                     iconWrap.classList.remove('flashlight-mode');
@@ -520,7 +555,6 @@
                 localStorage.setItem('isDarkMode', 'true');
                 
                 if (currentIconState !== 'off') {
-                    // Викликаємо Ліхтарик
                     iconContainer.innerHTML = typeof Flashlight !== 'undefined' ? Flashlight.getSVG() : '';
                     currentIconState = 'off';
                     iconWrap.classList.remove('meter-mode'); 
@@ -658,6 +692,7 @@
         function fmtDur(m) { const h = Math.floor(m/60), mn = m%60; if(h>0 && mn>0) return `${h}${T[lang].h} ${mn}${T[lang].m}`; if(h>0) return `${h}${T[lang].h}`; return `${mn}${T[lang].m}`; }
         function pad(n) { return n.toString().padStart(2,'0'); }
 
+        // Запуск
         init();
     </script>
 </body>
