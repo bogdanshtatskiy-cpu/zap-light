@@ -92,6 +92,8 @@ def parse_post_date(date_str):
 
 def determine_date_from_text(text, post_date):
     text_upper = text.upper()
+    
+    # 1. Поиск явной даты в тексте (например, "21 ЛЮТОГО")
     months_regex = "|".join(UA_MONTHS.keys())
     date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})\b", text_upper)
     if date_match:
@@ -99,19 +101,21 @@ def determine_date_from_text(text, post_date):
         month_name = date_match.group(2)
         return f"{day} {month_name}"
 
-    if "ЗАВТРА" in text_upper:
-        target_date = post_date + timedelta(days=1)
-        day = target_date.day
-        month_name = UA_MONTHS_REVERSE.get(target_date.month, "ГРУДНЯ")
-        return f"{day} {month_name}"
-    
-    if "СЬОГОДНІ" in text_upper:
-        target_date = post_date
-        day = target_date.day
-        month_name = UA_MONTHS_REVERSE.get(target_date.month, "ГРУДНЯ")
-        return f"{day} {month_name}"
+    # Если явной даты нет, анализируем только начало текста (первые 250 символов),
+    # чтобы избежать ложных срабатываний слова "завтра" в конце поста.
+    header_text = text_upper[:250]
 
-    return None
+    # 2. Если это экстренное обновление, то это 100% график на СЕГОДНЯ
+    if re.search(r"\b(ОНОВЛЕНО|ОНОВЛЕННЯ|ЗМІНИ|ЗМІНЕНО|ТЕРМІНОВО|ЗНОВУ|СЬОГОДНІ)\b", header_text):
+        return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
+
+    # 3. Прямое указание, что график на завтра
+    if "ЗАВТРА" in header_text:
+        target_date = post_date + timedelta(days=1)
+        return f"{target_date.day} {UA_MONTHS_REVERSE.get(target_date.month, 'ГРУДНЯ')}"
+
+    # 4. Фоллбек: если нет никаких дат, но есть график, считаем что это на день публикации поста (сегодня)
+    return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
 
 def parse_channel(url):
     html = get_html(url)
@@ -193,7 +197,8 @@ def parse_channel(url):
             found_schedules.append({
                 "date": final_date_key,
                 "queues": queues_found,
-                "updated_at": updated_at_val
+                "updated_at": updated_at_val,
+                "_post_timestamp": post_date.timestamp() # Сохраняем точное время для сортировки
             })
 
     return found_schedules
@@ -209,10 +214,21 @@ def load_existing_schedules():
 
 def merge_schedules(old_data, new_data):
     merged = {}
-    for sch in old_data: merged[sch['date']] = sch
+    
+    # Сначала загружаем старые данные
+    for sch in old_data: 
+        merged[sch['date']] = sch
+        
+    # Сортируем новые данные по времени публикации (от старых постов к самым новым)
+    # Это гарантирует, что самое свежее обновление перезапишет все предыдущие
+    new_data.sort(key=lambda x: x.get('_post_timestamp', 0))
+    
     for sch in new_data:
-        if sch['queues'] or sch['date'] not in merged:
-            merged[sch['date']] = sch
+        clean_sch = {k: v for k, v in sch.items() if k != '_post_timestamp'}
+        # Перезаписываем, если нашли график, или если для этой даты еще нет данных
+        if clean_sch['queues'] or clean_sch['date'] not in merged:
+            merged[clean_sch['date']] = clean_sch
+            
     return list(merged.values())
 
 def clean_old_schedules(schedules):
@@ -267,10 +283,8 @@ def main():
 
     final_list.sort(key=date_sorter)
     
-    # 🔥 Очистка старых + лимит 30 дней вперед
+    # Очистка старых + лимит
     final_list = clean_old_schedules(final_list)
-    
-    # Можно увеличить лимит, если загружаем месяц
     final_list = final_list[-35:] 
 
     output_json = {
