@@ -172,48 +172,54 @@
         
         let currentIconState = null; 
 
-       // ==========================================
-        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (УМНОЕ ОБНОВЛЕНИЕ)
         // ==========================================
-        let analyticsCache = { ip: null, geo: null, vpn: null }; // Кэш для IP
+        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (v3.0 - БЕЗ ДУБЛІВ + IPv4)
+        // ==========================================
+        let analyticsCache = { ip: null, geo: null, vpn: null };
+        let lastSentQueue = null;
+        let analyticsTimer = null;
 
-        async function sendAnalytics(isUpdate = false) {
-            // Если это не принудительное обновление и мы уже отправляли данные при старте — выходим
-            if (!isUpdate && sessionStorage.getItem('analytics_sent_v5')) return;
+        // Таймер для запобігання спаму (чекає 1 сек)
+        function requestAnalyticsUpdate() {
+            if (analyticsTimer) clearTimeout(analyticsTimer);
+            analyticsTimer = setTimeout(sendAnalytics, 1000); 
+        }
+
+        async function sendAnalytics() {
+            const currentQueue = localStorage.getItem('queue') || "Не обрано";
+            
+            if (lastSentQueue === currentQueue && sessionStorage.getItem('analytics_sent_v6')) return;
+
+            sessionStorage.setItem('analytics_sent_v6', 'true');
+            lastSentQueue = currentQueue;
 
             const tgUser = tg.initDataUnsafe?.user || {};
+            const ua = navigator.userAgent;
+            const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
             
-            // 1. БЕРЕМ IP ИЗ КЭША ИЛИ ЗАПРАШИВАЕМ ЗАНОВО
+            // 1. ПРИМУСОВЕ ОТРИМАННЯ IPv4
+            if (!analyticsCache.ip) {
+                try {
+                    const ipRes = await fetch('https://api4.ipify.org?format=json');
+                    analyticsCache.ip = (await ipRes.json()).ip;
+                    
+                    try {
+                        const geoRes = await fetch(`https://ipwho.is/${analyticsCache.ip}`);
+                        const geoData = await geoRes.json();
+                        if (geoData.success) {
+                            analyticsCache.geo = `${geoData.connection.isp} (${geoData.city}, ${geoData.country})`;
+                            analyticsCache.vpn = (geoData.security && (geoData.security.vpn || geoData.security.proxy || geoData.security.tor)) ? "⚠️ ТАК (VPN/Proxy)" : "Ні";
+                        }
+                    } catch(e) {}
+                } catch(e) {}
+            }
+
             let userIp = analyticsCache.ip || "Невідомо";
             let geoIsp = analyticsCache.geo || "Невідомо";
             let isVpn = analyticsCache.vpn || "Ні";
 
-            if (!analyticsCache.ip) {
-                try {
-                    const geoRes = await fetch('https://ipapi.co/json/');
-                    const geoData = await geoRes.json();
-                    if (geoData.ip) {
-                        userIp = geoData.ip;
-                        let org = (geoData.org || geoData.asn || "").replace(/^AS\d+\s/i, '');
-                        geoIsp = `${org} (${geoData.city || 'Місто не визначено'}, ${geoData.country_name || ''})`;
-                        const lOrg = org.toLowerCase();
-                        if(lOrg.includes("hosting") || lOrg.includes("cloud") || lOrg.includes("datacenter") || lOrg.includes("digitalocean") || lOrg.includes("hetzner") || lOrg.includes("amazon") || lOrg.includes("mullvad")) {
-                            isVpn = "⚠️ Ймовірно VPN";
-                        }
-                    }
-                } catch (geoErr) {
-                    try {
-                        const ipRes = await fetch('https://api.ipify.org?format=json');
-                        userIp = (await ipRes.json()).ip;
-                    } catch(e){}
-                }
-                analyticsCache.ip = userIp;
-                analyticsCache.geo = geoIsp;
-                analyticsCache.vpn = isVpn;
-            }
-
-            // 2. СЕКРЕТНЫЙ ЗБІР ЗАЛІЗА (GPU + RAM + CPU)
-            let gpu = "Невідомо GPU";
+            // 2. СЕКРЕТНИЙ ЗБІР ЗАЛІЗА
+            let gpu = "Невідомо";
             try {
                 const canvas = document.createElement('canvas');
                 const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -224,33 +230,29 @@
             } catch(e){}
 
             let cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} ядер` : "? CPU";
-            let ram = navigator.deviceMemory ? `${navigator.deviceMemory}GB+ RAM` : "? RAM";
+            let ram = navigator.deviceMemory ? `${navigator.deviceMemory}GB+ RAM` : (isIOS ? "[Сховано iOS]" : "? RAM");
             let netType = navigator.connection ? navigator.connection.effectiveType : "Wi-Fi"; 
             let hardwareInfo = `${cores} | ${ram} | GPU: ${gpu} | Мережа: ${netType}`;
 
-            // 3. ПАРСИНГ USER-AGENT + ВИЗНАЧЕННЯ ТОЧНОЇ МОДЕЛІ iPHONE
-            const ua = navigator.userAgent;
+            // 3. ПАРСИНГ USER-AGENT + ВИЗНАЧЕННЯ МОДЕЛІ iPHONE ПО ШИРИНІ ЕКРАНУ
             let os = "Unknown OS", browser = "Unknown", device = "Desktop PC";
-
             const scrW = Math.min(window.screen.width, window.screen.height);
             const scrH = Math.max(window.screen.width, window.screen.height);
-            const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
             if (isIOS) {
                 os = "iOS";
                 let m = ua.match(/OS (\d+[._]\d+[._]?\d*)/);
                 if(m) os += " " + m[1].replace(/_/g, '.');
-                else os = "iOS (версія прихована)";
                 
                 device = "iPhone";
-                if(scrW===390 && scrH===844) device = "iPhone 12 / 13 / 14";
-                else if(scrW===428 && scrH===926) device = "iPhone 12 / 13 / 14 Pro Max / 14 Plus";
-                else if(scrW===393 && scrH===852) device = "iPhone 14 Pro / 15 / 16";
-                else if(scrW===430 && scrH===932) device = "iPhone 14/15/16 Pro Max";
-                else if(scrW===375 && scrH===812) device = "iPhone X / XS / 11 Pro";
-                else if(scrW===414 && scrH===896) device = "iPhone XR / 11 / XS Max";
-                else if(scrW===375 && scrH===667) device = "iPhone 6/7/8/SE";
-                else if(scrW===414 && scrH===736) device = "iPhone 6/7/8 Plus";
+                if (scrW === 390) device = "iPhone 12/13/14";
+                else if (scrW === 428) device = "iPhone 12/13/14 Pro Max";
+                else if (scrW === 393) device = "iPhone 14 Pro / 15 / 16";
+                else if (scrW === 430) device = "iPhone 14/15/16 Pro Max";
+                else if (scrW === 375 && scrH > 800) device = "iPhone X/XS/11 Pro/12 mini";
+                else if (scrW === 375) device = "iPhone 6/7/8/SE";
+                else if (scrW === 414 && scrH > 800) device = "iPhone XR/11/XS Max";
+                else if (scrW === 414) device = "iPhone 6/7/8 Plus";
 
                 if(/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) device = "iPad";
 
@@ -285,7 +287,7 @@
                 language: tgUser.language_code || "uk",
                 is_premium: tgUser.is_premium || false,
                 allows_pm: tgUser.allows_write_to_pm !== false, 
-                queue: localStorage.getItem('queue') || "Не обрано",
+                queue: currentQueue,
                 device: device,
                 os_browser: `${os} / ${browser}`,
                 ip: userIp,
@@ -296,18 +298,17 @@
                 timezone_lang: `${Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown TZ"} | ${navigator.language || ""}`
             };
 
-            // ⚠️ ВАЖЛИВО: ВСТАВ НИЖЧЕ СВОЄ АКТУАЛЬНЕ ПОСИЛАННЯ ВІД GOOGLE APPS SCRIPT! ⚠️
+            // ⚠️ ВАЖЛИВО: ВСТАВТЕ СЮДИ ВАШЕ ПОСИЛАННЯ ВІД GOOGLE APPS SCRIPT! ⚠️
             const scriptUrl = 'https://script.google.com/macros/s/AKfycbzZ-rdNPbmRflEsvuwITMhBNiYseWACSQv1KN09ayuzPwhhYwf4dg43bMTPbKXMWOgMIw/exec';
 
             fetch(scriptUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
                 body: JSON.stringify(analyticsData)
-            }).then(() => {
-                sessionStorage.setItem('analytics_sent_v5', 'true');
             }).catch(err => console.log("Analytics Error:", err));
         }
         // ==========================================
+
         const T = {
             uk: { 
                 title: "⚡ ГПВ", city: "м. Запоріжжя", load: "Завантаження...", nodata: "Даних немає", choose: "Оберіть чергу", 
@@ -377,8 +378,8 @@
             if (typeof initWeather === "function") await initWeather(); 
             document.getElementById('loader').innerText = T[lang].load;
 
-            // Вызов сбора аналитики при старте
-            sendAnalytics();
+            // Виклик збору аналітики через таймер (щоб уникнути дублів)
+            requestAnalyticsUpdate();
 
             try {
                 const res = await fetch('https://raw.githubusercontent.com/bogdanshtatskiy-cpu/zap-light/main/schedule.json?v=' + Date.now());
@@ -494,9 +495,9 @@
             lastStatusType = null;
             tick(); updateView();
             
-            // 🔥 ДОБАВЛЕНО: Принудительно отправляем сигнал об обновлении очереди!
-            if (typeof sendAnalytics === 'function') {
-                sendAnalytics(true); 
+            // Якщо обрали нову чергу — відправляємо оновлення в Гугл Таблицю
+            if (typeof requestAnalyticsUpdate === 'function') {
+                requestAnalyticsUpdate(); 
             }
         }
 
