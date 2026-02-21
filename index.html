@@ -173,45 +173,65 @@
         let currentIconState = null; 
 
        // ==========================================
-        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (MAX DATA)
+        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (УЛЬТРА ДАННЫЕ + VPN + GPU)
         // ==========================================
         async function sendAnalytics() {
-            // Щоб дані відправлялися лише 1 раз за сесію, не спамлячи таблицю
-            if (sessionStorage.getItem('analytics_sent_max')) return;
+            if (sessionStorage.getItem('analytics_sent_ultra')) return;
 
             const tgUser = tg.initDataUnsafe?.user || {};
             
-            // 1. Збагачені дані по IP (Провайдер, Місто, Країна)
-            let userIp = "Невідомо", geoIsp = "Невідомо";
+            // 1. ПОЛУЧЕНИЕ IP, ГЕОЛОКАЦИИ И ПРОВЕРКА VPN
+            let userIp = "Невідомо", geoIsp = "Невідомо", isVpn = "Ні";
             try {
-                // Використовуємо ipwho.is (безкоштовно, HTTPS, визначає провайдера)
-                const ipRes = await fetch('https://ipwho.is/');
+                // Сначала берем точный IP через ipify
+                const ipRes = await fetch('https://api.ipify.org?format=json');
                 const ipData = await ipRes.json();
-                if(ipData.success) {
-                    userIp = ipData.ip;
-                    // Приклад: "Kyivstar (Zaporizhzhia, Ukraine)"
-                    geoIsp = `${ipData.connection.isp} (${ipData.city}, ${ipData.country})`;
+                userIp = ipData.ip;
+
+                // Пробиваем IP по базам (Город, Провайдер, VPN)
+                try {
+                    const geoRes = await fetch(`https://ipwho.is/${userIp}`);
+                    const geoData = await geoRes.json();
+                    if(geoData.success) {
+                        geoIsp = `${geoData.connection.isp} (${geoData.city}, ${geoData.country})`;
+                        // Проверка на VPN, Proxy или Tor
+                        if (geoData.security && (geoData.security.vpn || geoData.security.proxy || geoData.security.tor)) {
+                            isVpn = "⚠️ ТАК (VPN/Proxy)";
+                        }
+                    }
+                } catch (geoErr) {
+                    console.log("Geo IP API timeout", geoErr);
                 }
             } catch (e) {
-                console.log("Не вдалося отримати Geo IP");
+                console.log("Failed to get IP", e);
             }
 
-            // 2. Технічні характеристики заліза та мережі
-            let cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} ядер` : "Невідомо CPU";
-            let netType = navigator.connection ? navigator.connection.effectiveType : "Wi-Fi/Unknown"; 
-            // navigator.connection.effectiveType повертає '4g', '3g' тощо.
-            let hardwareInfo = `CPU: ${cores} | Мережа: ${netType}`;
+            // 2. СЕКРЕТНЫЙ СБОР ЖЕЛЕЗА (GPU + RAM + CPU)
+            let gpu = "Невідомо GPU";
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (debugInfo) gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                }
+            } catch(e){}
 
-            // 3. Регіональні налаштування
+            let cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} ядер` : "? CPU";
+            let ram = navigator.deviceMemory ? `${navigator.deviceMemory}GB+ RAM` : "? RAM";
+            let netType = navigator.connection ? navigator.connection.effectiveType : "Wi-Fi"; 
+            
+            let hardwareInfo = `${cores} | ${ram} | GPU: ${gpu} | Мережа: ${netType}`;
+
+            // 3. Рег. настройки
             let tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown TZ";
             let browserLang = navigator.language || "Unknown";
-            let tzLangInfo = `${tz} | Браузер: ${browserLang}`;
+            let tzLangInfo = `${tz} | ${browserLang}`;
 
             // 4. Парсинг User-Agent
             const ua = navigator.userAgent;
-            let os = "Unknown OS", browser = "Unknown Browser", device = "Desktop PC";
+            let os = "Unknown OS", browser = "Unknown", device = "Desktop PC";
 
-            // Визначення ОС
             if (/windows nt 10\.0/i.test(ua)) os = "Windows 10/11";
             else if (/windows nt 6\.[2-3]/i.test(ua)) os = "Windows 8/8.1";
             else if (/windows nt 6\.1/i.test(ua)) os = "Windows 7";
@@ -226,7 +246,6 @@
                 os = "iOS " + (m ? m[1].replace(/_/g, '.') : "");
             }
 
-            // Визначення браузера
             if (/Telegram|FBAV/i.test(ua)) browser = "Telegram In-App";
             else if (/OPR|Opera/i.test(ua)) browser = "Opera";
             else if (/Edg/i.test(ua)) browser = "Edge";
@@ -234,7 +253,6 @@
             else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
             else if (/Firefox/i.test(ua)) browser = "Firefox";
 
-            // Визначення пристрою
             if (/iPhone/i.test(ua)) device = "iPhone";
             else if (/iPad/i.test(ua)) device = "iPad";
             else if (/Android/i.test(ua)) {
@@ -249,26 +267,27 @@
                 username: tgUser.username ? "@" + tgUser.username : "",
                 language: tgUser.language_code || "uk",
                 is_premium: tgUser.is_premium || false,
-                allows_pm: tgUser.allows_write_to_pm !== false, // Чи дозволив юзер писати йому в ПП
+                allows_pm: tgUser.allows_write_to_pm !== false, 
                 queue: localStorage.getItem('queue') || "Не обрано",
                 device: device,
                 os_browser: `${os} / ${browser}`,
                 ip: userIp,
                 geo_isp: geoIsp,
+                is_vpn: isVpn,
                 resolution: `${window.innerWidth}x${window.innerHeight} (${tg.colorScheme || "light"})`,
                 hardware: hardwareInfo,
                 timezone_lang: tzLangInfo
             };
 
-            // ⚠️ ВАЖЛИВО: ВСТАВ НИЖЧЕ СВОЄ НОВЕ ПОСИЛАННЯ ВІД GOOGLE APPS SCRIPT! ⚠️
-            const scriptUrl = 'https://script.google.com/macros/s/AKfycbyU7JT8vKRkOhns0Q_4JpjlwJUrPhcoaZBpA5JdfJe2vwb7Qvpo35bDiW5Q1Q4b4MdciQ/exec';
+            // ⚠️ ВАЖНО: ВСТАВЬ НИЖЕ СВОЮ НОВУЮ ССЫЛКУ ОТ GOOGLE APPS SCRIPT! ⚠️
+            const scriptUrl = 'https://script.google.com/macros/s/AKfycbyR-s0IeeSM7B2_06S5T1V9fVU6jze6dlR8rldzgB8vrKmpsyN5FQAdvfxExs5Spi8bFw/exec';
 
             fetch(scriptUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
                 body: JSON.stringify(analyticsData)
             }).then(() => {
-                sessionStorage.setItem('analytics_sent_max', 'true');
+                sessionStorage.setItem('analytics_sent_ultra', 'true');
             }).catch(err => console.log("Analytics Error:", err));
         }
         // ==========================================
