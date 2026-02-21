@@ -78,7 +78,7 @@ def get_html(target_url):
     for i, url in enumerate(urls):
         try:
             if i > 0:
-                log(f"   🔄 Пробуем через прокси {i}...")
+                log(f"    🔄 Пробуем через прокси {i}...")
             
             response = requests.get(url, headers=headers, timeout=5)
             
@@ -123,7 +123,7 @@ def parse_channel(url):
 
     soup = BeautifulSoup(html, 'html.parser')
     page_title = soup.title.string.strip() if soup.title else "Channel"
-    log(f"   🔎 Анализ: {page_title}")
+    log(f"    🔎 Анализ: {page_title}")
     
     message_wraps = soup.find_all('div', class_='tgme_widget_message')
     if not message_wraps: 
@@ -177,9 +177,17 @@ def parse_channel(url):
                         intervals.append({"start": start, "end": end})
                 
                 for q_id in found_ids:
-                    if is_no_outage: queues_found[q_id] = []
-                    elif intervals: queues_found[q_id] = intervals
-                    elif not intervals and len(content) < 30: queues_found[q_id] = []
+                    if is_no_outage: 
+                        # Явно сказано, что отключений нет -> ставим пустой список
+                        queues_found[q_id] = []
+                    elif intervals: 
+                        # Найдены часы отключений -> ставим их
+                        queues_found[q_id] = intervals
+                    else:
+                        # ⚠️ ФИКС: Если не "нет отключений" и "нет времени" — 
+                        # НЕ записываем пустой список. Игнорируем эту очередь.
+                        # Это заставит merge_schedules оставить старое значение.
+                        pass
 
         if queues_found:
             for q_id in queues_found:
@@ -193,7 +201,7 @@ def parse_channel(url):
                 unique.sort(key=lambda x: x['start'])
                 queues_found[q_id] = unique
 
-            log(f"   ➕ График на {final_date_key} (из поста от {post_date.strftime('%d.%m %H:%M')})")
+            log(f"    ➕ График на {final_date_key} (из поста от {post_date.strftime('%d.%m %H:%M')})")
             
             found_schedules.append({
                 "date": final_date_key,
@@ -243,6 +251,10 @@ def merge_schedules(old_data, new_data):
             for q_id, intervals in clean_sch['queues'].items():
                 if 'queues' not in merged[date_key]:
                     merged[date_key]['queues'] = {}
+                
+                # Если в новом посте очередь пустая ([]), но это НЕ явная отмена (is_no_outage),
+                # мы бы уже отфильтровали это в parse_channel.
+                # Поэтому если код дошел сюда, значит либо intervals есть, либо это явная отмена.
                 merged[date_key]['queues'][q_id] = intervals
                 
             merged[date_key]['updated_at'] = clean_sch['updated_at']
@@ -281,7 +293,7 @@ def main():
         log(f"📡 {url}")
         res = parse_channel(url)
         if res: new_found.extend(res)
-        else: log("   ⚠️ Пусто.")
+        else: log("    ⚠️ Пусто.")
 
     final_list = merge_schedules(old_schedules, new_found)
 
