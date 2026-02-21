@@ -3,402 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Power Schedule</title>
+    <title>Радар: Дамп Пристрою</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root {
-            --bg-dark: #000000;
-            /* Ще більш глибокий скляний фон */
-            --glass-panel: rgba(28, 28, 30, 0.65);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            
-            --text-main: #ffffff;
-            --text-muted: rgba(235, 235, 245, 0.5);
-            
-            --cell-on: rgba(48, 209, 88, 0.1); /* Ледь помітний зелений */
-            --cell-off: rgba(255, 69, 58, 0.6); /* Насичений червоний */
-            --cell-off-glow: rgba(255, 69, 58, 0.4);
-            
-            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-        }
-
         body {
-            background-color: var(--bg-dark);
-            background-image: 
-                radial-gradient(circle at 20% 0%, #1c1c1e 0%, transparent 50%),
-                radial-gradient(circle at 80% 100%, rgba(10, 132, 255, 0.08) 0%, transparent 50%);
-            color: var(--text-main);
-            font-family: var(--font-stack);
-            margin: 0; 
-            padding: 0;
-            min-height: 100vh;
-            -webkit-font-smoothing: antialiased;
-            overflow-x: hidden; /* Прибирає гориз. скрол сторінки */
-        }
-
-        .app-shell {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 10px 12px; /* Зменшено відступи по краях */
-            padding-bottom: 40px;
-        }
-
-        /* HEADER */
-        header {
-            margin: 10px 0 15px 0;
-            padding: 0 4px;
-            display: flex;
-            justify-content: flex-end; /* Вирівнювання вправо */
-        }
-        
-        .update-info {
-            font-size: 13px;
-            color: var(--text-muted);
-            font-weight: 500;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 4px 10px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-        }
-
-        /* DATE PICKER */
-        .date-picker {
-            display: flex;
-            justify-content: space-between; /* Розтягує таби */
-            background: rgba(118, 118, 128, 0.15);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            padding: 3px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .date-option {
-            flex: 1; /* Рівномірний розподіл */
-            text-align: center;
-            padding: 8px 0;
+            background-color: #0a0a0a;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
             font-size: 14px;
-            font-weight: 600;
-            color: var(--text-muted);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+            line-height: 1.5;
+            word-wrap: break-word;
         }
-        
-        .date-option.active {
-            background: rgba(255, 255, 255, 0.9);
-            color: #000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-
-        /* MATRIX CONTAINER */
-        .matrix-panel {
-            background: var(--glass-panel);
-            backdrop-filter: blur(35px);
-            -webkit-backdrop-filter: blur(35px);
-            border: 1px solid var(--glass-border);
-            border-radius: 18px;
-            padding: 15px 10px; /* Компактні відступи всередині */
-            position: relative;
-        }
-
-        /* GRID SYSTEM */
-        /* Черга (вузька) | Графік (максимум) | Статистика (фікс) */
-        .matrix-layout {
-            display: grid;
-            grid-template-columns: 32px 1fr 50px; 
-            gap: 8px;
-            align-items: center;
-        }
-
-        .matrix-header {
-            margin-bottom: 8px;
-            font-size: 10px;
-            color: var(--text-muted);
+        h1 {
+            color: #00ffcc;
+            text-align: center;
+            border-bottom: 2px dashed #00ff00;
+            padding-bottom: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 600;
-            padding: 0 2px;
+            letter-spacing: 2px;
         }
-
-        .time-labels {
-            display: flex;
-            justify-content: space-between;
-            padding: 0 1px;
-            font-size: 9px;
-            opacity: 0.6;
-        }
-
-        /* ROWS */
-        .queue-row {
-            padding: 6px 0; /* Дуже щільно */
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-        }
-        .queue-row:last-child { border-bottom: none; }
-
-        .q-name {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--text-main);
-            letter-spacing: -0.5px;
-        }
-
-        /* VISUAL BAR */
-        .q-visual {
-            position: relative;
-            height: 20px; /* Трохи тонші, але довші за рахунок ширини */
-            background: rgba(255, 255, 255, 0.04);
+        .section {
+            margin-bottom: 25px;
+            border: 1px solid #333;
+            background: #111;
+            padding: 15px;
             border-radius: 5px;
-            display: flex;
-            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.1);
         }
-        
-        .hour-cell {
-            flex: 1;
-            height: 100%;
-            /* Прибираємо границі між годинами для "суцільного" вигляду */
-            border-right: 1px solid rgba(0,0,0,0.1); 
+        .section-title {
+            color: #ffaa00;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-transform: uppercase;
         }
-        .hour-cell:last-child { border-right: none; }
-        
-        .hour-cell.on { background-color: var(--cell-on); }
-        .hour-cell.off { 
-            background-color: var(--cell-off); 
-            box-shadow: 0 0 10px var(--cell-off-glow);
-            z-index: 1;
+        .key {
+            color: #00cccc;
+            font-weight: bold;
         }
-
-        /* STATS */
-        .q-stats {
-            text-align: right;
-            font-size: 13px;
-            font-family: "SF Pro Display", sans-serif;
-            font-variant-numeric: tabular-nums; /* Щоб цифри не скакали */
-            font-weight: 600;
-            color: var(--text-main);
-            letter-spacing: -0.3px;
+        .val {
+            color: #ffffff;
         }
-        
-        /* CURRENT TIME LINE */
-        .time-cursor {
-            position: absolute;
-            top: 28px; /* Під заголовком */
-            bottom: 15px;
-            width: 2px;
-            background: #0a84ff;
-            box-shadow: 0 0 8px #0a84ff;
-            z-index: 10;
-            pointer-events: none;
-            border-radius: 2px;
-            transition: left 60s linear;
+        .warning {
+            color: #ff3333;
+            font-weight: bold;
         }
-        /* Мітка "Зараз" */
-        .time-cursor::before {
-            content: '';
-            position: absolute;
-            top: -3px;
-            left: -2px;
-            width: 6px;
-            height: 6px;
-            background: #0a84ff;
-            border-radius: 50%;
-            box-shadow: 0 0 5px #0a84ff;
-        }
-
-        .loader {
+        #loader {
             text-align: center;
-            padding: 30px;
-            font-size: 14px;
-            color: var(--text-muted);
-            font-weight: 500;
+            font-size: 18px;
+            margin-top: 50px;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
         }
     </style>
 </head>
 <body>
 
-<div class="app-shell">
-    <header>
-        <div class="update-info" id="update-info">Завантаження...</div>
-    </header>
+    <h1>🕵️‍♂️ Системний Дамп</h1>
+    <div id="loader">Сканування систем... Зачекайте...</div>
+    <div id="content" style="display: none;"></div>
 
-    <div class="date-picker" id="date-container">
-        </div>
+    <script>
+        const contentDiv = document.getElementById('content');
+        const loader = document.getElementById('loader');
 
-    <div class="matrix-panel" id="matrix-container">
-        <div class="loader">Синхронізація даних...</div>
-    </div>
-</div>
-
-<script>
-    const JSON_URL = 'schedule.json';
-    
-    let scheduleData = null;
-    let selectedDateIndex = 0;
-
-    // Мапа для конвертації місяців у цифри
-    const ukrMonthMap = {
-        "СІЧНЯ": "01", "ЛЮТОГО": "02", "БЕРЕЗНЯ": "03", "КВІТНЯ": "04",
-        "ТРАВНЯ": "05", "ЧЕРВНЯ": "06", "ЛИПНЯ": "07", "СЕРПНЯ": "08",
-        "ВЕРЕСНЯ": "09", "ЖОВТНЯ": "10", "ЛИСТОПАДА": "11", "ГРУДНЯ": "12"
-    };
-
-    async function init() {
-        try {
-            const resp = await fetch(JSON_URL);
-            if (!resp.ok) throw new Error("Файл не знайдено");
-            scheduleData = await resp.json();
-
-            document.getElementById('update-info').innerText = `Актуально на: ${scheduleData.generated_at}`;
-            
-            autoSelectDate();
-            renderDateTabs();
-            renderMatrix();
-            
-            // Оновлення лінії часу щохвилини
-            setInterval(renderMatrix, 60000); 
-
-        } catch (e) {
-            document.getElementById('matrix-container').innerHTML = 
-                `<div class="loader" style="color:#ff453a">Помилка: ${e.message}</div>`;
-        }
-    }
-
-    // Автоматичний вибір поточної дати
-    function autoSelectDate() {
-        const today = new Date();
-        const months = Object.keys(ukrMonthMap);
-        // Формуємо рядок як у JSON: "23 СІЧНЯ"
-        const dayStr = `${today.getDate()} ${months[today.getMonth()]}`;
-        
-        const idx = scheduleData.schedules.findIndex(s => s.date.toUpperCase().includes(dayStr));
-        if (idx !== -1) selectedDateIndex = idx;
-    }
-
-    // Форматування дати з "23 СІЧНЯ" в "23.01"
-    function formatShortDate(dateStr) {
-        // Розбиваємо "23 СІЧНЯ"
-        const parts = dateStr.trim().split(' ');
-        if (parts.length < 2) return dateStr;
-
-        const day = parts[0].padStart(2, '0');
-        const monthName = parts[1].toUpperCase();
-        const monthNum = ukrMonthMap[monthName] || "00";
-
-        return `${day}.${monthNum}`;
-    }
-
-    function renderDateTabs() {
-        const container = document.getElementById('date-container');
-        container.innerHTML = '';
-        
-        scheduleData.schedules.forEach((sch, idx) => {
-            const btn = document.createElement('div');
-            btn.className = `date-option ${idx === selectedDateIndex ? 'active' : ''}`;
-            btn.innerText = formatShortDate(sch.date);
-            btn.onclick = () => {
-                selectedDateIndex = idx;
-                renderDateTabs();
-                renderMatrix();
-            };
-            container.appendChild(btn);
-        });
-    }
-
-    // Переведення "HH:MM" у хвилини
-    function getMinutes(timeStr) {
-        const [h, m] = timeStr.split(':').map(Number);
-        return h * 60 + m;
-    }
-
-    // Форматування тривалості у "-HH:MM"
-    function formatTimeDuration(totalMinutes) {
-        if (totalMinutes === 0) return ""; // Якщо світло є весь день, нічого не показуємо
-        const h = Math.floor(totalMinutes / 60);
-        const m = totalMinutes % 60;
-        // Формат: -04:30
-        return `-${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    }
-
-    function renderMatrix() {
-        const container = document.getElementById('matrix-container');
-        const dayData = scheduleData.schedules[selectedDateIndex];
-        const queues = dayData.queues;
-        const sortedKeys = Object.keys(queues).sort();
-
-        // Перевірка "сьогодні"
-        const today = new Date();
-        const months = Object.keys(ukrMonthMap);
-        const dayStr = `${today.getDate()} ${months[today.getMonth()]}`;
-        const isToday = dayData.date.toUpperCase().includes(dayStr);
-
-        let html = `
-            <div class="matrix-layout matrix-header">
-                <div>Черг.</div>
-                <div class="time-labels">
-                    <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
-                </div>
-                <div style="text-align:right">Всього</div>
-            </div>
-        `;
-
-        // Лінія часу (курсор)
-        if (isToday) {
-            const nowMinutes = today.getHours() * 60 + today.getMinutes();
-            // Розрахунок позиції (32px перша колонка + 8px gap)
-            const percent = (nowMinutes / 1440) * 100;
-            // CSS Calc: відступ зліва + (ширина контейнера мінус бічні колонки) * відсоток
-            // Бічні: 32px + 50px + 2*8px gap = ~98px. Але простіше через calc
-            html += `<div class="time-cursor" style="left: calc(40px + (100% - 98px) * ${percent / 100})"></div>`;
-        }
-
-        sortedKeys.forEach(qKey => {
-            const ranges = queues[qKey];
-            let hourCellsHTML = '';
-            let totalOffMinutes = 0;
-
-            // Генеруємо 24 клітинки
-            for (let h = 0; h < 24; h++) {
-                const hourStart = h * 60;
-                const hourEnd = (h + 1) * 60;
-                let minutesOffInThisHour = 0;
-
-                ranges.forEach(r => {
-                    const rStart = getMinutes(r.start);
-                    const rEnd = getMinutes(r.end) === 0 ? 1440 : getMinutes(r.end);
-                    const start = Math.max(hourStart, rStart);
-                    const end = Math.min(hourEnd, rEnd);
-                    if (end > start) minutesOffInThisHour += (end - start);
-                });
-
-                totalOffMinutes += minutesOffInThisHour;
-                
-                // Якщо хоча б 1 хвилина вимкнена - малюємо червоним
-                const isOff = minutesOffInThisHour > 0;
-                hourCellsHTML += `<div class="hour-cell ${isOff ? 'off' : 'on'}"></div>`;
+        // Функція для відмальовки блоків
+        function createSection(title, dataObj) {
+            let html = `<div class="section"><div class="section-title">>> ${title}</div>`;
+            for (const [key, value] of Object.entries(dataObj)) {
+                html += `<div><span class="key">${key}:</span> <span class="val">${value}</span></div>`;
             }
+            html += `</div>`;
+            return html;
+        }
 
-            // Статистика
-            const statsText = formatTimeDuration(totalOffMinutes);
-            // Якщо світло є весь день, можна поставити галочку або пусто
-            const displayStats = totalOffMinutes === 0 ? '<span style="color:#30d158">✓</span>' : statsText;
+        async function gatherData() {
+            let finalHTML = "";
+            const tg = window.Telegram.WebApp;
 
-            html += `
-                <div class="matrix-layout queue-row">
-                    <div class="q-name">${qKey}</div>
-                    <div class="q-visual">
-                        ${hourCellsHTML}
-                    </div>
-                    <div class="q-stats">
-                        ${displayStats}
-                    </div>
-                </div>
-            `;
-        });
+            // 1. TELEGRAM WEB APP
+            const tgData = {
+                "Платформа": tg.platform || "Відкрито у браузері (не Telegram)",
+                "Версія TG API": tg.version || "-",
+                "Колірна тема": tg.colorScheme || "-",
+                "Висота екрану (Viewport)": `${tg.viewportHeight}px`,
+                "Чи розширено на весь екран": tg.isExpanded ? "Так" : "Ні"
+            };
+            if (tg.initDataUnsafe?.user) {
+                const u = tg.initDataUnsafe.user;
+                tgData["TG ID"] = u.id;
+                tgData["Ім'я"] = `${u.first_name || ''} ${u.last_name || ''}`;
+                tgData["Username"] = u.username ? `@${u.username}` : "Немає";
+                tgData["Мова додатку"] = u.language_code;
+                tgData["Premium"] = u.is_premium ? "Так 💎" : "Ні";
+            }
+            finalHTML += createSection("Telegram Data", tgData);
 
-        container.innerHTML = html;
-    }
+            // 2. IP ТА ГЕОЛОКАЦІЯ
+            const geoDataObj = {};
+            try {
+                const geoRes = await fetch('https://ipwho.is/');
+                const geo = await geoRes.json();
+                if (geo.success) {
+                    geoDataObj["IP-адреса"] = geo.ip;
+                    geoDataObj["Тип IP"] = geo.type;
+                    geoDataObj["Провайдер (ISP)"] = geo.connection.isp;
+                    geoDataObj["Організація"] = geo.connection.org;
+                    geoDataObj["Місто"] = `${geo.city}, ${geo.region}`;
+                    geoDataObj["Країна"] = `${geo.country} (${geo.country_code})`;
+                    geoDataObj["Поштовий індекс"] = geo.postal;
+                    geoDataObj["Координати (Ш/Д)"] = `${geo.latitude}, ${geo.longitude}`;
+                    
+                    let isVpn = geo.security.vpn || geo.security.proxy || geo.security.tor;
+                    geoDataObj["VPN / Proxy / Tor"] = isVpn ? `<span class="warning">⚠️ ВИЯВЛЕНО</span>` : "Не виявлено";
+                } else {
+                    geoDataObj["Статус"] = "Помилка отримання Geo-даних";
+                }
+            } catch (e) {
+                geoDataObj["Статус"] = "Заблоковано або немає інтернету";
+            }
+            finalHTML += createSection("Мережа та Локація", geoDataObj);
 
-    init();
-</script>
+            // 3. ЖЕЛІЗО (HARDWARE)
+            let gpu = "Не визначено";
+            let gpuVendor = "Не визначено";
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (debugInfo) {
+                        gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                        gpuVendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+                    }
+                }
+            } catch(e) {}
 
+            const hwData = {
+                "Логічні ядра CPU": navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} ядер` : "Приховано",
+                "Оперативна пам'ять (RAM)": navigator.deviceMemory ? `~${navigator.deviceMemory} ГБ (або більше)` : "Приховано ОС",
+                "Відеокарта (GPU)": gpu,
+                "Вендор GPU": gpuVendor,
+                "Тип підключення": navigator.connection ? (navigator.connection.effectiveType || "Невідомо") : "API недоступне",
+                "Макс. точок дотику (Touch)": navigator.maxTouchPoints > 0 ? `${navigator.maxTouchPoints} точок` : "Немає (Не сенсорний)"
+            };
+            finalHTML += createSection("Апаратне забезпечення", hwData);
+
+            // 4. ЕКРАН
+            const screenData = {
+                "Фізична роздільна здатність": `${window.screen.width}x${window.screen.height}`,
+                "Розмір вікна браузера": `${window.innerWidth}x${window.innerHeight}`,
+                "Корисна площа екрану": `${window.screen.availWidth}x${window.screen.availHeight}`,
+                "Плотність пікселів (Pixel Ratio)": window.devicePixelRatio,
+                "Глибина кольору": `${window.screen.colorDepth}-bit`
+            };
+            finalHTML += createSection("Екран", screenData);
+
+            // 5. СОФТ ТА БРАУЗЕР
+            const navData = {
+                "User-Agent": navigator.userAgent,
+                "Платформа ОС": navigator.platform,
+                "Мова браузера": navigator.language,
+                "Таймзона": Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "Cookie увімкнені": navigator.cookieEnabled ? "Так" : "Ні",
+                "Режим 'Не відстежувати'": navigator.doNotTrack === "1" ? "Увімкнено" : "Вимкнено",
+                "PDF Viewer вбудовано": navigator.pdfViewerEnabled ? "Так" : "Ні"
+            };
+            finalHTML += createSection("Програмне забезпечення", navData);
+
+            // 6. БАТАРЕЯ (Працює переважно на Android та ПК)
+            const batData = {};
+            if (navigator.getBattery) {
+                try {
+                    const bat = await navigator.getBattery();
+                    batData["Рівень заряду"] = `${Math.round(bat.level * 100)}%`;
+                    batData["Підключено до мережі"] = bat.charging ? "Так ⚡" : "Ні 🔋";
+                    if (!bat.charging && bat.dischargingTime !== Infinity) {
+                        batData["Час до розрядки"] = `${Math.round(bat.dischargingTime / 60)} хв`;
+                    }
+                } catch(e) { batData["Статус"] = "Помилка читання батареї"; }
+            } else {
+                batData["Статус"] = "API заблоковано (Характерно для iOS/Safari)";
+            }
+            finalHTML += createSection("Батарея", batData);
+
+            // Виводимо все на екран
+            loader.style.display = "none";
+            contentDiv.innerHTML = finalHTML;
+            contentDiv.style.display = "block";
+        }
+
+        // Запускаємо збір
+        window.onload = () => {
+            setTimeout(gatherData, 500); // Невелика затримка для ефекту сканування
+        };
+    </script>
 </body>
 </html>
