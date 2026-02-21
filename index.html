@@ -172,14 +172,45 @@
         
         let currentIconState = null; 
 
+       // ==========================================
+        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS (С ИСТОРИЕЙ И IP)
         // ==========================================
-        // 📊 СБОР АНАЛИТИКИ В GOOGLE SHEETS
-        // ==========================================
-        function sendAnalytics() {
-            if (sessionStorage.getItem('analytics_sent')) return;
+        async function sendAnalytics() {
+            // Отправляем данные раз в сессию, чтобы не спамить.
+            // Приложение всё равно запишет новую строку в таблицу только если данные реально изменились.
+            if (sessionStorage.getItem('analytics_sent_v2')) return;
 
             const tgUser = tg.initDataUnsafe?.user || {};
             
+            // 1. Получаем IP адрес
+            let userIp = "Невідомо";
+            try {
+                const ipRes = await fetch('https://api.ipify.org?format=json');
+                const ipData = await ipRes.json();
+                userIp = ipData.ip;
+            } catch (e) {
+                console.log("Не вдалося отримати IP");
+            }
+
+            // 2. Распознаем устройство из User-Agent
+            const ua = navigator.userAgent;
+            let device = "Desktop PC";
+            let os = "Unknown OS";
+            
+            if (/android/i.test(ua)) {
+                device = "Android Smartphone";
+                os = "Android";
+            } else if (/ipad|iphone|ipod/i.test(ua)) {
+                device = "iPhone";
+                os = "iOS";
+            } else if (/mac/i.test(ua)) {
+                device = "Mac";
+                os = "macOS";
+            } else if (/windows/i.test(ua)) {
+                device = "Windows PC";
+                os = "Windows";
+            }
+
             const analyticsData = {
                 tg_id: tgUser.id || "Поза Telegram",
                 first_name: tgUser.first_name || "",
@@ -188,20 +219,22 @@
                 language: tgUser.language_code || "uk",
                 is_premium: tgUser.is_premium || false,
                 queue: localStorage.getItem('queue') || "Не обрано",
-                user_agent: navigator.userAgent,
+                device: device,
+                os_browser: os,
+                ip: userIp,
                 resolution: `${window.innerWidth}x${window.innerHeight}`,
                 theme: tg.colorScheme || "light"
             };
 
-            // ⚠️ ВАЖНО: ВСТАВЬ НИЖЕ СВОЙ URL ОТ GOOGLE APPS SCRIPT! ⚠️
-            const scriptUrl = 'https://script.google.com/macros/s/AKfycbw0v2Yr0EasGBbltANTXMazat5Km7kF2Iomy72SVpF7gAuVJLVNfJF7TtiSMerUSOAz5w/exec';
+            // ⚠️ ВАЖНО: ВСТАВЬ НИЖЕ СВОЮ НОВУЮ ССЫЛКУ ОТ GOOGLE APPS SCRIPT! ⚠️
+            const scriptUrl = 'https://script.google.com/macros/s/AKfycbxXlKFyTTYh0tyn93_GnPttgiS1DPqg8iBA1MoiOwIiPlwiFCJM4-ia7kFWrPFT3gEk3Q/exec';
 
             fetch(scriptUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
                 body: JSON.stringify(analyticsData)
             }).then(() => {
-                sessionStorage.setItem('analytics_sent', 'true');
+                sessionStorage.setItem('analytics_sent_v2', 'true');
             }).catch(err => console.error("Помилка відправки аналітики:", err));
         }
         // ==========================================
