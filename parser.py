@@ -194,7 +194,6 @@ def parse_channel(url):
                     if is_no_outage: queues_found[q_id] = []
                     elif intervals: queues_found[q_id] = intervals
 
-        # Проверка: если написано "Без отключений на весь день", очищаем всё
         if not queues_found and any(phrase.lower() in text.lower() for phrase in NO_OUTAGE_PHRASES):
             queues_found = {q: [] for q in ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"]}
 
@@ -221,42 +220,46 @@ def load_existing_schedules():
     return []
 
 # ==========================
-# 🛑 НОВАЯ ЛОГИКА: ПОСЛЕДНИЙ ПОСТ ПОБЕЖДАЕТ
+# 🛑 ЛОГИКА: БЕРЕМ ТОЛЬКО САМЫЙ ПОСЛЕДНИЙ ПОСТ
 # ==========================
 def merge_schedules(old_data, new_data):
-    merged = {}
+    merged = {sch['date']: copy.deepcopy(sch) for sch in old_data}
     
-    # Загружаем старую базу, даем ей нулевой таймстемп
-    for sch in old_data:
-        sch['_post_timestamp'] = 0
-        merged[sch['date']] = copy.deepcopy(sch)
-        
-    log("\n🛠 РЕЖИМ: САМЫЙ ПОСЛЕДНИЙ ПОСТ ЗАМЕНЯЕТ ДЕНЬ...")
+    log("\n🛠 РЕЖИМ: БЕРЕМ ТОЛЬКО САМЫЙ СВЕЖИЙ ПОСТ ДЛЯ КАЖДОГО ДНЯ...")
     
-    # Сортируем новые посты по времени публикации (от старых к самым свежим)
-    new_data.sort(key=lambda x: x.get('_post_timestamp', 0))
-    
+    # Группируем найденные посты по дням
+    by_date = {}
     for sch in new_data:
-        date_key = sch['date']
-        new_ts = sch.get('_post_timestamp', 0)
-        old_ts = merged.get(date_key, {}).get('_post_timestamp', -1)
+        d = sch['date']
+        if d not in by_date:
+            by_date[d] = []
+        by_date[d].append(sch)
         
-        # ЗАЩИТА: Если в посте меньше 3 очередей, это микро-алерт, а не полный график. 
-        # Пропускаем его, чтобы он не стер нормальное расписание на день.
-        if len(sch['queues']) > 0 and len(sch['queues']) < 3:
-            log(f"  ⏭ Игнорируем пост для {date_key} от {sch['updated_at']} (Слишком короткий, похоже на алерт)")
-            continue
-
-        # Если этот пост новее того, что есть в базе — ЖЕСТКО ПЕРЕЗАПИСЫВАЕМ весь день
+    for date_key, posts in by_date.items():
+        # Сортируем посты этого дня от новых к старым (по убыванию времени)
+        posts.sort(key=lambda x: x.get('_post_timestamp', 0), reverse=True)
+        
+        # Ищем самый свежий "полноценный" пост (где есть хотя бы 3 очереди или полная отмена)
+        # Это защитит от ситуации, когда последний пост - это "огрызок"
+        best_post = posts[0] 
+        for p in posts:
+            queues_count = len(p['queues'])
+            is_cancel = queues_count > 0 and all(len(v) == 0 for v in p['queues'].values())
+            if queues_count >= 3 or is_cancel:
+                best_post = p
+                break
+                
+        # Проверяем, новее ли этот пост того, что уже лежит в базе (если есть)
+        old_ts = merged.get(date_key, {}).get('_post_timestamp', -1)
+        new_ts = best_post.get('_post_timestamp', 0)
+        
         if new_ts >= old_ts:
-            if date_key not in merged:
-                log(f"  ✨ ДОБАВЛЕН {date_key} (взят пост от {sch['updated_at']})")
-            else:
-                log(f"  🔄 ПЕРЕЗАПИСАН {date_key} (заменен постом от {sch['updated_at']})")
+            log(f"  ✨ ДЛЯ {date_key} ➔ ВЫБРАН ПОСТ ОТ {best_post['updated_at']} (Найдено очередей: {len(best_post['queues'])})")
+            merged[date_key] = copy.deepcopy(best_post)
+        else:
+            log(f"  ⏭ ДЛЯ {date_key} ➔ НОВЫХ ДАННЫХ НЕТ (В базе данные новее)")
             
-            merged[date_key] = copy.deepcopy(sch)
-            
-    # Убираем служебный _post_timestamp перед сохранением
+    # Убираем служебный timestamp перед сохранением
     result = []
     for v in merged.values():
         if '_post_timestamp' in v:
@@ -297,7 +300,7 @@ def main():
 
     final_list = merge_schedules(old_schedules, new_found)
 
-    # Сортировка итогового JSON по датам (чтобы сегодня было первым, завтра вторым и т.д.)
+    # Сортировка итогового JSON по датам
     def date_sorter(item):
         try:
             parts = item['date'].split()
