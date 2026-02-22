@@ -46,10 +46,13 @@ NO_OUTAGE_PHRASES = [
     "СКАСОВАНО", "БІЛИЙ", "ЗЕЛЕНИЙ", "НЕ ВІДКЛЮЧАЄТЬСЯ"
 ]
 
+ALL_QUEUES = ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"]
+
 # ==========================
 # 🛠 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ==========================
 def get_kiev_time():
+    # Киевское время (UTC+2)
     return datetime.now(timezone.utc) + timedelta(hours=2)
 
 def log(msg):
@@ -97,7 +100,7 @@ def determine_date_from_text(text, post_date):
         return f"{int(date_match.group(1))} {date_match.group(2)}"
 
     header_text = text_upper[:250]
-    if re.search(r"\b(ОНОВЛЕНО|ОНОВЛЕННЯ|ЗМІНИ|ЗМІНЕНО|ТЕРМІНОВО|ЗНОВУ|СЬОГОДНІ)\b", header_text):
+    if re.search(r"\b(ОНОВЛЕНО|ОНОВЛЕННЯ|ОНОВИЛИ|ОНОВИВ|ЗМІНИ|ЗМІНЕНО|ТЕРМІНОВО|ЗНОВУ|СЬОГОДНІ)\b", header_text):
         return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
 
     if "ЗАВТРА" in header_text:
@@ -105,6 +108,20 @@ def determine_date_from_text(text, post_date):
         return f"{target_date.day} {UA_MONTHS_REVERSE.get(target_date.month, 'ГРУДНЯ')}"
 
     return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
+
+def get_date_obj(date_str):
+    """Превращает строку '22 ЛЮТОГО' в объект даты для сравнения с 'сегодня'"""
+    try:
+        parts = date_str.split()
+        day = int(parts[0])
+        month = UA_MONTHS.get(parts[1], 0)
+        now = get_kiev_time()
+        year = now.year
+        if now.month == 12 and month == 1: year += 1
+        elif now.month == 1 and month == 12: year -= 1
+        return datetime(year, month, day).date()
+    except:
+        return get_kiev_time().date()
 
 def time_to_mins(t_str):
     h, m = map(int, t_str.split(':'))
@@ -194,8 +211,9 @@ def parse_channel(url):
                     if is_no_outage: queues_found[q_id] = []
                     elif intervals: queues_found[q_id] = intervals
 
+        # Если написано "Без отключений на весь день", очищаем всё
         if not queues_found and any(phrase.lower() in text.lower() for phrase in NO_OUTAGE_PHRASES):
-            queues_found = {q: [] for q in ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"]}
+            queues_found = {q: [] for q in ALL_QUEUES}
 
         if queues_found:
             for q_id in queues_found:
@@ -220,14 +238,15 @@ def load_existing_schedules():
     return []
 
 # ==========================
-# 🛑 ЛОГИКА: БЕРЕМ ТОЛЬКО САМЫЙ ПОСЛЕДНИЙ ПОСТ
+# 🛑 ЛОГИКА: ЖЕСТКАЯ ПЕРЕЗАПИСЬ ПОСЛЕДНИМ ПОСТОМ
 # ==========================
 def merge_schedules(old_data, new_data):
     merged = {sch['date']: copy.deepcopy(sch) for sch in old_data}
+    today = get_kiev_time().date()
     
-    log("\n🛠 РЕЖИМ: БЕРЕМ ТОЛЬКО САМЫЙ СВЕЖИЙ ПОСТ ДЛЯ КАЖДОГО ДНЯ...")
+    log("\n🛠 РЕЖИМ: АБСОЛЮТНАЯ ПЕРЕЗАПИСЬ САМЫМ СВЕЖИМ ПОСТОМ...")
     
-    # Группируем найденные посты по дням
+    # Группируем посты по дням
     by_date = {}
     for sch in new_data:
         d = sch['date']
@@ -236,28 +255,33 @@ def merge_schedules(old_data, new_data):
         by_date[d].append(sch)
         
     for date_key, posts in by_date.items():
-        # Сортируем посты этого дня от новых к старым (по убыванию времени)
-        posts.sort(key=lambda x: x.get('_post_timestamp', 0), reverse=True)
+        d_obj = get_date_obj(date_key)
         
-        # Ищем самый свежий "полноценный" пост (где есть хотя бы 3 очереди или полная отмена)
-        # Это защитит от ситуации, когда последний пост - это "огрызок"
+        # 1. Если этот день уже прошел (вчера или раньше), мы его вообще не трогаем
+        if d_obj < today:
+            log(f"  ⏭ ПРОПУСК {date_key}: День уже прошел, старые данные сохранены.")
+            continue
+            
+        # 2. Сортируем посты этого дня по убыванию времени (самый свежий в индексе [0])
+        posts.sort(key=lambda x: x.get('_post_timestamp', 0), reverse=True)
         best_post = posts[0] 
-        for p in posts:
-            queues_count = len(p['queues'])
-            is_cancel = queues_count > 0 and all(len(v) == 0 for v in p['queues'].values())
-            if queues_count >= 3 or is_cancel:
-                best_post = p
-                break
-                
-        # Проверяем, новее ли этот пост того, что уже лежит в базе (если есть)
-        old_ts = merged.get(date_key, {}).get('_post_timestamp', -1)
+        
         new_ts = best_post.get('_post_timestamp', 0)
+        old_ts = merged.get(date_key, {}).get('_post_timestamp', -1)
         
         if new_ts >= old_ts:
-            log(f"  ✨ ДЛЯ {date_key} ➔ ВЫБРАН ПОСТ ОТ {best_post['updated_at']} (Найдено очередей: {len(best_post['queues'])})")
+            # 3. Добавляем ПУСТЫЕ массивы для тех очередей, которые не были упомянуты в свежем посте.
+            # Это полностью "стирает" остатки старых данных!
+            for q in ALL_QUEUES:
+                if q not in best_post['queues']:
+                    best_post['queues'][q] = []
+
+            if date_key not in merged:
+                log(f"  ✨ ДОБАВЛЕН НОВЫЙ ДЕНЬ: {date_key} (взят пост от {best_post['updated_at']})")
+            else:
+                log(f"  🔄 ЖЕСТКО ПЕРЕЗАПИСАН: {date_key} (заменен постом от {best_post['updated_at']})")
+            
             merged[date_key] = copy.deepcopy(best_post)
-        else:
-            log(f"  ⏭ ДЛЯ {date_key} ➔ НОВЫХ ДАННЫХ НЕТ (В базе данные новее)")
             
     # Убираем служебный timestamp перед сохранением
     result = []
@@ -274,14 +298,7 @@ def clean_old_schedules(schedules):
     cleaned = []
     for item in schedules:
         try:
-            parts = item['date'].split()
-            day = int(parts[0])
-            month = UA_MONTHS.get(parts[1], 0)
-            now = get_kiev_time()
-            year = now.year
-            if now.month == 12 and month == 1: year += 1
-            elif now.month == 1 and month == 12: year -= 1
-            if datetime(year, month, day).date() >= cutoff_date:
+            if get_date_obj(item['date']) >= cutoff_date:
                 cleaned.append(item)
         except:
             cleaned.append(item)
@@ -301,19 +318,7 @@ def main():
     final_list = merge_schedules(old_schedules, new_found)
 
     # Сортировка итогового JSON по датам
-    def date_sorter(item):
-        try:
-            parts = item['date'].split()
-            day = int(parts[0])
-            month = UA_MONTHS.get(parts[1], 0)
-            now = datetime.now()
-            year = now.year
-            if now.month == 12 and month == 1: year += 1
-            elif now.month == 1 and month == 12: year -= 1
-            return datetime(year, month, day)
-        except: return datetime.now()
-
-    final_list.sort(key=date_sorter)
+    final_list.sort(key=lambda x: get_date_obj(x['date']))
     final_list = clean_old_schedules(final_list)[-35:]
 
     output_json = {
