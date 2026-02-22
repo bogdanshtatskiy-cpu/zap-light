@@ -23,10 +23,7 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ⚙️ НАСТРОЙКИ
 # ==========================
 CHANNELS = [
-    "https://t.me/s/it_is_zp_tg",
     "https://t.me/s/tvoe_zaporizhzhia",
-    "https://t.me/s/zapnovini",
-    "https://t.me/s/info_zp",
     "https://t.me/s/zoe_alarm"
 ]
 
@@ -52,7 +49,6 @@ ALL_QUEUES = ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.
 # 🛠 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ==========================
 def get_kiev_time():
-    # Киевское время (UTC+2)
     return datetime.now(timezone.utc) + timedelta(hours=2)
 
 def log(msg):
@@ -110,7 +106,6 @@ def determine_date_from_text(text, post_date):
     return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
 
 def get_date_obj(date_str):
-    """Превращает строку '22 ЛЮТОГО' в объект даты для сравнения с 'сегодня'"""
     try:
         parts = date_str.split()
         day = int(parts[0])
@@ -211,7 +206,6 @@ def parse_channel(url):
                     if is_no_outage: queues_found[q_id] = []
                     elif intervals: queues_found[q_id] = intervals
 
-        # Если написано "Без отключений на весь день", очищаем всё
         if not queues_found and any(phrase.lower() in text.lower() for phrase in NO_OUTAGE_PHRASES):
             queues_found = {q: [] for q in ALL_QUEUES}
 
@@ -238,15 +232,14 @@ def load_existing_schedules():
     return []
 
 # ==========================
-# 🛑 ЛОГИКА: ЖЕСТКАЯ ПЕРЕЗАПИСЬ ПОСЛЕДНИМ ПОСТОМ
+# 🛑 ЛОГИКА: ЖЕСТКАЯ ПЕРЕЗАПИСЬ (ТОЛЬКО ПОЛНЫЕ ГРАФИКИ)
 # ==========================
 def merge_schedules(old_data, new_data):
     merged = {sch['date']: copy.deepcopy(sch) for sch in old_data}
     today = get_kiev_time().date()
     
-    log("\n🛠 РЕЖИМ: АБСОЛЮТНАЯ ПЕРЕЗАПИСЬ САМЫМ СВЕЖИМ ПОСТОМ...")
+    log("\n🛠 РЕЖИМ: АБСОЛЮТНАЯ ПЕРЕЗАПИСЬ (Берем только полные графики от 10 очередей)...")
     
-    # Группируем посты по дням
     by_date = {}
     for sch in new_data:
         d = sch['date']
@@ -257,33 +250,44 @@ def merge_schedules(old_data, new_data):
     for date_key, posts in by_date.items():
         d_obj = get_date_obj(date_key)
         
-        # 1. Если этот день уже прошел (вчера или раньше), мы его вообще не трогаем
+        # Защита старых дней
         if d_obj < today:
-            log(f"  ⏭ ПРОПУСК {date_key}: День уже прошел, старые данные сохранены.")
             continue
             
-        # 2. Сортируем посты этого дня по убыванию времени (самый свежий в индексе [0])
+        # Сортируем от новых к старым (по убыванию времени)
         posts.sort(key=lambda x: x.get('_post_timestamp', 0), reverse=True)
-        best_post = posts[0] 
+        
+        # Ищем самый свежий ПОЛНОЦЕННЫЙ пост
+        best_post = None
+        for p in posts:
+            q_count = len(p['queues'])
+            is_cancel = q_count > 0 and all(len(v) == 0 for v in p['queues'].values())
+            # ПОРОГ = 10 очередей. Если меньше - это микро-алерт, игнорируем!
+            if q_count >= 10 or is_cancel:
+                best_post = p
+                break
+                
+        # Если за день не было ни одного нормального графика, пропускаем
+        if not best_post:
+            log(f"  ⏭ ПРОПУСК {date_key}: Не найдено ни одного полного графика (только алерты).")
+            continue
         
         new_ts = best_post.get('_post_timestamp', 0)
         old_ts = merged.get(date_key, {}).get('_post_timestamp', -1)
         
+        # Если новый график свежее того, что в базе - перезаписываем
         if new_ts >= old_ts:
-            # 3. Добавляем ПУСТЫЕ массивы для тех очередей, которые не были упомянуты в свежем посте.
-            # Это полностью "стирает" остатки старых данных!
             for q in ALL_QUEUES:
                 if q not in best_post['queues']:
                     best_post['queues'][q] = []
 
             if date_key not in merged:
-                log(f"  ✨ ДОБАВЛЕН НОВЫЙ ДЕНЬ: {date_key} (взят пост от {best_post['updated_at']})")
+                log(f"  ✨ ДОБАВЛЕН {date_key} (взят пост от {best_post['updated_at']})")
             else:
-                log(f"  🔄 ЖЕСТКО ПЕРЕЗАПИСАН: {date_key} (заменен постом от {best_post['updated_at']})")
+                log(f"  🔄 ПЕРЕЗАПИСАН {date_key} (взят пост от {best_post['updated_at']})")
             
             merged[date_key] = copy.deepcopy(best_post)
             
-    # Убираем служебный timestamp перед сохранением
     result = []
     for v in merged.values():
         if '_post_timestamp' in v:
@@ -317,7 +321,6 @@ def main():
 
     final_list = merge_schedules(old_schedules, new_found)
 
-    # Сортировка итогового JSON по датам
     final_list.sort(key=lambda x: get_date_obj(x['date']))
     final_list = clean_old_schedules(final_list)[-35:]
 
