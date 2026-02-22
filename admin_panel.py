@@ -9,11 +9,14 @@ app = FastAPI(title="ZapLight CRM")
 
 # ================= БЕЗОПАСНЫЕ НАСТРОЙКИ =================
 DATABASE_URL = os.environ.get("DATABASE_URL")
-ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN", "admin") 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "12345")
+ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN") 
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 # ========================================================
 
 def verify_api(request: Request):
+    if not ADMIN_LOGIN or not ADMIN_PASSWORD:
+        # Защита: если настройки не заданы в Render, не пускаем никого
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Секреты не настроены на сервере")
     if request.cookies.get("admin_session") != f"{ADMIN_LOGIN}:{ADMIN_PASSWORD}":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
@@ -49,7 +52,12 @@ async def get_users():
     if not DATABASE_URL:
         return []
     conn = await asyncpg.connect(DATABASE_URL)
-    rows = await conn.fetch("SELECT * FROM users ORDER BY user_id DESC")
+    
+    # Автоматически добавляем колонку для отслеживания даты добавления юзера (если её еще нет)
+    await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
+    
+    # Достаем пользователей и переводим дату в удобный UNIX-формат для JS
+    rows = await conn.fetch("SELECT *, CAST(extract(epoch from created_at) AS FLOAT) as created_ts FROM users ORDER BY user_id DESC")
     await conn.close()
     return [dict(r) for r in rows]
 
@@ -99,7 +107,7 @@ HTML_LOGIN = """
             const btn = document.getElementById('loginBtn'); btn.innerText = "Вход...";
             const u = document.getElementById('login').value, p = document.getElementById('pass').value;
             const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: u, password: p}) });
-            if(res.ok) window.location.reload(); else { alert("❌ Ошибка"); btn.innerText = "Авторизация"; }
+            if(res.ok) window.location.reload(); else { alert("❌ Ошибка авторизации. Проверьте настройки Render."); btn.innerText = "Авторизация"; }
         }
     </script>
 </body>
@@ -138,20 +146,26 @@ HTML_DASHBOARD = """
         
         <div class="flex justify-between items-center mb-4 px-1">
             <h1 class="text-xl md:text-2xl font-bold tracking-tight">ZapLight</h1>
-            <div class="flex gap-2">
-                <button onclick="loadUsers(false, true)" class="glass hover:bg-white/10 p-2 rounded-full text-sm transition"><span id="syncIcon">🔄</span></button>
+            <div class="flex gap-2 items-center">
+                <button onclick="loadUsers(false, true)" class="glass hover:bg-white/10 p-2.5 rounded-full transition group">
+                    <svg id="syncIcon" class="w-4 h-4 text-gray-300 group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                </button>
                 <button onclick="logout()" class="glass hover:bg-red-500/20 text-red-400 px-3 py-1.5 rounded-full text-xs font-bold transition">Выйти</button>
             </div>
         </div>
 
-        <div class="grid grid-cols-4 gap-2 mb-4" id="dashboard"></div>
+        <div class="grid grid-cols-3 gap-2 mb-2" id="dashboard"></div>
+        
+        <div class="glass p-3 rounded-2xl mb-4 flex justify-around items-center" id="statsRow">
+            </div>
 
         <div class="glass p-3 rounded-2xl mb-4 flex flex-col md:flex-row gap-2">
             <div class="relative w-full">
                 <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Поиск (Имя, ID)..." class="glass-input w-full p-2 pl-3 pr-8 rounded-xl text-xs outline-none">
                 <button onclick="clearSearch()" class="absolute right-2 top-1.5 text-gray-400 hover:text-white font-bold p-1 text-xs">×</button>
             </div>
-            
             <div class="flex gap-2 w-full md:w-auto">
                 <select id="queueFilter" onchange="applyFilters()" class="glass-input w-1/2 md:w-32 p-2 rounded-xl text-xs outline-none">
                     <option value="all">Очередь: Все</option>
@@ -209,7 +223,7 @@ HTML_DASHBOARD = """
     <script>
         let allUsers = [];
 
-        // Автообновление (каждые 5 сек), если модалка закрыта
+        // Автообновление каждые 5 сек (если не открыто окно редактирования)
         setInterval(() => {
             if (document.getElementById('editModal').classList.contains('hidden')) {
                 loadUsers(true, false);
@@ -232,7 +246,6 @@ HTML_DASHBOARD = """
         }
 
         async function logout() { await fetch('/api/logout', {method: 'POST'}); window.location.reload(); }
-
         function clearSearch() { document.getElementById('searchInput').value = ''; applyFilters(); }
 
         function updateDashboard() {
@@ -243,11 +256,30 @@ HTML_DASHBOARD = """
             let topQueue = "-", max = 0;
             for (const [q, count] of Object.entries(queues)) { if(count > max) { max = count; topQueue = q; } }
 
+            // Подсчет новых пользователей
+            const now = Date.now() / 1000;
+            let dDay = 0, dWeek = 0, dMonth = 0;
+            allUsers.forEach(u => {
+                if (u.created_ts) {
+                    const diff = now - u.created_ts;
+                    if(diff <= 86400) dDay++;
+                    if(diff <= 86400*7) dWeek++;
+                    if(diff <= 86400*30) dMonth++;
+                }
+            });
+
             document.getElementById('dashboard').innerHTML = `
                 <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">Юзеров</div><div class="text-lg font-bold">${total}</div></div>
-                <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">СМС ВКЛ</div><div class="text-lg font-bold text-green-400">${notifyOn}</div></div>
-                <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">Топ Черга</div><div class="text-lg font-bold text-[#0a84ff]">${topQueue}</div></div>
-                <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">Язык UA</div><div class="text-lg font-bold text-yellow-400">${allUsers.filter(u=>u.language==='ua').length}</div></div>
+                <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">Увед. ВКЛ</div><div class="text-lg font-bold text-green-400">${notifyOn}</div></div>
+                <div class="glass p-2 rounded-xl text-center"><div class="text-[9px] text-gray-400 uppercase">Топ очередь</div><div class="text-lg font-bold text-[#0a84ff]">${topQueue}</div></div>
+            `;
+            
+            document.getElementById('statsRow').innerHTML = `
+                <div class="text-xs text-gray-400"><span class="text-white font-bold">+${dDay}</span> сегодня</div>
+                <div class="w-px h-4 bg-gray-700"></div>
+                <div class="text-xs text-gray-400"><span class="text-white font-bold">+${dWeek}</span> за неделю</div>
+                <div class="w-px h-4 bg-gray-700"></div>
+                <div class="text-xs text-gray-400"><span class="text-white font-bold">+${dMonth}</span> за месяц</div>
             `;
         }
 
@@ -256,10 +288,8 @@ HTML_DASHBOARD = """
             const currentVal = select.value;
             select.innerHTML = '<option value="all">Очередь: Все</option>';
             
-            // Умная сортировка: 1.1 -> 1.2 -> 2.1 -> 10.1
             const queues = [...new Set(allUsers.map(u => u.queue_id).filter(q => q))];
             queues.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
-            
             queues.forEach(q => select.add(new Option(`Очередь ${q}`, q)));
             select.value = [...select.options].some(o=>o.value===currentVal) ? currentVal : 'all';
         }
@@ -300,9 +330,7 @@ HTML_DASHBOARD = """
                             <div>${queue}</div>
                         </div>
                         <div class="flex justify-between items-end">
-                            <div class="text-[10px] text-gray-400 leading-tight">
-                                ID: ${u.user_id}<br>${username}
-                            </div>
+                            <div class="text-[10px] text-gray-400 leading-tight">ID: ${u.user_id}<br>${username}</div>
                             <div class="flex gap-1.5 text-xs bg-white/5 px-2 py-1 rounded-lg border border-white/5">
                                 ${notifyIcon} ${silentIcon} <span class="text-gray-400">-${u.notify_before || 15}м</span>
                             </div>
