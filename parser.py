@@ -2,7 +2,6 @@ import re
 import json
 import requests
 import socket
-import time
 import sys
 import os
 import random
@@ -23,7 +22,6 @@ urllib3_cn.allowed_gai_family = allowed_gai_family
 # ==========================
 # ⚙️ НАСТРОЙКИ
 # ==========================
-
 CHANNELS = [
     "https://t.me/s/it_is_zp_tg",
     "https://t.me/s/tvoe_zaporizhzhia",
@@ -51,7 +49,6 @@ NO_OUTAGE_PHRASES = [
 # ==========================
 # 🛠 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ==========================
-
 def get_kiev_time():
     return datetime.now(timezone.utc) + timedelta(hours=2)
 
@@ -77,11 +74,8 @@ def get_html(target_url):
     
     for i, url in enumerate(urls):
         try:
-            if i > 0:
-                log(f"    🔄 Пробуем через прокси {i}...")
-            
+            if i > 0: log(f"    🔄 Пробуем через прокси {i}...")
             response = requests.get(url, headers=headers, timeout=5)
-            
             if response.status_code == 200 and "tgme_widget_message_text" in response.text:
                 return response.text
         except Exception:
@@ -97,16 +91,12 @@ def parse_post_date(date_str):
 
 def determine_date_from_text(text, post_date):
     text_upper = text.upper()
-    
     months_regex = "|".join(UA_MONTHS.keys())
     date_match = re.search(rf"\b(\d{{1,2}})\s+({months_regex})", text_upper)
     if date_match:
-        day = int(date_match.group(1))
-        month_name = date_match.group(2)
-        return f"{day} {month_name}"
+        return f"{int(date_match.group(1))} {date_match.group(2)}"
 
     header_text = text_upper[:250]
-
     if re.search(r"\b(ОНОВЛЕНО|ОНОВЛЕННЯ|ЗМІНИ|ЗМІНЕНО|ТЕРМІНОВО|ЗНОВУ|СЬОГОДНІ)\b", header_text):
         return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
 
@@ -116,21 +106,45 @@ def determine_date_from_text(text, post_date):
 
     return f"{post_date.day} {UA_MONTHS_REVERSE.get(post_date.month, 'ГРУДНЯ')}"
 
+def time_to_mins(t_str):
+    h, m = map(int, t_str.split(':'))
+    return h * 60 + m
+
+def mins_to_time(m):
+    if m >= 1440: return "24:00"
+    return f"{m//60:02d}:{m%60:02d}"
+
+def merge_intervals(intervals):
+    if not intervals: return []
+    intervals.sort(key=lambda x: time_to_mins(x['start']))
+    merged = [intervals[0].copy()]
+    for current in intervals[1:]:
+        last = merged[-1]
+        last_e = time_to_mins(last['end'])
+        curr_s = time_to_mins(current['start'])
+        curr_e = time_to_mins(current['end'])
+        if curr_s <= last_e: 
+            new_e = max(last_e, curr_e)
+            merged[-1]['end'] = mins_to_time(new_e)
+        else:
+            merged.append(current.copy())
+    return merged
+
+# ==========================
+# 🧠 ПАРСИНГ КАНАЛОВ
+# ==========================
 def parse_channel(url):
     html = get_html(url)
-    if not html: 
-        return []
+    if not html: return []
 
     soup = BeautifulSoup(html, 'html.parser')
     page_title = soup.title.string.strip() if soup.title else "Channel"
     log(f"    🔎 Анализ: {page_title}")
     
     message_wraps = soup.find_all('div', class_='tgme_widget_message')
-    if not message_wraps: 
-        return []
+    if not message_wraps: return []
 
     found_schedules = []
-    
     time_pattern = re.compile(r"(\d{1,2}[:.;]\d{2})\s*[^\d:.;]+\s*(\d{1,2}[:.;]\d{2})", re.IGNORECASE)
     queue_line_pattern = re.compile(r"^(?:[^\d]{0,20})?((?:\d\.\d\s*(?:[\/,+&]|і|та)?\s*)+)(?:\s*[:)])?\s*(.*)", re.IGNORECASE)
 
@@ -177,27 +191,18 @@ def parse_channel(url):
                         intervals.append({"start": start, "end": end})
                 
                 for q_id in found_ids:
-                    if is_no_outage: 
-                        queues_found[q_id] = []
-                    elif intervals: 
-                        queues_found[q_id] = intervals
-                    else:
-                        pass # Пропускаем, если не нашли ни времени, ни слова про отмену
+                    if is_no_outage: queues_found[q_id] = []
+                    elif intervals: queues_found[q_id] = intervals
+
+        # Проверка: если написано "Без отключений на весь день", очищаем всё
+        if not queues_found and any(phrase.lower() in text.lower() for phrase in NO_OUTAGE_PHRASES):
+            queues_found = {q: [] for q in ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "6.2"]}
 
         if queues_found:
             for q_id in queues_found:
-                unique = []
-                seen = set()
-                for i in queues_found[q_id]:
-                    key = f"{i['start']}-{i['end']}"
-                    if key not in seen:
-                        seen.add(key)
-                        unique.append(i)
-                unique.sort(key=lambda x: x['start'])
-                queues_found[q_id] = unique
+                queues_found[q_id] = merge_intervals(queues_found[q_id])
 
-            log(f"    ➕ График на {final_date_key} (из поста от {post_date.strftime('%d.%m %H:%M')})")
-            
+            log(f"    ➕ Найден график на {final_date_key} (пост от {post_date.strftime('%d.%m %H:%M')})")
             found_schedules.append({
                 "date": final_date_key,
                 "queues": queues_found,
@@ -211,87 +216,69 @@ def load_existing_schedules():
     if os.path.exists('schedule.json'):
         try:
             with open('schedule.json', 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return data.get("schedules", [])
+                return json.load(f).get("schedules", [])
         except Exception: return []
     return []
 
 # ==========================
-# 🔍 ЛОГИРОВАНИЕ ЗМІН
+# 🛑 НОВАЯ ЛОГИКА: ПОСЛЕДНИЙ ПОСТ ПОБЕЖДАЕТ
 # ==========================
-def format_intervals_for_log(intervals):
-    """Форматирует интервалы для красивого вывода в лог"""
-    if intervals is None:
-        return "Немає даних"
-    if not intervals:
-        return "Без відключень"
-    return ", ".join([f"{i['start']}-{i['end']}" for i in intervals])
-
 def merge_schedules(old_data, new_data):
     merged = {}
     
-    for sch in old_data: 
+    # Загружаем старую базу, даем ей нулевой таймстемп
+    for sch in old_data:
+        sch['_post_timestamp'] = 0
         merged[sch['date']] = copy.deepcopy(sch)
         
+    log("\n🛠 РЕЖИМ: САМЫЙ ПОСЛЕДНИЙ ПОСТ ЗАМЕНЯЕТ ДЕНЬ...")
+    
+    # Сортируем новые посты по времени публикации (от старых к самым свежим)
     new_data.sort(key=lambda x: x.get('_post_timestamp', 0))
     
-    log("\n🛠 ПОЧИНАЄМО ПЕРЕВІРКУ ТА ЗЛИТТЯ ДАНИХ...")
-    
     for sch in new_data:
-        clean_sch = copy.deepcopy(sch)
-        if '_post_timestamp' in clean_sch:
-            del clean_sch['_post_timestamp']
-            
-        date_key = clean_sch['date']
+        date_key = sch['date']
+        new_ts = sch.get('_post_timestamp', 0)
+        old_ts = merged.get(date_key, {}).get('_post_timestamp', -1)
         
-        if not clean_sch['queues']:
+        # ЗАЩИТА: Если в посте меньше 3 очередей, это микро-алерт, а не полный график. 
+        # Пропускаем его, чтобы он не стер нормальное расписание на день.
+        if len(sch['queues']) > 0 and len(sch['queues']) < 3:
+            log(f"  ⏭ Игнорируем пост для {date_key} от {sch['updated_at']} (Слишком короткий, похоже на алерт)")
             continue
 
-        if date_key not in merged:
-            log(f"  ✨ ДОДАНО НОВИЙ ДЕНЬ: {date_key}")
-            merged[date_key] = clean_sch
-        else:
-            changes_for_day = []
-            for q_id, intervals in clean_sch['queues'].items():
-                if 'queues' not in merged[date_key]:
-                    merged[date_key]['queues'] = {}
-                
-                old_intervals = merged[date_key]['queues'].get(q_id)
-                
-                if old_intervals != intervals:
-                    old_str = format_intervals_for_log(old_intervals)
-                    new_str = format_intervals_for_log(intervals)
-                    changes_for_day.append(f"Черга {q_id}: [{old_str}] ➔ [{new_str}]")
-                    
-                    merged[date_key]['queues'][q_id] = intervals
+        # Если этот пост новее того, что есть в базе — ЖЕСТКО ПЕРЕЗАПИСЫВАЕМ весь день
+        if new_ts >= old_ts:
+            if date_key not in merged:
+                log(f"  ✨ ДОБАВЛЕН {date_key} (взят пост от {sch['updated_at']})")
+            else:
+                log(f"  🔄 ПЕРЕЗАПИСАН {date_key} (заменен постом от {sch['updated_at']})")
             
-            if changes_for_day:
-                log(f"  📝 ОНОВЛЕНО ДАНІ ДЛЯ ({date_key}):")
-                for change in changes_for_day:
-                    log(f"     {change}")
-                    
-                merged[date_key]['updated_at'] = clean_sch['updated_at']
+            merged[date_key] = copy.deepcopy(sch)
             
-    return list(merged.values())
+    # Убираем служебный _post_timestamp перед сохранением
+    result = []
+    for v in merged.values():
+        if '_post_timestamp' in v:
+            del v['_post_timestamp']
+        result.append(v)
+        
+    return result
 
 def clean_old_schedules(schedules):
     today = get_kiev_time().date()
     cutoff_date = today - timedelta(days=2)
-    
     cleaned = []
     for item in schedules:
         try:
             parts = item['date'].split()
             day = int(parts[0])
-            month_str = parts[1]
-            month = UA_MONTHS.get(month_str, 0)
+            month = UA_MONTHS.get(parts[1], 0)
             now = get_kiev_time()
             year = now.year
             if now.month == 12 and month == 1: year += 1
             elif now.month == 1 and month == 12: year -= 1
-            
-            item_date = datetime(year, month, day).date()
-            if item_date >= cutoff_date:
+            if datetime(year, month, day).date() >= cutoff_date:
                 cleaned.append(item)
         except:
             cleaned.append(item)
@@ -299,23 +286,23 @@ def clean_old_schedules(schedules):
 
 def main():
     old_schedules = load_existing_schedules()
-    log(f"📂 Было записей: {len(old_schedules)}")
+    log(f"📂 Было записей в базе: {len(old_schedules)}")
 
     new_found = []
     for url in CHANNELS:
         log(f"📡 {url}")
         res = parse_channel(url)
         if res: new_found.extend(res)
-        else: log("    ⚠️ Пусто.")
+        else: log("    ⚠️ Пусто или нет графика.")
 
     final_list = merge_schedules(old_schedules, new_found)
 
+    # Сортировка итогового JSON по датам (чтобы сегодня было первым, завтра вторым и т.д.)
     def date_sorter(item):
         try:
             parts = item['date'].split()
             day = int(parts[0])
-            month_str = parts[1]
-            month = UA_MONTHS.get(month_str, 0)
+            month = UA_MONTHS.get(parts[1], 0)
             now = datetime.now()
             year = now.year
             if now.month == 12 and month == 1: year += 1
@@ -324,9 +311,7 @@ def main():
         except: return datetime.now()
 
     final_list.sort(key=date_sorter)
-    
-    final_list = clean_old_schedules(final_list)
-    final_list = final_list[-35:] 
+    final_list = clean_old_schedules(final_list)[-35:]
 
     output_json = {
         "generated_at": get_kiev_time().strftime("%d.%m %H:%M"), 
@@ -337,7 +322,7 @@ def main():
         json.dump(output_json, f, ensure_ascii=False, indent=4)
         
     dates_in_file = [item['date'] for item in final_list]
-    log(f"\n💾 ИТОГ ({len(dates_in_file)} дн): {dates_in_file}")
+    log(f"\n💾 ИТОГ (дней: {len(dates_in_file)}): {dates_in_file}")
 
 if __name__ == "__main__":
     main()
