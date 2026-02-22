@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZOE Parser — Test Tool</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
+
+    header {
+      background: #1a1d27; padding: 16px 24px;
+      border-bottom: 1px solid #2d3047;
+      display: flex; align-items: center; gap: 12px;
+    }
+    header h1 { font-size: 1.15rem; color: #7c8cf8; }
+    header p  { font-size: 0.78rem; color: #555; margin-top: 3px; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    .toolbar {
+      background: #1a1d27; border: 1px solid #2d3047; border-radius: 12px;
+      padding: 16px 20px; margin-bottom: 24px;
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    }
+
+    .proxy-label { font-size: 0.8rem; color: #888; margin-right: 4px; }
+    select {
+      background: #0d0f1a; border: 1px solid #2d3047; color: #e0e0e0;
+      border-radius: 8px; padding: 8px 12px; font-size: 0.85rem; cursor: pointer;
+    }
+
+    button {
+      padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer;
+      font-size: 0.85rem; font-weight: 600; transition: opacity .2s; white-space: nowrap;
+    }
+    button:hover { opacity: .75; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-raw    { background: #3b82f6; color: #fff; }
+    .btn-parsed { background: #10b981; color: #fff; }
+    .btn-wp     { background: #f59e0b; color: #111; }
+    .btn-clear  { background: #374151; color: #ddd; }
+
+    .loader {
+      display: none; width: 28px; height: 28px; margin: 30px auto;
+      border: 3px solid #2d3047; border-top-color: #7c8cf8;
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .card {
+      background: #1a1d27; border: 1px solid #2d3047; border-radius: 12px;
+      margin-bottom: 16px; overflow: hidden;
+    }
+    .card-header {
+      padding: 11px 18px; background: #20233a;
+      font-size: 0.82rem; font-weight: 700; color: #a5b4fc;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    }
+    .card-body { padding: 16px 18px; }
+
+    pre {
+      background: #0d0f1a; border-radius: 8px; padding: 14px;
+      font-size: 0.77rem; line-height: 1.65; white-space: pre-wrap;
+      word-break: break-all; max-height: 460px; overflow-y: auto;
+    }
+
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 20px;
+      font-size: 0.72rem; font-weight: 700;
+    }
+    .b-ok  { background: #10b981; color: #fff; }
+    .b-err { background: #ef4444; color: #fff; }
+    .b-warn{ background: #f59e0b; color: #111; }
+
+    .info-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 10px; margin-bottom: 16px;
+    }
+    .info-box {
+      background: #0d0f1a; border: 1px solid #2d3047; border-radius: 8px;
+      padding: 12px; text-align: center;
+    }
+    .info-box .val { font-size: 1.6rem; font-weight: 700; color: #7c8cf8; }
+    .info-box .lbl { font-size: 0.72rem; color: #666; margin-top: 3px; }
+
+    .img-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .img-grid a { display: block; }
+    .img-grid img {
+      max-width: 180px; max-height: 120px; border-radius: 6px;
+      border: 1px solid #2d3047; object-fit: cover;
+      transition: border-color .2s;
+    }
+    .img-grid img:hover { border-color: #7c8cf8; }
+
+    .article-card {
+      border: 1px solid #2d3047; border-radius: 8px;
+      padding: 12px; margin-bottom: 10px;
+    }
+    .article-title { color: #a5b4fc; font-weight: 700; margin-bottom: 4px; }
+    .article-classes { font-size: 0.72rem; color: #555; margin-bottom: 6px; }
+    .article-text { font-size: 0.8rem; line-height: 1.5; color: #aaa; }
+
+    .link-item {
+      display: flex; gap: 10px; padding: 6px 0;
+      border-bottom: 1px solid #1c1f2e; font-size: 0.8rem;
+    }
+    .link-item:last-child { border-bottom: none; }
+    .link-item a { color: #60a5fa; word-break: break-all; }
+    .link-text { color: #888; min-width: 120px; }
+
+    .empty { color: #555; font-style: italic; font-size: 0.85rem; }
+
+    .wp-endpoint {
+      margin-bottom: 12px; border: 1px solid #2d3047;
+      border-radius: 8px; overflow: hidden;
+    }
+    .wp-url {
+      background: #0d0f1a; padding: 8px 14px;
+      font-size: 0.78rem; color: #60a5fa; word-break: break-all;
+    }
+    .wp-result { padding: 10px 14px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🔍 ZOE Parser — Test Tool</h1>
+    <p>Разведка структуры https://www.zoe.com.ua/outage/</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="toolbar">
+    <span class="proxy-label">CORS Proxy:</span>
+    <select id="proxySelect">
+      <option value="allorigins">allorigins.win</option>
+      <option value="corsproxy">corsproxy.io</option>
+    </select>
+
+    <button class="btn-raw"    id="btnRaw"    onclick="doFetchRaw()">📄 Сырой HTML</button>
+    <button class="btn-parsed" id="btnParsed" onclick="doFetchParsed()">🧩 Распарсить</button>
+    <button class="btn-wp"     id="btnWp"     onclick="doCheckWpApi()">🔌 WP REST API</button>
+    <button class="btn-clear"  onclick="clearAll()">🗑 Очистить</button>
+  </div>
+
+  <div class="loader" id="loader"></div>
+  <div id="results"></div>
+
+</div>
+
+<script>
+  const TARGET = "https://www.zoe.com.ua/outage/";
+
+  /* ── CORS proxies ─────────────────────────────────────────── */
+  async function proxyFetch(url) {
+    const proxy = document.getElementById("proxySelect").value;
+    let apiUrl;
+
+    if (proxy === "allorigins") {
+      apiUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const r = await fetch(apiUrl);
+      if (!r.ok) throw new Error(`allorigins вернул ${r.status}`);
+      const j = await r.json();
+      return { text: j.contents, status: j.status?.http_code ?? "?" };
+    } else {
+      apiUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+      const r = await fetch(apiUrl);
+      return { text: await r.text(), status: r.status };
+    }
+  }
+
+  /* ── helpers ──────────────────────────────────────────────── */
+  function esc(s) {
+    if (!s) return "";
+    return String(s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+  function setLoading(on) {
+    document.getElementById("loader").style.display = on ? "block" : "none";
+    ["btnRaw","btnParsed","btnWp"].forEach(id =>
+      document.getElementById(id).disabled = on
+    );
+  }
+  function addCard(headerHtml, bodyHtml) {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `<div class="card-header">${headerHtml}</div>
+                     <div class="card-body">${bodyHtml}</div>`;
+    document.getElementById("results").appendChild(div);
+  }
+  function clearAll() {
+    document.getElementById("results").innerHTML = "";
+  }
+
+  /* ── 1. Сырой HTML ────────────────────────────────────────── */
+  async function doFetchRaw() {
+    clearAll(); setLoading(true);
+    try {
+      const { text, status } = await proxyFetch(TARGET);
+      const badge = `<span class="badge ${status==200?'b-ok':'b-err'}">${status}</span>`;
+      addCard(`📄 Сырой HTML &nbsp;${badge}`,
+        `<p style="font-size:.82rem;margin-bottom:10px;color:#888">
+           Размер ответа: <b style="color:#e0e0e0">${text.length.toLocaleString()} символов</b>
+         </p>
+         <pre>${esc(text.slice(0, 4000))}${text.length>4000?"\n\n... (обрезано)":""}</pre>`
+      );
+    } catch(e) {
+      addCard(`❌ Ошибка`, `<pre>${esc(e.message)}</pre>`);
+    }
+    setLoading(false);
+  }
+
+  /* ── 2. Распарсить ────────────────────────────────────────── */
+  async function doFetchParsed() {
+    clearAll(); setLoading(true);
+    try {
+      const { text, status } = await proxyFetch(TARGET);
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
+
+      const pageTitle = doc.title || "(нет)";
+
+      /* Статьи */
+      const articleEls = doc.querySelectorAll("article, .post, .entry, [class*='outage'], [class*='post-'], [class*='entry-']");
+      const articles = Array.from(articleEls).slice(0, 10).map(el => ({
+        tag:     el.tagName.toLowerCase(),
+        classes: el.className,
+        title:   (el.querySelector("h1,h2,h3")?.textContent || "").trim().slice(0,120),
+        images:  Array.from(el.querySelectorAll("img")).map(i => i.src || i.getAttribute("src")).filter(Boolean),
+        text:    el.textContent.replace(/\s+/g," ").trim().slice(0,300),
+      }));
+
+      /* Все картинки */
+      const allImgs = Array.from(doc.querySelectorAll("img"))
+        .map(i => ({ src: i.src || i.getAttribute("src") || "", alt: i.alt }))
+        .filter(i => i.src && !i.src.startsWith(""));
+
+      /* Ссылки */
+      const links = Array.from(doc.querySelectorAll("a[href]"))
+        .map(a => ({ href: a.href || a.getAttribute("href"), text: a.textContent.trim().slice(0,70) }))
+        .slice(0,30);
+
+      /* Скрипты с данными */
+      const dataScripts = Array.from(doc.querySelectorAll("script"))
+        .filter(s => s.textContent && /schedule|outage|graph|data|відключ|gpv/i.test(s.textContent))
+        .map(s => s.textContent.trim().slice(0, 400));
+
+      /* Мета */
+      const metas = {};
+      doc.querySelectorAll("meta[name], meta[property]").forEach(m => {
+        const k = m.getAttribute("name") || m.getAttribute("property");
+        if (k && m.getAttribute("content")) metas[k] = m.getAttribute("content");
+      });
+
+      const badge = `<span class="badge ${status==200?'b-ok':'b-warn'}">${status}</span>`;
+
+      /* --- render info grid --- */
+      addCard(`ℹ️ Обзор &nbsp;${badge}`, `
+        <div class="info-grid">
+          <div class="info-box"><div class="val">${status}</div><div class="lbl">HTTP статус</div></div>
+          <div class="info-box"><div class="val">${text.length.toLocaleString()}</div><div class="lbl">Символов в ответе</div></div>
+          <div class="info-box"><div class="val">${articles.length}</div><div class="lbl">Статей/постов</div></div>
+          <div class="info-box"><div class="val">${allImgs.length}</div><div class="lbl">Изображений</div></div>
+          <div class="info-box"><div class="val">${links.length}</div><div class="lbl">Ссылок (первые 30)</div></div>
+          <div class="info-box"><div class="val">${dataScripts.length}</div><div class="lbl">Скриптов с данными</div></div>
+        </div>
+        <p style="font-size:.85rem"><b>Заголовок страницы:</b> ${esc(pageTitle)}</p>
+      `);
+
+      /* --- articles --- */
+      const artHtml = articles.length
+        ? articles.map(a => `
+            <div class="article-card">
+              <div class="article-title">${esc(a.title || "(без заголовка)")}</div>
+              <div class="article-classes">&lt;${a.tag}&gt; · ${esc(a.classes.slice(0,80))}</div>
+              <div class="article-text">${esc(a.text)}</div>
+              ${a.images.length ? `<div class="img-grid">${
+                a.images.map(src=>`<a href="${src}" target="_blank"><img src="${src}" onerror="this.style.display='none'"></a>`).join("")
+              }</div>` : ""}
+            </div>`).join("")
+        : `<p class="empty">Не найдено — попробуй посмотреть "Сырой HTML", возможно структура другая</p>`;
+      addCard(`📝 Статьи / Посты (${articles.length})`, artHtml);
+
+      /* --- images --- */
+      const imgHtml = allImgs.length
+        ? `<div class="img-grid">${
+            allImgs.map(i=>`<a href="${i.src}" target="_blank">
+              <img src="${i.src}" alt="${esc(i.alt)}" title="${esc(i.alt)}" onerror="this.style.display='none'">
+            </a>`).join("")
+          }</div>`
+        : `<p class="empty">Картинок не найдено</p>`;
+      addCard(`🖼 Все изображения (${allImgs.length})`, imgHtml);
+
+      /* --- links --- */
+      const linkHtml = links.length
+        ? links.map(l=>`<div class="link-item">
+            <span class="link-text">${esc(l.text||"—")}</span>
+            <a href="${l.href}" target="_blank">${esc(l.href)}</a>
+          </div>`).join("")
+        : `<p class="empty">Ссылок не найдено</p>`;
+      addCard(`🔗 Ссылки (первые 30)`, linkHtml);
+
+      /* --- scripts --- */
+      addCard(`📦 Скрипты с данными (${dataScripts.length})`,
+        dataScripts.length
+          ? `<pre>${dataScripts.map(s=>esc(s)).join("\n\n─────────────\n\n")}</pre>`
+          : `<p class="empty">Нет скриптов со словами: schedule, outage, graph, data, відключ</p>`
+      );
+
+      /* --- metas --- */
+      addCard(`🏷 Meta-теги`,
+        `<pre>${esc(JSON.stringify(metas, null, 2))}</pre>`
+      );
+
+    } catch(e) {
+      addCard(`❌ Ошибка`, `<pre>${esc(e.message)}</pre>`);
+    }
+    setLoading(false);
+  }
+
+  /* ── 3. WP REST API ───────────────────────────────────────── */
+  async function doCheckWpApi() {
+    clearAll(); setLoading(true);
+    const endpoints = [
+      "https://www.zoe.com.ua/wp-json/",
+      "https://www.zoe.com.ua/wp-json/wp/v2/posts?per_page=3",
+      "https://www.zoe.com.ua/wp-json/wp/v2/categories",
+    ];
+
+    let bodyHtml = "";
+    for (const url of endpoints) {
+      try {
+        const { text, status } = await proxyFetch(url);
+        let preview = text.slice(0, 600);
+        let isJson = false;
+        try { JSON.parse(text); isJson = true; } catch {}
+        const badge = `<span class="badge ${status==200?'b-ok':'b-err'}">${status}</span>`;
+        const jsonBadge = isJson
+          ? `<span class="badge b-ok" style="margin-left:6px">✅ JSON</span>`
+          : `<span class="badge b-warn" style="margin-left:6px">⚠️ не JSON</span>`;
+        bodyHtml += `<div class="wp-endpoint">
+          <div class="wp-url">${esc(url)} &nbsp;${badge}${jsonBadge}</div>
+          <div class="wp-result"><pre>${esc(preview)}${text.length>600?"\n...(обрезано)":""}</pre></div>
+        </div>`;
+      } catch(e) {
+        bodyHtml += `<div class="wp-endpoint">
+          <div class="wp-url">${esc(url)}</div>
+          <div class="wp-result"><pre style="color:#ef4444">${esc(e.message)}</pre></div>
+        </div>`;
+      }
+    }
+    addCard("🔌 WordPress REST API", bodyHtml);
+    setLoading(false);
+  }
+</script>
+</body>
+</html>
